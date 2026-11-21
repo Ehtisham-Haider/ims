@@ -123,7 +123,7 @@ public class MainShellView {
             setActiveAddShortcutHandler(null);
             setActiveSearchShortcutHandler(null);
             setActiveDeleteShortcutHandler(null);
-            return new MlRadarView(services).build();
+            return new AiAssistantView(services, toastManager).build();
         });
     }
 
