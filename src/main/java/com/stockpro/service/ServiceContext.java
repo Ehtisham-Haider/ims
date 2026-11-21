@@ -1,9 +1,11 @@
 package com.stockpro.service;
 
+import com.stockpro.ai.AgenticOrchestratorService;
 import com.stockpro.ai.AiAssistantService;
 import com.stockpro.ai.GroqApiClient;
 import com.stockpro.dsa.CatalogSearchEngine;
 import com.stockpro.ml.OfflineMlEngine;
+import com.stockpro.repository.AgentProposalRepository;
 import com.stockpro.repository.AuditLogRepository;
 import com.stockpro.repository.DatabaseManager;
 import com.stockpro.repository.ProductRepository;
@@ -30,6 +32,7 @@ public class ServiceContext {
     private final AuditLogRepository auditLogRepository;
     private final SupplierRepository supplierRepository;
     private final PurchaseOrderRepository purchaseOrderRepository;
+    private final AgentProposalRepository agentProposalRepository;
     private final InventoryService inventoryService;
     private final AuthService authService;
     private final AuditService auditService;
@@ -40,6 +43,7 @@ public class ServiceContext {
     private final OfflineMlEngine offlineMlEngine;
     private final GroqApiClient groqApiClient;
     private final AiAssistantService aiAssistantService;
+    private final AgenticOrchestratorService agenticOrchestratorService;
 
     /**
      * Constructs a service registry bound to a specific {@link DatabaseManager}.
@@ -55,6 +59,7 @@ public class ServiceContext {
         this.auditLogRepository = new AuditLogRepository(databaseManager);
         this.supplierRepository = new SupplierRepository(databaseManager);
         this.purchaseOrderRepository = new PurchaseOrderRepository(databaseManager);
+        this.agentProposalRepository = new AgentProposalRepository(databaseManager);
         this.inventoryService = new InventoryService(
                 productRepository,
                 new CommandHistoryManager(),
@@ -84,6 +89,15 @@ public class ServiceContext {
                 productRepository,
                 supplierRepository,
                 offlineMlEngine
+        );
+        this.agenticOrchestratorService = new AgenticOrchestratorService(
+                agentProposalRepository,
+                productRepository,
+                supplierRepository,
+                supplierOrderService,
+                offlineMlEngine,
+                auditService,
+                InventoryEventBus.getInstance()
         );
         syncSessionSettings();
     }
@@ -270,5 +284,23 @@ public class ServiceContext {
      */
     public AiAssistantService getAiAssistantService() {
         return aiAssistantService;
+    }
+
+    /**
+     * Returns the agent proposal repository.
+     *
+     * @return {@link AgentProposalRepository}
+     */
+    public AgentProposalRepository getAgentProposalRepository() {
+        return agentProposalRepository;
+    }
+
+    /**
+     * Returns the autonomous agentic orchestrator and approval safety queue service.
+     *
+     * @return {@link AgenticOrchestratorService}
+     */
+    public AgenticOrchestratorService getAgenticOrchestratorService() {
+        return agenticOrchestratorService;
     }
 }

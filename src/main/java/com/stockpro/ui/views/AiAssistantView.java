@@ -88,12 +88,13 @@ public class AiAssistantView {
     }
 
     /**
-     * Hook allowing Branch 10 to attach the Human Approval Inbox tab seamlessly.
+     * Attaches the Human Approval Safety Inbox tab alongside Chat Studio and ML Radar.
      *
      * @param tabPane host tab pane
      */
     protected void appendExtraTabs(TabPane tabPane) {
-        // Extended in Branch 10 with ApprovalInboxView.
+        tabPane.getTabs().add(new Tab("✅ Approval Inbox",
+                new ApprovalInboxView(services, toastManager).build()));
     }
 
     /**
