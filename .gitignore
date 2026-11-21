@@ -1,0 +1,38 @@
+# Compiled artifacts and Maven output
+target/
+*.jar
+*.war
+*.ear
+
+# Local SQLite database files, backups, and exports
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+data/
+backups/
+exports/
+logs/
+*.log
+
+# Environment secrets and API keys
+.env
+.env.*
+
+# Internal planning, tracking, and visual reference assets
+local-docs/
+VERSION_1_FEATURES.md
+Screens and popups/
+screen and popus/
+
+# IDE and OS generated files
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+nbactions.xml
+nb-configuration.xml
+.DS_Store
+Thumbs.db
