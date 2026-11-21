@@ -1,0 +1,27 @@
+package com.stockpro;
+
+/**
+ * Non-JavaFX launcher wrapper allowing seamless execution from IDEs and shaded archives.
+ *
+ * @author Ehtisham Haider, Syed Ahmed
+ */
+public final class Launcher {
+
+    /**
+     * Prevents instantiation of launcher entrypoint class.
+     *
+     * @author Ehtisham Haider, Syed Ahmed
+     */
+    private Launcher() {
+    }
+
+    /**
+     * Delegates application startup to {@link StockProApp#main(String[])}.
+     *
+     * @param args command-line arguments
+     * @author Ehtisham Haider, Syed Ahmed
+     */
+    public static void main(String[] args) {
+        StockProApp.main(args);
+    }
+}
