@@ -94,6 +94,7 @@ public class MainShellView {
         for (NavigationSection section : NavigationSection.values()) {
             viewFactories.put(section, () -> createSectionPlaceholder(section));
         }
+        viewFactories.put(NavigationSection.DASHBOARD, () -> new DashboardView(services, this::navigateTo).build());
     }
 
     /**
