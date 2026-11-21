@@ -44,6 +44,10 @@ public class ServiceContext {
     private final GroqApiClient groqApiClient;
     private final AiAssistantService aiAssistantService;
     private final AgenticOrchestratorService agenticOrchestratorService;
+    private final BarcodeLabelService barcodeLabelService;
+    private final UsbBarcodeScannerListener usbBarcodeScannerListener;
+    private final SpreadsheetImportExportService spreadsheetImportExportService;
+    private final ExecutivePdfReportGenerator executivePdfReportGenerator;
 
     /**
      * Constructs a service registry bound to a specific {@link DatabaseManager}.
@@ -98,6 +102,15 @@ public class ServiceContext {
                 offlineMlEngine,
                 auditService,
                 InventoryEventBus.getInstance()
+        );
+        this.barcodeLabelService = new BarcodeLabelService();
+        this.usbBarcodeScannerListener = new UsbBarcodeScannerListener(productRepository, stockOperationService);
+        this.spreadsheetImportExportService = new SpreadsheetImportExportService(inventoryService);
+        this.executivePdfReportGenerator = new ExecutivePdfReportGenerator(
+                productRepository,
+                new DashboardMetricsService(databaseManager, productRepository),
+                financeService,
+                aiAssistantService
         );
         syncSessionSettings();
     }
@@ -302,5 +315,41 @@ public class ServiceContext {
      */
     public AgenticOrchestratorService getAgenticOrchestratorService() {
         return agenticOrchestratorService;
+    }
+
+    /**
+     * Returns the ZXing barcode and QR label service.
+     *
+     * @return {@link BarcodeLabelService}
+     */
+    public BarcodeLabelService getBarcodeLabelService() {
+        return barcodeLabelService;
+    }
+
+    /**
+     * Returns the keyboard-wedge USB barcode scanner listener.
+     *
+     * @return {@link UsbBarcodeScannerListener}
+     */
+    public UsbBarcodeScannerListener getUsbBarcodeScannerListener() {
+        return usbBarcodeScannerListener;
+    }
+
+    /**
+     * Returns the Apache POI Excel and CSV import/export service.
+     *
+     * @return {@link SpreadsheetImportExportService}
+     */
+    public SpreadsheetImportExportService getSpreadsheetImportExportService() {
+        return spreadsheetImportExportService;
+    }
+
+    /**
+     * Returns the OpenPDF executive business report generator.
+     *
+     * @return {@link ExecutivePdfReportGenerator}
+     */
+    public ExecutivePdfReportGenerator getExecutivePdfReportGenerator() {
+        return executivePdfReportGenerator;
     }
 }
