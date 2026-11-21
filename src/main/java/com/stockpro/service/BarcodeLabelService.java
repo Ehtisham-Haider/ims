@@ -116,67 +116,68 @@ public class BarcodeLabelService {
                 Files.createDirectories(outputPdf.getParent());
             }
             AppSession session = AppSession.getInstance();
-            Document doc = new Document(PageSize.A4, 24, 24, 28, 24);
-            PdfWriter.getInstance(doc, new FileOutputStream(outputPdf.toFile()));
-            doc.open();
+            try (FileOutputStream fos = new FileOutputStream(outputPdf.toFile());
+                 Document doc = new Document(PageSize.A4, 24, 24, 28, 24)) {
+                PdfWriter.getInstance(doc, fos);
+                doc.open();
 
-            Font titleFont = new Font(Font.HELVETICA, 14, Font.BOLD, new Color(23, 28, 46));
-            Font labelFont = new Font(Font.HELVETICA, 10, Font.BOLD, new Color(15, 23, 42));
-            Font skuFont = new Font(Font.COURIER, 9, Font.BOLD, new Color(71, 85, 105));
+                Font titleFont = new Font(Font.HELVETICA, 14, Font.BOLD, new Color(23, 28, 46));
+                Font labelFont = new Font(Font.HELVETICA, 10, Font.BOLD, new Color(15, 23, 42));
+                Font skuFont = new Font(Font.COURIER, 9, Font.BOLD, new Color(71, 85, 105));
 
-            Paragraph header = new Paragraph(session.getStoreName() + " — Barcode & QR Sticker Sheet", titleFont);
-            header.setSpacingAfter(12);
-            doc.add(header);
+                Paragraph header = new Paragraph(session.getStoreName() + " — Barcode & QR Sticker Sheet", titleFont);
+                header.setSpacingAfter(12);
+                doc.add(header);
 
-            PdfPTable grid = new PdfPTable(2);
-            grid.setWidthPercentage(100);
+                PdfPTable grid = new PdfPTable(2);
+                grid.setWidthPercentage(100);
 
-            for (Product p : products) {
-                PdfPCell cell = new PdfPCell();
-                cell.setPadding(10);
-                cell.setBorderColor(new Color(203, 213, 225));
+                for (Product p : products) {
+                    PdfPCell cell = new PdfPCell();
+                    cell.setPadding(10);
+                    cell.setBorderColor(new Color(203, 213, 225));
 
-                Paragraph nameP = new Paragraph(p.getName() + "  (" + session.formatMoney(p.getSellPrice()) + ")", labelFont);
-                nameP.setAlignment(Element.ALIGN_CENTER);
-                nameP.setSpacingAfter(4);
-                cell.addElement(nameP);
+                    Paragraph nameP = new Paragraph(p.getName() + "  (" + session.formatMoney(p.getSellPrice()) + ")", labelFont);
+                    nameP.setAlignment(Element.ALIGN_CENTER);
+                    nameP.setSpacingAfter(4);
+                    cell.addElement(nameP);
 
-                PdfPTable inner = new PdfPTable(2);
-                inner.setWidthPercentage(100);
-                inner.setWidths(new float[]{1.8f, 1.0f});
+                    PdfPTable inner = new PdfPTable(2);
+                    inner.setWidthPercentage(100);
+                    inner.setWidths(new float[]{1.8f, 1.0f});
 
-                String barcodeText = p.getBarcode() != null && !p.getBarcode().isBlank() ? p.getBarcode() : p.getSku();
-                Image barcodeImg = Image.getInstance(generateCode128Png(barcodeText, 220, 64));
-                barcodeImg.scaleToFit(140, 44);
-                PdfPCell bCell = new PdfPCell();
-                bCell.setBorder(0);
-                bCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-                bCell.addElement(barcodeImg);
-                Paragraph codeP = new Paragraph(barcodeText, skuFont);
-                codeP.setAlignment(Element.ALIGN_CENTER);
-                bCell.addElement(codeP);
+                    String barcodeText = p.getBarcode() != null && !p.getBarcode().isBlank() ? p.getBarcode() : p.getSku();
+                    Image barcodeImg = Image.getInstance(generateCode128Png(barcodeText, 220, 64));
+                    barcodeImg.scaleToFit(140, 44);
+                    PdfPCell bCell = new PdfPCell();
+                    bCell.setBorder(0);
+                    bCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                    bCell.addElement(barcodeImg);
+                    Paragraph codeP = new Paragraph(barcodeText, skuFont);
+                    codeP.setAlignment(Element.ALIGN_CENTER);
+                    bCell.addElement(codeP);
 
-                Image qrImg = Image.getInstance(generateQrCodePng(buildQrPayload(p), 120));
-                qrImg.scaleToFit(58, 58);
-                PdfPCell qCell = new PdfPCell(qrImg);
-                qCell.setBorder(0);
-                qCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-                qCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+                    Image qrImg = Image.getInstance(generateQrCodePng(buildQrPayload(p), 120));
+                    qrImg.scaleToFit(58, 58);
+                    PdfPCell qCell = new PdfPCell(qrImg);
+                    qCell.setBorder(0);
+                    qCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                    qCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
 
-                inner.addCell(bCell);
-                inner.addCell(qCell);
-                cell.addElement(inner);
-                grid.addCell(cell);
+                    inner.addCell(bCell);
+                    inner.addCell(qCell);
+                    cell.addElement(inner);
+                    grid.addCell(cell);
+                }
+
+                if (products.size() % 2 != 0) {
+                    PdfPCell filler = new PdfPCell(new Phrase(""));
+                    filler.setBorder(0);
+                    grid.addCell(filler);
+                }
+
+                doc.add(grid);
             }
-
-            if (products.size() % 2 != 0) {
-                PdfPCell filler = new PdfPCell(new Phrase(""));
-                filler.setBorder(0);
-                grid.addCell(filler);
-            }
-
-            doc.add(grid);
-            doc.close();
             return outputPdf;
         } catch (Exception ex) {
             throw new IllegalStateException("Failed to export sticker sheet PDF", ex);

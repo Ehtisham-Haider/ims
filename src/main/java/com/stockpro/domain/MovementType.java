@@ -29,7 +29,6 @@ public enum MovementType {
      * Creates a stock movement type constant.
      *
      * @param displayName friendly operation label
-     * @author Ehtisham Haider, Syed Ahmed
      */
     MovementType(String displayName) {
         this.displayName = displayName;
@@ -39,7 +38,6 @@ public enum MovementType {
      * Returns the display label for tables and badges.
      *
      * @return movement type label
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public String getDisplayName() {
         return displayName;
@@ -50,7 +48,6 @@ public enum MovementType {
      *
      * @param value stored movement identifier
      * @return matching {@link MovementType}, or {@link #ADJUSTMENT} if unrecognized
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public static MovementType fromString(String value) {
         if (value == null || value.isBlank()) {

@@ -22,7 +22,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
-import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableCell;
@@ -234,7 +233,6 @@ public class SettingsView {
      *
      * @return staff management panel
      */
-    @SuppressWarnings("unchecked")
     private Node buildStaffTab() {
         VBox box = new VBox(14);
         box.setPadding(new Insets(14, 4, 14, 0));
@@ -256,7 +254,7 @@ public class SettingsView {
         rCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getRole().getDisplayName()));
         TableColumn<User, String> aCol = new TableColumn<>("Status");
         aCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().isActive() ? "Active" : "Disabled"));
-        table.getColumns().addAll(uCol, fCol, rCol, aCol);
+        table.getColumns().addAll(List.of(uCol, fCol, rCol, aCol));
 
         TextField newUsername = new TextField();
         newUsername.setPromptText("Username");
@@ -405,7 +403,6 @@ public class SettingsView {
      *
      * @return Lab Viva QA runner panel
      */
-    @SuppressWarnings("unchecked")
     private Node buildLabQaTab() {
         VBox box = new VBox(14);
         box.setPadding(new Insets(14, 4, 14, 0));
@@ -456,7 +453,7 @@ public class SettingsView {
             }
         });
 
-        table.getColumns().addAll(numCol, nameCol, expCol, actCol, statusCol);
+        table.getColumns().addAll(List.of(numCol, nameCol, expCol, actCol, statusCol));
         box.getChildren().addAll(hdr, table);
         return box;
     }

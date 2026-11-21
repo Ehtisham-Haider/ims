@@ -19,59 +19,121 @@ public class Supplier {
 
     /**
      * Creates a new supplier entity with default delivery lead time and reliability score.
-     *
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public Supplier() {
         this.createdAt = LocalDateTime.now();
     }
 
-    /** @return supplier id @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the supplier database identifier.
+     *
+     * @return supplier id
+     */
     public long getId() { return id; }
 
-    /** @param id supplier id @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the supplier database identifier.
+     *
+     * @param id supplier id
+     */
     public void setId(long id) { this.id = id; }
 
-    /** @return supplier business name @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the supplier business name.
+     *
+     * @return supplier business name
+     */
     public String getName() { return name; }
 
-    /** @param name supplier business name @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the supplier business name.
+     *
+     * @param name supplier business name
+     */
     public void setName(String name) { this.name = name; }
 
-    /** @return supplier phone number @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the supplier phone number.
+     *
+     * @return supplier phone number
+     */
     public String getPhone() { return phone; }
 
-    /** @param phone supplier phone number @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the supplier phone number.
+     *
+     * @param phone supplier phone number
+     */
     public void setPhone(String phone) { this.phone = phone; }
 
-    /** @return supplier contact email @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the supplier contact email.
+     *
+     * @return supplier contact email
+     */
     public String getEmail() { return email; }
 
-    /** @param email supplier contact email @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the supplier contact email.
+     *
+     * @param email supplier contact email
+     */
     public void setEmail(String email) { this.email = email; }
 
-    /** @return average lead time in days @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the average delivery lead time in days.
+     *
+     * @return average lead time in days
+     */
     public int getDeliveryDays() { return deliveryDays; }
 
-    /** @param deliveryDays average lead time in days @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the average delivery lead time in days.
+     *
+     * @param deliveryDays average lead time in days
+     */
     public void setDeliveryDays(int deliveryDays) { this.deliveryDays = deliveryDays; }
 
-    /** @return reliability percentage (0..100) @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the supplier reliability score percentage.
+     *
+     * @return reliability percentage (0..100)
+     */
     public double getReliabilityScore() { return reliabilityScore; }
 
-    /** @param reliabilityScore reliability percentage (0..100) @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the supplier reliability score percentage.
+     *
+     * @param reliabilityScore reliability percentage (0..100)
+     */
     public void setReliabilityScore(double reliabilityScore) { this.reliabilityScore = reliabilityScore; }
 
-    /** @return comma-separated product categories supplied @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns comma-separated product categories supplied by this vendor.
+     *
+     * @return comma-separated product categories supplied
+     */
     public String getLinkedCategories() { return linkedCategories; }
 
-    /** @param linkedCategories comma-separated product categories supplied @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets comma-separated product categories supplied by this vendor.
+     *
+     * @param linkedCategories comma-separated product categories supplied
+     */
     public void setLinkedCategories(String linkedCategories) { this.linkedCategories = linkedCategories; }
 
-    /** @return creation timestamp @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the creation timestamp.
+     *
+     * @return creation timestamp
+     */
     public LocalDateTime getCreatedAt() { return createdAt; }
 
-    /** @param createdAt creation timestamp @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the creation timestamp.
+     *
+     * @param createdAt creation timestamp
+     */
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
     @Override

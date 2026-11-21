@@ -9,8 +9,6 @@ public final class Launcher {
 
     /**
      * Prevents instantiation of launcher entrypoint class.
-     *
-     * @author Ehtisham Haider, Syed Ahmed
      */
     private Launcher() {
     }
@@ -19,7 +17,6 @@ public final class Launcher {
      * Delegates application startup to {@link StockProApp#main(String[])}.
      *
      * @param args command-line arguments
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public static void main(String[] args) {
         StockProApp.main(args);

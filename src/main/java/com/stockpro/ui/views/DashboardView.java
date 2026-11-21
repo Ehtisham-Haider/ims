@@ -28,6 +28,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -313,7 +314,7 @@ public class DashboardView {
             salesSeries.getData().add(new XYChart.Data<>(pt.dayLabel(), pt.salesRevenue()));
             profitSeries.getData().add(new XYChart.Data<>(pt.dayLabel(), pt.profitAmount()));
         }
-        trendChart.getData().setAll(salesSeries, profitSeries);
+        trendChart.getData().setAll(List.of(salesSeries, profitSeries));
 
         for (XYChart.Series<String, Number> series : trendChart.getData()) {
             for (XYChart.Data<String, Number> data : series.getData()) {

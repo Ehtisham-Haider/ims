@@ -7,7 +7,6 @@ import com.stockpro.domain.StockMovement;
 import com.stockpro.service.AppSession;
 import com.stockpro.service.AuditService;
 import com.stockpro.service.InventoryEventBus;
-import com.stockpro.service.InventoryOperationResult;
 import com.stockpro.service.ServiceContext;
 import com.stockpro.service.StockOperationService;
 import com.stockpro.ui.components.ToastNotificationManager;
@@ -222,7 +221,6 @@ public class StockOperationsView {
      *
      * @return styled right ledger panel
      */
-    @SuppressWarnings("unchecked")
     private VBox buildRightLedgerPanel() {
         VBox wrapper = new VBox(14);
 
@@ -264,7 +262,7 @@ public class StockOperationsView {
         TableColumn<StockMovement, String> reasonCol = new TableColumn<>("Reason");
         reasonCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getReason()));
 
-        moveTable.getColumns().addAll(timeCol, prodCol, typeCol, deltaCol, userCol, reasonCol);
+        moveTable.getColumns().addAll(List.of(timeCol, prodCol, typeCol, deltaCol, userCol, reasonCol));
 
         // Tab 2: FEFO Expiry Tracker
         TableView<Product> fefoTable = new TableView<>(expiringProducts);
@@ -307,7 +305,7 @@ public class StockOperationsView {
                 setGraphic(pill);
             }
         });
-        fefoTable.getColumns().addAll(fSku, fName, fQty, fExp, fUrgency);
+        fefoTable.getColumns().addAll(List.of(fSku, fName, fQty, fExp, fUrgency));
 
         // Tab 3: Damaged Goods Quarantine
         TableView<Product> dmgTable = new TableView<>(damagedProducts);
@@ -320,7 +318,7 @@ public class StockOperationsView {
         dSellable.setCellValueFactory(c -> new SimpleStringProperty(String.valueOf(c.getValue().getQuantity())));
         TableColumn<Product, String> dDamaged = new TableColumn<>("Damaged / Quarantine Qty");
         dDamaged.setCellValueFactory(c -> new SimpleStringProperty(String.valueOf(c.getValue().getDamagedQty())));
-        dmgTable.getColumns().addAll(dSku, dName, dSellable, dDamaged);
+        dmgTable.getColumns().addAll(List.of(dSku, dName, dSellable, dDamaged));
 
         // Tab 4: SHA-256 Audit Log
         TableView<AuditLogEntry> auditTable = new TableView<>(auditEntries);
@@ -336,7 +334,7 @@ public class StockOperationsView {
         TableColumn<AuditLogEntry, String> aHash = new TableColumn<>("SHA-256 Seal");
         aHash.setCellValueFactory(c -> new SimpleStringProperty(
                 c.getValue().getCurrHash() != null ? c.getValue().getCurrHash().substring(0, 14) + "…" : ""));
-        auditTable.getColumns().addAll(aAct, aActor, aRef, aDetails, aHash);
+        auditTable.getColumns().addAll(List.of(aAct, aActor, aRef, aDetails, aHash));
 
         tabs.getTabs().addAll(
                 new Tab("Recent Movements", moveTable),

@@ -1,7 +1,6 @@
 package com.stockpro.service;
 
 import com.stockpro.domain.MovementType;
-import com.stockpro.domain.Product;
 import com.stockpro.domain.StockStatus;
 import com.stockpro.dsa.CatalogSearchEngine;
 import com.stockpro.repository.DatabaseManager;

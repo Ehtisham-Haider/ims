@@ -12,8 +12,6 @@ public final class AppLogger {
 
     /**
      * Prevents instantiation of utility class.
-     *
-     * @author Ehtisham Haider, Syed Ahmed
      */
     private AppLogger() {
     }
@@ -23,7 +21,6 @@ public final class AppLogger {
      *
      * @param owner owning class requesting a logger
      * @return configured SLF4J {@link Logger}
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public static Logger get(Class<?> owner) {
         return LoggerFactory.getLogger(owner);

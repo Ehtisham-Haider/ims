@@ -4,7 +4,6 @@ import com.stockpro.domain.Product;
 import com.stockpro.dsa.CatalogSearchEngine;
 import com.stockpro.repository.DatabaseManager;
 import com.stockpro.repository.ProductRepository;
-import com.stockpro.service.command.CommandHistoryManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

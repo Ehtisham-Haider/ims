@@ -38,7 +38,6 @@ public final class DatabaseManager implements AutoCloseable {
      *
      * @param jdbcUrl SQLite JDBC connection string
      * @param databaseFilePath optional local file path for disk-backed databases
-     * @author Ehtisham Haider, Syed Ahmed
      */
     private DatabaseManager(String jdbcUrl, Path databaseFilePath) {
         this.jdbcUrl = jdbcUrl;
@@ -53,7 +52,6 @@ public final class DatabaseManager implements AutoCloseable {
      * Returns the application-wide singleton {@link DatabaseManager}, initializing the local SQLite database on first use.
      *
      * @return active singleton {@link DatabaseManager}
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public static DatabaseManager getInstance() {
         if (instance == null) {
@@ -72,7 +70,6 @@ public final class DatabaseManager implements AutoCloseable {
      *
      * @param testDbFile path to the temporary SQLite database file
      * @return standalone {@link DatabaseManager} configured for testing
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public static DatabaseManager createForFile(Path testDbFile) {
         Path absPath = testDbFile.toAbsolutePath();
@@ -83,7 +80,6 @@ public final class DatabaseManager implements AutoCloseable {
      * Ensures parent directories exist before opening a file-backed SQLite database.
      *
      * @param filePath target SQLite file path
-     * @author Ehtisham Haider, Syed Ahmed
      */
     private void ensureParentDirectory(Path filePath) {
         if (filePath != null && filePath.getParent() != null) {
@@ -100,7 +96,6 @@ public final class DatabaseManager implements AutoCloseable {
      *
      * @param url JDBC URL
      * @return configured {@link HikariDataSource}
-     * @author Ehtisham Haider, Syed Ahmed
      */
     private HikariDataSource createPool(String url) {
         HikariConfig config = new HikariConfig();
@@ -119,7 +114,6 @@ public final class DatabaseManager implements AutoCloseable {
      *
      * @return open {@link Connection}
      * @throws SQLException if a connection cannot be acquired
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public Connection getConnection() throws SQLException {
         return dataSource.getConnection();
@@ -129,7 +123,6 @@ public final class DatabaseManager implements AutoCloseable {
      * Returns the configured SQLite JDBC URL.
      *
      * @return JDBC connection URL
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public String getJdbcUrl() {
         return jdbcUrl;
@@ -139,7 +132,6 @@ public final class DatabaseManager implements AutoCloseable {
      * Returns the path to the backing SQLite database file, if disk-backed.
      *
      * @return database file {@link Path}, or {@code null}
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public Path getDatabaseFilePath() {
         return databaseFilePath;
@@ -147,8 +139,6 @@ public final class DatabaseManager implements AutoCloseable {
 
     /**
      * Creates all core Version 1 tables and performance indexes if they do not already exist.
-     *
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public void initializeSchema() {
         String[] statements = {
@@ -283,8 +273,6 @@ public final class DatabaseManager implements AutoCloseable {
 
     /**
      * Populates default application settings and built-in staff accounts if missing.
-     *
-     * @author Ehtisham Haider, Syed Ahmed
      */
     private void seedDefaults() {
         String now = LocalDateTime.now().toString();
@@ -324,7 +312,6 @@ public final class DatabaseManager implements AutoCloseable {
      * @param conn active JDBC connection
      * @param timestamp current timestamp string
      * @throws SQLException if querying or inserting users fails
-     * @author Ehtisham Haider, Syed Ahmed
      */
     private void seedDefaultUsersIfEmpty(Connection conn, String timestamp) throws SQLException {
         try (Statement checkStmt = conn.createStatement();
@@ -359,8 +346,6 @@ public final class DatabaseManager implements AutoCloseable {
 
     /**
      * Closes the HikariCP connection pool cleanly.
-     *
-     * @author Ehtisham Haider, Syed Ahmed
      */
     @Override
     public void close() {

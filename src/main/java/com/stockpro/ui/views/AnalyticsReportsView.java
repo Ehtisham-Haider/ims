@@ -100,7 +100,6 @@ public class AnalyticsReportsView {
      *
      * @return JavaFX node
      */
-    @SuppressWarnings("unchecked")
     public Node build() {
         VBox page = new VBox(18);
         page.setPadding(new Insets(0, 4, 16, 0));
@@ -188,7 +187,7 @@ public class AnalyticsReportsView {
         TableColumn<Product, String> pVal = new TableColumn<>("Value");
         pVal.setCellValueFactory(c -> new SimpleStringProperty(
                 AppSession.getInstance().formatMoney(c.getValue().getRetailValuation())));
-        topTable.getColumns().addAll(pName, pQty, pVal);
+        topTable.getColumns().addAll(List.of(pName, pQty, pVal));
         topProdCard.getChildren().addAll(tpTitle, topTable);
 
         HBox midRow = new HBox(16, trendCard, catCard, topProdCard);
@@ -371,7 +370,7 @@ public class AnalyticsReportsView {
                 s1.getData().add(new XYChart.Data<>(pt.dayLabel(), pt.salesRevenue()));
                 s2.getData().add(new XYChart.Data<>(pt.dayLabel(), pt.profitAmount()));
             }
-            profitTrendChart.getData().setAll(s1, s2);
+            profitTrendChart.getData().setAll(List.of(s1, s2));
 
             // Category donut
             Map<String, Double> catTotals = new LinkedHashMap<>();

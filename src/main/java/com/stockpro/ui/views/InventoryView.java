@@ -230,7 +230,6 @@ public class InventoryView {
      *
      * @return styled table container
      */
-    @SuppressWarnings("unchecked")
     private VBox buildTableCard() {
         VBox card = new VBox(12);
         card.getStyleClass().add("card");
@@ -378,9 +377,9 @@ public class InventoryView {
             }
         });
 
-        tableView.getColumns().addAll(
+        tableView.getColumns().addAll(List.of(
                 selectCol, imgCol, skuCol, nameCol, catCol, qtyCol, buyCol, sellCol, expCol, statusCol, actionCol
-        );
+        ));
 
         tableView.setOnMouseClicked(e -> {
             if (e.getClickCount() == 1 && tableView.getSelectionModel().getSelectedItem() != null) {
