@@ -1,5 +1,6 @@
 package com.stockpro.service;
 
+import com.stockpro.domain.InventoryFilterCriteria;
 import com.stockpro.domain.Product;
 import com.stockpro.domain.StockStatus;
 import com.stockpro.domain.ValidationResult;
@@ -9,7 +10,10 @@ import com.stockpro.service.command.CommandHistoryManager;
 import com.stockpro.service.command.DeleteProductCommand;
 import com.stockpro.service.command.UpdateProductCommand;
 
+import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -311,5 +315,135 @@ public class InventoryService {
      */
     public ProductRepository getProductRepository() {
         return productRepository;
+    }
+
+    /**
+     * Filters active products using status chip, category, search query, and optional price ceiling.
+     *
+     * @param criteria active {@link InventoryFilterCriteria}
+     * @return filtered list of matching products
+     */
+    public List<Product> filterProducts(InventoryFilterCriteria criteria) {
+        InventoryFilterCriteria active = criteria != null ? criteria : new InventoryFilterCriteria();
+        LocalDate expiryHorizon = LocalDate.now().plusDays(30);
+        String queryLower = active.getSearchQuery().toLowerCase(Locale.ROOT);
+        String cat = active.getCategory();
+
+        return getAllProducts().stream().filter(p -> {
+            boolean matchesChip = switch (active.getStatusChip()) {
+                case ALL -> true;
+                case IN_STOCK -> p.getStatus() == StockStatus.IN_STOCK;
+                case LOW_STOCK -> p.getStatus() == StockStatus.LOW_STOCK;
+                case OUT_OF_STOCK -> p.getStatus() == StockStatus.OUT_OF_STOCK;
+                case EXPIRING -> p.getExpiryDate() != null && !p.getExpiryDate().isAfter(expiryHorizon);
+            };
+            if (!matchesChip) {
+                return false;
+            }
+            if (cat != null && !"All Categories".equalsIgnoreCase(cat)) {
+                if (p.getCategory() == null || !p.getCategory().equalsIgnoreCase(cat)) {
+                    return false;
+                }
+            }
+            if (active.getMaxSellPrice() != null && p.getSellPrice() > active.getMaxSellPrice()) {
+                return false;
+            }
+            if (!queryLower.isEmpty()) {
+                boolean nameHit = p.getName() != null && p.getName().toLowerCase(Locale.ROOT).contains(queryLower);
+                boolean skuHit = p.getSku() != null && p.getSku().toLowerCase(Locale.ROOT).contains(queryLower);
+                boolean tagHit = p.getTags() != null && p.getTags().toLowerCase(Locale.ROOT).contains(queryLower);
+                boolean catHit = p.getCategory() != null && p.getCategory().toLowerCase(Locale.ROOT).contains(queryLower);
+                return nameHit || skuHit || tagHit || catHit;
+            }
+            return true;
+        }).toList();
+    }
+
+    /**
+     * Updates the stock status of multiple selected products in bulk.
+     *
+     * @param productIds collection of product IDs
+     * @param newStatus target {@link StockStatus}
+     * @param authorized whether the current role permits bulk status overrides
+     * @return count of updated products wrapped in an {@link InventoryOperationResult}
+     */
+    public InventoryOperationResult<Integer> bulkUpdateStatus(
+            Collection<Long> productIds, StockStatus newStatus, boolean authorized) {
+        if (!authorized) {
+            return InventoryOperationResult.fail("Only Owner or Manager may perform bulk status updates.");
+        }
+        if (productIds == null || productIds.isEmpty()) {
+            return InventoryOperationResult.fail("No items selected.");
+        }
+        int updatedCount = 0;
+        for (Long id : productIds) {
+            Optional<Product> existingOpt = productRepository.findById(id);
+            if (existingOpt.isPresent()) {
+                Product copy = Product.copyOf(existingOpt.get());
+                copy.setManualStatusOverride(true);
+                copy.setStatus(newStatus);
+                if (productRepository.update(copy)) {
+                    updatedCount++;
+                }
+            }
+        }
+        eventBus.publish("BULK_STATUS_UPDATED");
+        return InventoryOperationResult.ok(updatedCount, "Updated status to " + newStatus + " for " + updatedCount + " item(s).");
+    }
+
+    /**
+     * Deletes multiple selected products in bulk.
+     *
+     * @param productIds collection of product IDs to delete
+     * @param authorized whether current role allows bulk deletion
+     * @return count of deleted products wrapped in an {@link InventoryOperationResult}
+     */
+    public InventoryOperationResult<Integer> bulkDelete(Collection<Long> productIds, boolean authorized) {
+        if (!authorized) {
+            return InventoryOperationResult.fail("Only Owner or Manager may bulk-delete items.");
+        }
+        if (productIds == null || productIds.isEmpty()) {
+            return InventoryOperationResult.fail("No items selected.");
+        }
+        int deleted = 0;
+        for (Long id : productIds) {
+            if (productRepository.deleteById(id)) {
+                deleted++;
+            }
+        }
+        eventBus.publish("BULK_DELETED");
+        return InventoryOperationResult.ok(deleted, "Removed " + deleted + " item(s) from inventory.");
+    }
+
+    /**
+     * Loads 6 starter demo items matching the store mockups when testing from an empty catalog.
+     *
+     * @return count of newly inserted items
+     */
+    public int loadStarterDemoItems() {
+        Object[][] samples = {
+                {"Rice 5kg", "Groceries", 120, 2.50, 3.50, "A1-01", null},
+                {"Milk 1L", "Dairy", 5, 1.00, 1.50, "B2-03", LocalDate.now().plusDays(4)},
+                {"Bread", "Bakery", 0, 0.70, 1.00, "B1-02", LocalDate.now().plusDays(2)},
+                {"Chips", "Snacks", 50, 1.20, 1.80, "C1-05", null},
+                {"Cola 330ml", "Drinks", 200, 0.80, 1.20, "C2-01", null},
+                {"Eggs (12)", "Dairy", 8, 2.00, 2.80, "B2-06", LocalDate.now().plusDays(6)}
+        };
+        int added = 0;
+        for (Object[] row : samples) {
+            Product p = new Product();
+            p.setName((String) row[0]);
+            p.setCategory((String) row[1]);
+            p.setQuantity((Integer) row[2]);
+            p.setBuyPrice((Double) row[3]);
+            p.setSellPrice((Double) row[4]);
+            p.setShelfLocation((String) row[5]);
+            p.setExpiryDate((LocalDate) row[6]);
+            p.setLowStockThreshold(10);
+            if (addProduct(p).isSuccess()) {
+                added++;
+            }
+        }
+        return added;
     }
 }
