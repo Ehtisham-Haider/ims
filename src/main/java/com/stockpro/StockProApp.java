@@ -1,112 +1,117 @@
 package com.stockpro;
 
 import com.stockpro.repository.DatabaseManager;
+import com.stockpro.service.AppSession;
+import com.stockpro.service.ServiceContext;
+import com.stockpro.ui.views.LoginView;
+import com.stockpro.ui.views.MainShellView;
 import com.stockpro.util.AppExecutor;
 import com.stockpro.util.AppLogger;
 import com.stockpro.util.GlobalExceptionHandler;
 import javafx.application.Application;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 
 /**
- * Primary JavaFX application entrypoint for StockPro Inventory Management System.
+ * Primary JavaFX application entrypoint launching the split-screen login and main StockPro shell.
  *
  * @author Ehtisham Haider, Syed Ahmed
  */
 public class StockProApp extends Application {
     private static final Logger LOG = AppLogger.get(StockProApp.class);
-    private boolean darkTheme = false;
+    private Stage primaryStage;
+    private Scene mainScene;
 
     /**
      * Creates the StockPro JavaFX application instance.
-     *
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public StockProApp() {
     }
 
     /**
-     * Starts the primary JavaFX stage, initializes local persistence off the UI thread, and applies theme stylesheets.
+     * Initializes exception handling, builds the stage, boots services asynchronously, and displays the Login view.
      *
-     * @param primaryStage primary desktop window stage
-     * @author Ehtisham Haider, Syed Ahmed
+     * @param stage primary JavaFX window stage
      */
     @Override
-    public void start(Stage primaryStage) {
+    public void start(Stage stage) {
+        this.primaryStage = stage;
         GlobalExceptionHandler.install();
-        LOG.info("Launching StockPro JavaFX application...");
+        LOG.info("Starting StockPro desktop application...");
 
-        VBox root = new VBox(16);
-        root.setPadding(new Insets(32));
-        root.setAlignment(Pos.CENTER_LEFT);
-        root.getStyleClass().add("app-canvas");
+        StackPane loadingRoot = new StackPane(new Label("Starting StockPro..."));
+        loadingRoot.getStyleClass().add("app-canvas");
+        mainScene = new Scene(loadingRoot, 1280, 800);
+        applyActiveTheme();
 
-        Label title = new Label("StockPro Inventory Management System");
-        title.getStyleClass().add("page-title");
-
-        Label statusLabel = new Label("Initializing local SQLite database in offline mode...");
-        statusLabel.getStyleClass().add("page-subtitle");
-
-        Button themeToggle = new Button("Switch to Dark Mode");
-        themeToggle.getStyleClass().add("btn-secondary");
-
-        HBox actions = new HBox(12, themeToggle);
-
-        VBox card = new VBox(12, title, statusLabel, actions);
-        card.getStyleClass().add("card");
-        root.getChildren().add(card);
-
-        Scene scene = new Scene(root, 1080, 720);
-        applyTheme(scene);
-
-        themeToggle.setOnAction(event -> {
-            darkTheme = !darkTheme;
-            applyTheme(scene);
-            themeToggle.setText(darkTheme ? "Switch to Light Mode" : "Switch to Dark Mode");
-        });
-
-        primaryStage.setTitle("StockPro — Inventory Management System");
-        primaryStage.setMinWidth(960);
-        primaryStage.setMinHeight(640);
-        primaryStage.setScene(scene);
-        primaryStage.show();
+        stage.setTitle("StockPro — Inventory Management System");
+        stage.setMinWidth(1040);
+        stage.setMinHeight(680);
+        stage.setScene(mainScene);
+        stage.show();
 
         AppExecutor.runAsync(
-                () -> {
-                    DatabaseManager db = DatabaseManager.getInstance();
-                    return db.getJdbcUrl();
-                },
-                jdbcUrl -> statusLabel.setText("Offline SQLite ready: " + jdbcUrl),
-                ex -> statusLabel.setText("Database initialization error: " + ex.getMessage())
+                ServiceContext::getInstance,
+                this::showLoginScreen,
+                ex -> LOG.error("Failed to boot StockPro services", ex)
         );
     }
 
     /**
-     * Applies either the light or dark design-system stylesheet to the supplied scene.
+     * Switches the primary scene root to the split-screen login screen.
      *
-     * @param scene target JavaFX scene
-     * @author Ehtisham Haider, Syed Ahmed
+     * @param services initialized application service context
      */
-    private void applyTheme(Scene scene) {
-        scene.getStylesheets().clear();
-        String path = darkTheme ? "/css/dark-theme.css" : "/css/light-theme.css";
+    private void showLoginScreen(ServiceContext services) {
+        applyActiveTheme();
+        LoginView loginView = new LoginView(
+                services.getAuthService(),
+                user -> showMainShell(services)
+        );
+        Parent root = loginView.build();
+        mainScene.setRoot(root);
+    }
+
+    /**
+     * Switches the primary scene root to the main application shell after successful authentication.
+     *
+     * @param services initialized application service context
+     */
+    private void showMainShell(ServiceContext services) {
+        MainShellView shell = new MainShellView(
+                services,
+                () -> showLoginScreen(services),
+                this::applyActiveTheme
+        );
+        Parent root = shell.build();
+        mainScene.setRoot(root);
+        shell.bindShortcuts(mainScene);
+        applyActiveTheme();
+    }
+
+    /**
+     * Applies either {@code light-theme.css} or {@code dark-theme.css} immediately without restart.
+     */
+    private void applyActiveTheme() {
+        if (mainScene == null) {
+            return;
+        }
+        mainScene.getStylesheets().clear();
+        String path = AppSession.getInstance().isDarkMode()
+                ? "/css/dark-theme.css"
+                : "/css/light-theme.css";
         var url = getClass().getResource(path);
         if (url != null) {
-            scene.getStylesheets().add(url.toExternalForm());
+            mainScene.getStylesheets().add(url.toExternalForm());
         }
     }
 
     /**
-     * Closes database pools gracefully when the JavaFX lifecycle terminates.
-     *
-     * @author Ehtisham Haider, Syed Ahmed
+     * Closes database connection pools gracefully on shutdown.
      */
     @Override
     public void stop() {
@@ -117,7 +122,6 @@ public class StockProApp extends Application {
      * Launches the JavaFX runtime.
      *
      * @param args command-line arguments
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public static void main(String[] args) {
         launch(args);
