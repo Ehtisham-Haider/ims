@@ -1,5 +1,7 @@
 package com.stockpro.service;
 
+import com.stockpro.dsa.CatalogSearchEngine;
+import com.stockpro.ml.OfflineMlEngine;
 import com.stockpro.repository.AuditLogRepository;
 import com.stockpro.repository.DatabaseManager;
 import com.stockpro.repository.ProductRepository;
@@ -32,6 +34,8 @@ public class ServiceContext {
     private final StockOperationService stockOperationService;
     private final SupplierOrderService supplierOrderService;
     private final FinanceService financeService;
+    private final CatalogSearchEngine catalogSearchEngine;
+    private final OfflineMlEngine offlineMlEngine;
 
     /**
      * Constructs a service registry bound to a specific {@link DatabaseManager}.
@@ -68,6 +72,8 @@ public class ServiceContext {
                 InventoryEventBus.getInstance()
         );
         this.financeService = new FinanceService(databaseManager, productRepository);
+        this.catalogSearchEngine = new CatalogSearchEngine(productRepository, InventoryEventBus.getInstance());
+        this.offlineMlEngine = new OfflineMlEngine(databaseManager, productRepository);
         syncSessionSettings();
     }
 
@@ -217,5 +223,23 @@ public class ServiceContext {
      */
     public FinanceService getFinanceService() {
         return financeService;
+    }
+
+    /**
+     * Returns the unified DS&amp;A catalog search engine.
+     *
+     * @return {@link CatalogSearchEngine}
+     */
+    public CatalogSearchEngine getCatalogSearchEngine() {
+        return catalogSearchEngine;
+    }
+
+    /**
+     * Returns the pure-Java offline ML forecasting and anomaly detection engine.
+     *
+     * @return {@link OfflineMlEngine}
+     */
+    public OfflineMlEngine getOfflineMlEngine() {
+        return offlineMlEngine;
     }
 }
