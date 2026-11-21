@@ -107,6 +107,12 @@ public class MainShellView {
             setActiveDeleteShortcutHandler(inv::deleteSelectedRow);
             return inv.build();
         });
+        viewFactories.put(NavigationSection.STOCK_OPERATIONS, () -> {
+            setActiveAddShortcutHandler(null);
+            setActiveSearchShortcutHandler(null);
+            setActiveDeleteShortcutHandler(null);
+            return new StockOperationsView(services, toastManager).build();
+        });
     }
 
     /**
