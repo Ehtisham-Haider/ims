@@ -14,16 +14,12 @@ public final class GlobalExceptionHandler implements Thread.UncaughtExceptionHan
 
     /**
      * Creates the global exception handler.
-     *
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public GlobalExceptionHandler() {
     }
 
     /**
      * Registers this handler as the JVM default uncaught exception handler.
-     *
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public static void install() {
         GlobalExceptionHandler handler = new GlobalExceptionHandler();
@@ -42,7 +38,6 @@ public final class GlobalExceptionHandler implements Thread.UncaughtExceptionHan
      * Displays a non-crashing alert dialog when the JavaFX toolkit is active.
      *
      * @param throwable unhandled exception to summarize
-     * @author Ehtisham Haider, Syed Ahmed
      */
     private void showErrorDialogIfToolkitReady(Throwable throwable) {
         try {
@@ -60,7 +55,6 @@ public final class GlobalExceptionHandler implements Thread.UncaughtExceptionHan
      * Builds and shows a concise error alert on the JavaFX Application Thread.
      *
      * @param throwable unhandled exception
-     * @author Ehtisham Haider, Syed Ahmed
      */
     private void displayAlert(Throwable throwable) {
         Alert alert = new Alert(Alert.AlertType.ERROR);

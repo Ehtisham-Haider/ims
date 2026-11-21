@@ -20,64 +20,134 @@ public class AgentProposal {
 
     /**
      * Creates a new pending proposal stamped with the current timestamp.
-     *
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public AgentProposal() {
         this.createdAt = LocalDateTime.now();
     }
 
-    /** @return proposal database id @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the proposal database identifier.
+     *
+     * @return proposal database id
+     */
     public long getId() { return id; }
 
-    /** @param id proposal database id @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the proposal database identifier.
+     *
+     * @param id proposal database id
+     */
     public void setId(long id) { this.id = id; }
 
-    /** @return worker name that generated this proposal @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the worker name that generated this proposal.
+     *
+     * @return worker name that generated this proposal
+     */
     public String getAgentName() { return agentName; }
 
-    /** @param agentName worker name that generated this proposal @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the worker name that generated this proposal.
+     *
+     * @param agentName worker name that generated this proposal
+     */
     public void setAgentName(String agentName) { this.agentName = agentName; }
 
-    /** @return action type identifier (CREATE_PO, PRICE_DISCOUNT, AUDIT_FIX) @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the action type identifier.
+     *
+     * @return action type identifier (CREATE_PO, PRICE_DISCOUNT, AUDIT_FIX)
+     */
     public String getProposalType() { return proposalType; }
 
-    /** @param proposalType action type identifier @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the action type identifier.
+     *
+     * @param proposalType action type identifier
+     */
     public void setProposalType(String proposalType) { this.proposalType = proposalType; }
 
-    /** @return concise headline shown on the approval card @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the concise headline shown on the approval card.
+     *
+     * @return concise headline shown on the approval card
+     */
     public String getTitle() { return title; }
 
-    /** @param title concise headline @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the concise headline shown on the approval card.
+     *
+     * @param title concise headline
+     */
     public void setTitle(String title) { this.title = title; }
 
-    /** @return plain-English rationale explaining why the change is suggested @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the rationale explaining why the change is suggested.
+     *
+     * @return plain-English rationale explaining why the change is suggested
+     */
     public String getReasoning() { return reasoning; }
 
-    /** @param reasoning plain-English rationale @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the rationale explaining why the change is suggested.
+     *
+     * @param reasoning plain-English rationale
+     */
     public void setReasoning(String reasoning) { this.reasoning = reasoning; }
 
-    /** @return estimated cost or revenue recovery impact @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the estimated financial impact.
+     *
+     * @return estimated cost or revenue recovery impact
+     */
     public double getFinancialImpact() { return financialImpact; }
 
-    /** @param financialImpact estimated financial impact @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the estimated financial impact.
+     *
+     * @param financialImpact estimated financial impact
+     */
     public void setFinancialImpact(double financialImpact) { this.financialImpact = financialImpact; }
 
-    /** @return serialized JSON payload executed upon approval @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the serialized JSON payload executed upon approval.
+     *
+     * @return serialized JSON payload executed upon approval
+     */
     public String getPayloadJson() { return payloadJson; }
 
-    /** @param payloadJson serialized JSON payload @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the serialized JSON payload executed upon approval.
+     *
+     * @param payloadJson serialized JSON payload
+     */
     public void setPayloadJson(String payloadJson) { this.payloadJson = payloadJson; }
 
-    /** @return current review state @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the current review state.
+     *
+     * @return current review state
+     */
     public ProposalStatus getStatus() { return status; }
 
-    /** @param status current review state @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the current review state.
+     *
+     * @param status current review state
+     */
     public void setStatus(ProposalStatus status) { this.status = status; }
 
-    /** @return creation timestamp @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the creation timestamp.
+     *
+     * @return creation timestamp
+     */
     public LocalDateTime getCreatedAt() { return createdAt; }
 
-    /** @param createdAt creation timestamp @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the creation timestamp.
+     *
+     * @param createdAt creation timestamp
+     */
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

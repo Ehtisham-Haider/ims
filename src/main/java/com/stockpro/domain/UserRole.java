@@ -19,7 +19,6 @@ public enum UserRole {
      * Creates a role enum constant.
      *
      * @param displayName friendly role label shown in the login form and sidebar
-     * @author Ehtisham Haider, Syed Ahmed
      */
     UserRole(String displayName) {
         this.displayName = displayName;
@@ -29,7 +28,6 @@ public enum UserRole {
      * Returns the display label of the role.
      *
      * @return formatted role name
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public String getDisplayName() {
         return displayName;
@@ -39,7 +37,6 @@ public enum UserRole {
      * Indicates whether the role may modify settings, delete items, or approve agent proposals.
      *
      * @return {@code true} for Owner and Manager roles
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public boolean canManageInventory() {
         return this == OWNER || this == MANAGER;
@@ -49,7 +46,6 @@ public enum UserRole {
      * Indicates whether the role holds full administrative privileges.
      *
      * @return {@code true} only for {@link #OWNER}
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public boolean isAdmin() {
         return this == OWNER;
@@ -60,7 +56,6 @@ public enum UserRole {
      *
      * @param value role name or label
      * @return resolved {@link UserRole}, defaulting to {@link #CASHIER}
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public static UserRole fromString(String value) {
         if (value == null || value.isBlank()) {

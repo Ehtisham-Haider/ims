@@ -17,7 +17,6 @@ public class ValidationResult {
      * Constructs a validation result from a map of field keys to error messages.
      *
      * @param fieldErrors map of invalid fields and diagnostic messages
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public ValidationResult(Map<String, String> fieldErrors) {
         this.fieldErrors = fieldErrors == null
@@ -30,7 +29,6 @@ public class ValidationResult {
      * Returns a passing validation result with no errors.
      *
      * @return valid {@link ValidationResult}
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public static ValidationResult ok() {
         return new ValidationResult(Collections.emptyMap());
@@ -42,7 +40,6 @@ public class ValidationResult {
      * @param field field identifier
      * @param message user-facing error description
      * @return invalid {@link ValidationResult}
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public static ValidationResult fail(String field, String message) {
         Map<String, String> map = new LinkedHashMap<>();
@@ -54,7 +51,6 @@ public class ValidationResult {
      * Indicates whether validation passed without errors.
      *
      * @return {@code true} when no field errors exist
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public boolean isValid() {
         return valid;
@@ -64,7 +60,6 @@ public class ValidationResult {
      * Returns an unmodifiable map of field identifiers to error messages.
      *
      * @return field error map
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public Map<String, String> getFieldErrors() {
         return fieldErrors;
@@ -74,7 +69,6 @@ public class ValidationResult {
      * Formats all validation errors into a single readable message.
      *
      * @return joined error summary, or empty string if valid
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public String getSummaryMessage() {
         if (valid) {
