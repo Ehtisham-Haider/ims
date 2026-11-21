@@ -1,5 +1,7 @@
 package com.stockpro.service;
 
+import com.stockpro.ai.AiAssistantService;
+import com.stockpro.ai.GroqApiClient;
 import com.stockpro.dsa.CatalogSearchEngine;
 import com.stockpro.ml.OfflineMlEngine;
 import com.stockpro.repository.AuditLogRepository;
@@ -36,6 +38,8 @@ public class ServiceContext {
     private final FinanceService financeService;
     private final CatalogSearchEngine catalogSearchEngine;
     private final OfflineMlEngine offlineMlEngine;
+    private final GroqApiClient groqApiClient;
+    private final AiAssistantService aiAssistantService;
 
     /**
      * Constructs a service registry bound to a specific {@link DatabaseManager}.
@@ -74,6 +78,13 @@ public class ServiceContext {
         this.financeService = new FinanceService(databaseManager, productRepository);
         this.catalogSearchEngine = new CatalogSearchEngine(productRepository, InventoryEventBus.getInstance());
         this.offlineMlEngine = new OfflineMlEngine(databaseManager, productRepository);
+        this.groqApiClient = new GroqApiClient(settingsRepository);
+        this.aiAssistantService = new AiAssistantService(
+                groqApiClient,
+                productRepository,
+                supplierRepository,
+                offlineMlEngine
+        );
         syncSessionSettings();
     }
 
@@ -241,5 +252,23 @@ public class ServiceContext {
      */
     public OfflineMlEngine getOfflineMlEngine() {
         return offlineMlEngine;
+    }
+
+    /**
+     * Returns the Groq cloud API HTTP client.
+     *
+     * @return {@link GroqApiClient}
+     */
+    public GroqApiClient getGroqApiClient() {
+        return groqApiClient;
+    }
+
+    /**
+     * Returns the grounded AI Assistant service.
+     *
+     * @return {@link AiAssistantService}
+     */
+    public AiAssistantService getAiAssistantService() {
+        return aiAssistantService;
     }
 }
