@@ -1,8 +1,10 @@
 package com.stockpro.service;
 
+import com.stockpro.repository.AuditLogRepository;
 import com.stockpro.repository.DatabaseManager;
 import com.stockpro.repository.ProductRepository;
 import com.stockpro.repository.SettingsRepository;
+import com.stockpro.repository.StockMovementRepository;
 import com.stockpro.repository.UserRepository;
 import com.stockpro.service.command.CommandHistoryManager;
 
@@ -18,8 +20,12 @@ public class ServiceContext {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final SettingsRepository settingsRepository;
+    private final StockMovementRepository stockMovementRepository;
+    private final AuditLogRepository auditLogRepository;
     private final InventoryService inventoryService;
     private final AuthService authService;
+    private final AuditService auditService;
+    private final StockOperationService stockOperationService;
 
     /**
      * Constructs a service registry bound to a specific {@link DatabaseManager}.
@@ -31,12 +37,21 @@ public class ServiceContext {
         this.productRepository = new ProductRepository(databaseManager);
         this.userRepository = new UserRepository(databaseManager);
         this.settingsRepository = new SettingsRepository(databaseManager);
+        this.stockMovementRepository = new StockMovementRepository(databaseManager);
+        this.auditLogRepository = new AuditLogRepository(databaseManager);
         this.inventoryService = new InventoryService(
                 productRepository,
                 new CommandHistoryManager(),
                 InventoryEventBus.getInstance()
         );
         this.authService = new AuthService(userRepository, AppSession.getInstance());
+        this.auditService = new AuditService(auditLogRepository);
+        this.stockOperationService = new StockOperationService(
+                productRepository,
+                stockMovementRepository,
+                auditService,
+                InventoryEventBus.getInstance()
+        );
         syncSessionSettings();
     }
 
@@ -123,5 +138,32 @@ public class ServiceContext {
      */
     public AuthService getAuthService() {
         return authService;
+    }
+
+    /**
+     * Returns the stock movement ledger repository.
+     *
+     * @return stock movement repository
+     */
+    public StockMovementRepository getStockMovementRepository() {
+        return stockMovementRepository;
+    }
+
+    /**
+     * Returns the tamper-evident SHA-256 audit service.
+     *
+     * @return audit service
+     */
+    public AuditService getAuditService() {
+        return auditService;
+    }
+
+    /**
+     * Returns the stock operation service.
+     *
+     * @return stock operation service
+     */
+    public StockOperationService getStockOperationService() {
+        return stockOperationService;
     }
 }
