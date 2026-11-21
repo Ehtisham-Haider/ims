@@ -119,6 +119,14 @@ public class MainShellView {
             setActiveDeleteShortcutHandler(null);
             return new SuppliersOrdersView(services, toastManager).build();
         });
+        viewFactories.put(NavigationSection.ANALYTICS_REPORTS, () -> {
+            setActiveAddShortcutHandler(null);
+            setActiveSearchShortcutHandler(null);
+            setActiveDeleteShortcutHandler(null);
+            AnalyticsReportsView view = new AnalyticsReportsView(services, toastManager, this::navigateTo);
+            setActiveExportPdfHandler(view::exportExecutiveReportPdf);
+            return view.build();
+        });
         viewFactories.put(NavigationSection.AI_ASSISTANT, () -> {
             setActiveAddShortcutHandler(null);
             setActiveSearchShortcutHandler(null);
@@ -214,6 +222,12 @@ public class MainShellView {
         scene.setOnKeyPressed(e -> {
             if (e.getCode() == KeyCode.DELETE && activeDeleteShortcutHandler != null) {
                 activeDeleteShortcutHandler.run();
+            }
+        });
+        services.getUsbBarcodeScannerListener().attachToScene(scene, outcome -> {
+            toastManager.showInfo(outcome.message());
+            if (outcome.matched() && outcome.product() != null) {
+                refreshAlertBadge();
             }
         });
     }

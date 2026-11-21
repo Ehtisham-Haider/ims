@@ -150,7 +150,11 @@ public class InventoryView {
         detailsDrawer = new ProductDetailsDrawer(
                 this::openEditProductDialog,
                 this::confirmDeleteProduct,
-                this::closeDetailsDrawer
+                this::closeDetailsDrawer,
+                p -> new BarcodeLabelDialog(services.getBarcodeLabelService(), toastManager).show(
+                        rootPane.getScene() != null ? rootPane.getScene().getWindow() : null,
+                        p,
+                        AppSession.getInstance().isDarkMode())
         );
         detailsDrawer.setVisible(false);
         detailsDrawer.setManaged(false);

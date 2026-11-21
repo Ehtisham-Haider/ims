@@ -35,6 +35,7 @@ public class ProductDetailsDrawer extends VBox {
     private final Consumer<Product> onEdit;
     private final Consumer<Product> onDelete;
     private final Runnable onClose;
+    private final Consumer<Product> onPrintLabel;
     private final VBox bodyBox = new VBox(14);
 
     /**
@@ -45,9 +46,26 @@ public class ProductDetailsDrawer extends VBox {
      * @param onClose callback invoked when closing the drawer
      */
     public ProductDetailsDrawer(Consumer<Product> onEdit, Consumer<Product> onDelete, Runnable onClose) {
+        this(onEdit, onDelete, onClose, null);
+    }
+
+    /**
+     * Constructs a slide-out product details drawer with optional barcode/QR sticker callback.
+     *
+     * @param onEdit callback invoked when {@code Edit Product} is clicked
+     * @param onDelete callback invoked when {@code Delete} is clicked
+     * @param onClose callback invoked when closing the drawer
+     * @param onPrintLabel optional callback opening the ZXing Barcode &amp; QR label modal
+     */
+    public ProductDetailsDrawer(
+            Consumer<Product> onEdit,
+            Consumer<Product> onDelete,
+            Runnable onClose,
+            Consumer<Product> onPrintLabel) {
         this.onEdit = onEdit;
         this.onDelete = onDelete;
         this.onClose = onClose;
+        this.onPrintLabel = onPrintLabel;
 
         getStyleClass().add("drawer-panel");
         setPrefWidth(390);
@@ -193,7 +211,14 @@ public class ProductDetailsDrawer extends VBox {
         closeBtn.getStyleClass().add("btn-secondary");
         closeBtn.setOnAction(e -> onClose.run());
 
-        actions.getChildren().addAll(editBtn, delBtn, closeBtn);
+        actions.getChildren().addAll(editBtn, delBtn);
+        if (onPrintLabel != null) {
+            Button qrBtn = new Button("🏷 QR");
+            qrBtn.getStyleClass().add("btn-secondary");
+            qrBtn.setOnAction(e -> onPrintLabel.accept(product));
+            actions.getChildren().add(qrBtn);
+        }
+        actions.getChildren().add(closeBtn);
 
         bodyBox.getChildren().addAll(header, hero, barcodeStrip, priceRow, stockBox, forecastCard, actions);
 
