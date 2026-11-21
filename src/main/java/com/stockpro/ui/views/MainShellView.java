@@ -94,7 +94,19 @@ public class MainShellView {
         for (NavigationSection section : NavigationSection.values()) {
             viewFactories.put(section, () -> createSectionPlaceholder(section));
         }
-        viewFactories.put(NavigationSection.DASHBOARD, () -> new DashboardView(services, this::navigateTo).build());
+        viewFactories.put(NavigationSection.DASHBOARD, () -> {
+            setActiveAddShortcutHandler(null);
+            setActiveSearchShortcutHandler(null);
+            setActiveDeleteShortcutHandler(null);
+            return new DashboardView(services, this::navigateTo).build();
+        });
+        viewFactories.put(NavigationSection.INVENTORY, () -> {
+            InventoryView inv = new InventoryView(services, toastManager, this::refreshAlertBadge);
+            setActiveAddShortcutHandler(inv::openAddProductDialog);
+            setActiveSearchShortcutHandler(inv::focusSearch);
+            setActiveDeleteShortcutHandler(inv::deleteSelectedRow);
+            return inv.build();
+        });
     }
 
     /**
