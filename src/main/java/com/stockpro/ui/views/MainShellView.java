@@ -113,6 +113,12 @@ public class MainShellView {
             setActiveDeleteShortcutHandler(null);
             return new StockOperationsView(services, toastManager).build();
         });
+        viewFactories.put(NavigationSection.SUPPLIERS_ORDERS, () -> {
+            setActiveAddShortcutHandler(null);
+            setActiveSearchShortcutHandler(null);
+            setActiveDeleteShortcutHandler(null);
+            return new SuppliersOrdersView(services, toastManager).build();
+        });
     }
 
     /**
