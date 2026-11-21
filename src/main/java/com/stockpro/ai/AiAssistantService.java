@@ -114,13 +114,15 @@ public class AiAssistantService {
      * @return ready-to-send email body
      */
     public String draftSupplierEmail(Supplier supplier) {
-        List<Product> products = productRepository.findAll(false);
+        Supplier targetSupplier = supplier != null
+                ? supplier
+                : supplierRepository.findAll().stream().findFirst().orElse(null);
         List<OfflineMlEngine.ProductForecast> urgent = mlEngine.analyzeCatalog().stream()
                 .filter(f -> f.recommendedReorderQty() > 0 || f.product().getStatus() != StockStatus.IN_STOCK)
                 .limit(5)
                 .toList();
 
-        String supName = supplier != null ? supplier.getName() : "Valued Supplier";
+        String supName = targetSupplier != null ? targetSupplier.getName() : "Valued Supplier";
         String storeName = AppSession.getInstance().getStoreName();
         String itemsList = urgent.isEmpty()
                 ? "- General shelf replenishment items (details pending)"
@@ -158,7 +160,7 @@ public class AiAssistantService {
                 supName,
                 storeName,
                 itemsList,
-                supplier != null ? supplier.getDeliveryDays() : 3,
+                targetSupplier != null ? targetSupplier.getDeliveryDays() : 3,
                 AppSession.getInstance().getActorName(),
                 storeName
         );

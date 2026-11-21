@@ -32,8 +32,10 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Executive Dashboard view aligned with {@code Dashboard.png} and {@code Dasboard Optional.png},
- * rendering 5 live KPI cards, a dual-series Sales &amp; Profit trend chart, Stock Status donut breakdown,
+ * Executive Dashboard view aligned with {@code Dashboard.png} and
+ * {@code Dasboard Optional.png},
+ * rendering 5 live KPI cards, a dual-series Sales &amp; Profit trend chart,
+ * Stock Status donut breakdown,
  * Urgent Alerts, Recent Activity feed, and AI Business Briefing card.
  *
  * @author Ehtisham Haider, Syed Ahmed
@@ -59,17 +61,19 @@ public class DashboardView {
     /**
      * Constructs the dashboard view controller.
      *
-     * @param services active application service registry
+     * @param services   active application service registry
      * @param onNavigate navigation callback to switch sidebar screens
      */
     public DashboardView(ServiceContext services, Consumer<NavigationSection> onNavigate) {
-        this.metricsService = new DashboardMetricsService(services.getDatabaseManager(), services.getProductRepository());
+        this.metricsService = new DashboardMetricsService(services.getDatabaseManager(),
+                services.getProductRepository());
         this.onNavigate = onNavigate;
         InventoryEventBus.getInstance().subscribe(topic -> refreshAsync());
     }
 
     /**
-     * Builds the scrollable Dashboard node and triggers an asynchronous initial data load.
+     * Builds the scrollable Dashboard node and triggers an asynchronous initial
+     * data load.
      *
      * @return JavaFX dashboard {@link Node}
      */
@@ -98,7 +102,8 @@ public class DashboardView {
 
         // Row 1: 5 Pastel KPI Stat Cards
         totalProductsCard = new KpiStatCard("📦", "#4F46E5", "kpi-card-blue", "Total Products", "0", "Active SKUs");
-        inventoryValueCard = new KpiStatCard("💼", "#10B981", "kpi-card-green", "Inventory Value", "$0.00", "Cost valuation");
+        inventoryValueCard = new KpiStatCard("💼", "#10B981", "kpi-card-green", "Inventory Value", "$0.00",
+                "Cost valuation");
         estProfitCard = new KpiStatCard("📈", "#8B5CF6", "kpi-card-purple", "Est. Profit", "$0.00", "Projected margin");
         lowStockCard = new KpiStatCard("⚠", "#F59E0B", "kpi-card-amber", "Low Stock", "0", "Needs restock");
         outOfStockCard = new KpiStatCard("✕", "#EF4444", "kpi-card-rose", "Out of Stock", "0", "Zero units");
@@ -184,7 +189,8 @@ public class DashboardView {
     }
 
     /**
-     * Builds the Urgent Alerts card summarizing expiring, out-of-stock, and low-stock SKUs.
+     * Builds the Urgent Alerts card summarizing expiring, out-of-stock, and
+     * low-stock SKUs.
      *
      * @return urgent alerts card
      */
@@ -199,7 +205,8 @@ public class DashboardView {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         Button viewAll = new Button("View All →");
-        viewAll.setStyle("-fx-background-color: transparent; -fx-text-fill: #4F46E5; -fx-font-weight: bold; -fx-cursor: hand;");
+        viewAll.setStyle(
+                "-fx-background-color: transparent; -fx-text-fill: #4F46E5; -fx-font-weight: bold; -fx-cursor: hand;");
         viewAll.setOnAction(e -> onNavigate.accept(NavigationSection.INVENTORY));
         header.getChildren().addAll(title, spacer, viewAll);
 
@@ -224,7 +231,8 @@ public class DashboardView {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         Button viewAll = new Button("View All →");
-        viewAll.setStyle("-fx-background-color: transparent; -fx-text-fill: #4F46E5; -fx-font-weight: bold; -fx-cursor: hand;");
+        viewAll.setStyle(
+                "-fx-background-color: transparent; -fx-text-fill: #4F46E5; -fx-font-weight: bold; -fx-cursor: hand;");
         viewAll.setOnAction(e -> onNavigate.accept(NavigationSection.STOCK_OPERATIONS));
         header.getChildren().addAll(title, spacer, viewAll);
 
@@ -234,7 +242,8 @@ public class DashboardView {
     }
 
     /**
-     * Builds the gradient AI Business Briefing card linking to the AI Assistant workspace.
+     * Builds the gradient AI Business Briefing card linking to the AI Assistant
+     * workspace.
      *
      * @return styled briefing card
      */
@@ -248,7 +257,8 @@ public class DashboardView {
         briefingBodyBox = new VBox(6);
 
         Button detailsBtn = new Button("View Details →");
-        detailsBtn.setStyle("-fx-background-color: rgba(255,255,255,0.22); -fx-text-fill: #FFFFFF; -fx-font-weight: bold; -fx-background-radius: 9; -fx-padding: 8 14 8 14; -fx-cursor: hand;");
+        detailsBtn.setStyle(
+                "-fx-background-color: rgba(255,255,255,0.22); -fx-text-fill: #FFFFFF; -fx-font-weight: bold; -fx-background-radius: 9; -fx-padding: 8 14 8 14; -fx-cursor: hand;");
         detailsBtn.setOnAction(e -> onNavigate.accept(NavigationSection.AI_ASSISTANT));
 
         card.getChildren().addAll(heading, briefingBodyBox, detailsBtn);
@@ -256,19 +266,20 @@ public class DashboardView {
     }
 
     /**
-     * Reloads dashboard metrics in a background worker thread and applies updates on the JavaFX thread.
+     * Reloads dashboard metrics in a background worker thread and applies updates
+     * on the JavaFX thread.
      */
     public void refreshAsync() {
         AppExecutor.runAsync(
                 metricsService::loadSnapshot,
                 this::applySnapshot,
                 ex -> {
-                }
-        );
+                });
     }
 
     /**
-     * Binds a loaded {@link DashboardMetricsService.DashboardSnapshot} into all UI widgets.
+     * Binds a loaded {@link DashboardMetricsService.DashboardSnapshot} into all UI
+     * widgets.
      *
      * @param snap aggregated metrics snapshot
      */
@@ -281,28 +292,23 @@ public class DashboardView {
         totalProductsCard.updateMetric(
                 String.valueOf(snap.totalProducts()),
                 snap.inStockCount() + " healthy items",
-                "#15803D"
-        );
+                "#15803D");
         inventoryValueCard.updateMetric(
                 session.formatMoney(snap.inventoryValue()),
                 "Total cost on hand",
-                "#15803D"
-        );
+                "#15803D");
         estProfitCard.updateMetric(
                 session.formatMoney(snap.estimatedProfit()),
                 "Potential gross profit",
-                "#4F46E5"
-        );
+                "#4F46E5");
         lowStockCard.updateMetric(
                 String.valueOf(snap.lowStockCount()),
                 snap.lowStockCount() > 0 ? "Action recommended" : "All clear",
-                snap.lowStockCount() > 0 ? "#B45309" : "#15803D"
-        );
+                snap.lowStockCount() > 0 ? "#B45309" : "#15803D");
         outOfStockCard.updateMetric(
                 String.valueOf(snap.outOfStockCount()),
                 snap.outOfStockCount() > 0 ? "Immediate restock" : "Zero stockouts",
-                snap.outOfStockCount() > 0 ? "#B91C1C" : "#15803D"
-        );
+                snap.outOfStockCount() > 0 ? "#B91C1C" : "#15803D");
 
         // Update Trend Chart
         XYChart.Series<String, Number> salesSeries = new XYChart.Series<>();
@@ -335,8 +341,7 @@ public class DashboardView {
                 new StockDonutChart.Slice("Low Stock", String.format("%.0f%%", snap.lowStockPercent()),
                         snap.lowStockPercent() / 100.0, "#F59E0B"),
                 new StockDonutChart.Slice("Out of Stock", String.format("%.0f%%", snap.outOfStockPercent()),
-                        snap.outOfStockPercent() / 100.0, "#EF4444")
-        );
+                        snap.outOfStockPercent() / 100.0, "#EF4444"));
 
         // Update Urgent Alerts
         urgentAlertsBox.getChildren().clear();
@@ -354,8 +359,7 @@ public class DashboardView {
                     out ? "✕" : "⚠",
                     out ? "#FEE2E2" : "#FEF3C7",
                     out ? "#B91C1C" : "#B45309",
-                    (out ? "Out of stock: " : "Low stock: ") + p.getName() + " (" + p.getQuantity() + " left)"
-            ));
+                    (out ? "Out of stock: " : "Low stock: ") + p.getName() + " (" + p.getQuantity() + " left)"));
         }
         if (urgentAlertsBox.getChildren().isEmpty()) {
             Label healthy = new Label("All inventory levels and expiry dates are healthy.");
@@ -366,7 +370,8 @@ public class DashboardView {
         // Update Recent Activity
         recentActivityBox.getChildren().clear();
         if (snap.recentMovements().isEmpty()) {
-            Label emptyMsg = new Label("No stock movements recorded yet. Record a Restock or Sale in Stock Operations.");
+            Label emptyMsg = new Label(
+                    "No stock movements recorded yet. Record a Restock or Sale in Stock Operations.");
             emptyMsg.getStyleClass().add("muted-text");
             emptyMsg.setWrapText(true);
             recentActivityBox.getChildren().add(emptyMsg);
@@ -401,9 +406,9 @@ public class DashboardView {
     /**
      * Renders a compact alert row inside the Urgent Alerts card.
      *
-     * @param symbol icon symbol
-     * @param bgHex badge background color
-     * @param fgHex badge text color
+     * @param symbol  icon symbol
+     * @param bgHex   badge background color
+     * @param fgHex   badge text color
      * @param message alert text
      * @return formatted row {@link HBox}
      */
@@ -413,7 +418,8 @@ public class DashboardView {
         Label icon = new Label(symbol);
         icon.setMinSize(26, 26);
         icon.setAlignment(Pos.CENTER);
-        icon.setStyle("-fx-background-color: " + bgHex + "; -fx-text-fill: " + fgHex + "; -fx-font-weight: bold; -fx-background-radius: 999;");
+        icon.setStyle("-fx-background-color: " + bgHex + "; -fx-text-fill: " + fgHex
+                + "; -fx-font-weight: bold; -fx-background-radius: 999;");
         Label text = new Label(message);
         text.setWrapText(true);
         row.getChildren().addAll(icon, text);
