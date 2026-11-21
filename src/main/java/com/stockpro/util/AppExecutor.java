@@ -25,8 +25,6 @@ public final class AppExecutor {
 
     /**
      * Prevents instantiation of utility class.
-     *
-     * @author Ehtisham Haider, Syed Ahmed
      */
     private AppExecutor() {
     }
@@ -37,7 +35,6 @@ public final class AppExecutor {
      * @param work background work unit
      * @param <T> result type returned by the work unit
      * @return {@link Future} representing the pending computation
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public static <T> Future<T> submit(Callable<T> work) {
         return POOL.submit(work);
@@ -50,7 +47,6 @@ public final class AppExecutor {
      * @param onSuccess callback invoked on the JavaFX thread with the produced result
      * @param onError callback invoked on the JavaFX thread when execution throws
      * @param <T> type of value produced by the background operation
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public static <T> void runAsync(Callable<T> work, Consumer<T> onSuccess, Consumer<Throwable> onError) {
         Task<T> task = new Task<>() {
@@ -78,7 +74,6 @@ public final class AppExecutor {
      * Runs a UI update safely on the JavaFX Application Thread.
      *
      * @param action runnable modifying scene graph nodes
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public static void onFxThread(Runnable action) {
         if (action == null) {

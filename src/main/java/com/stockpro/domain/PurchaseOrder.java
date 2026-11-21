@@ -22,8 +22,6 @@ public class PurchaseOrder {
 
     /**
      * Creates a purchase order with default Draft status and current timestamps.
-     *
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public PurchaseOrder() {
         this.createdAt = LocalDateTime.now();
@@ -32,8 +30,6 @@ public class PurchaseOrder {
 
     /**
      * Recomputes {@link #totalCost} from all attached line items.
-     *
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public void recalculateTotal() {
         double sum = 0.0;
@@ -43,59 +39,131 @@ public class PurchaseOrder {
         this.totalCost = sum;
     }
 
-    /** @return order id @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the purchase order database identifier.
+     *
+     * @return order id
+     */
     public long getId() { return id; }
 
-    /** @param id order id @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the purchase order database identifier.
+     *
+     * @param id order id
+     */
     public void setId(long id) { this.id = id; }
 
-    /** @return formatted PO number @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the formatted purchase order number.
+     *
+     * @return formatted PO number
+     */
     public String getPoNumber() { return poNumber; }
 
-    /** @param poNumber formatted PO number @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the formatted purchase order number.
+     *
+     * @param poNumber formatted PO number
+     */
     public void setPoNumber(String poNumber) { this.poNumber = poNumber; }
 
-    /** @return target supplier id @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the target supplier identifier.
+     *
+     * @return target supplier id
+     */
     public long getSupplierId() { return supplierId; }
 
-    /** @param supplierId target supplier id @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the target supplier identifier.
+     *
+     * @param supplierId target supplier id
+     */
     public void setSupplierId(long supplierId) { this.supplierId = supplierId; }
 
-    /** @return target supplier display name @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the target supplier display name.
+     *
+     * @return target supplier display name
+     */
     public String getSupplierName() { return supplierName; }
 
-    /** @param supplierName target supplier display name @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the target supplier display name.
+     *
+     * @param supplierName target supplier display name
+     */
     public void setSupplierName(String supplierName) { this.supplierName = supplierName; }
 
-    /** @return line items ordered @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the ordered line items.
+     *
+     * @return line items ordered
+     */
     public List<PurchaseOrderItem> getItems() { return items; }
 
-    /** @param items line items ordered @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the ordered line items.
+     *
+     * @param items line items ordered
+     */
     public void setItems(List<PurchaseOrderItem> items) {
         this.items = items != null ? items : new ArrayList<>();
     }
 
-    /** @return total order cost @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the total order cost.
+     *
+     * @return total order cost
+     */
     public double getTotalCost() { return totalCost; }
 
-    /** @param totalCost total order cost @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the total order cost.
+     *
+     * @param totalCost total order cost
+     */
     public void setTotalCost(double totalCost) { this.totalCost = totalCost; }
 
-    /** @return lifecycle status (Draft, Sent, Delivered) @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the lifecycle status.
+     *
+     * @return lifecycle status (Draft, Sent, Delivered)
+     */
     public String getStatus() { return status; }
 
-    /** @param status lifecycle status (Draft, Sent, Delivered) @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the lifecycle status.
+     *
+     * @param status lifecycle status (Draft, Sent, Delivered)
+     */
     public void setStatus(String status) { this.status = status; }
 
-    /** @return creation timestamp @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the creation timestamp.
+     *
+     * @return creation timestamp
+     */
     public LocalDateTime getCreatedAt() { return createdAt; }
 
-    /** @param createdAt creation timestamp @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the creation timestamp.
+     *
+     * @param createdAt creation timestamp
+     */
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-    /** @return update timestamp @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Returns the last update timestamp.
+     *
+     * @return update timestamp
+     */
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 
-    /** @param updatedAt update timestamp @author Ehtisham Haider, Syed Ahmed */
+    /**
+     * Sets the last update timestamp.
+     *
+     * @param updatedAt update timestamp
+     */
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

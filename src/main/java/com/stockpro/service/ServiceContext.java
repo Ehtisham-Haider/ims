@@ -48,6 +48,10 @@ public class ServiceContext {
     private final UsbBarcodeScannerListener usbBarcodeScannerListener;
     private final SpreadsheetImportExportService spreadsheetImportExportService;
     private final ExecutivePdfReportGenerator executivePdfReportGenerator;
+    private final BackupService backupService;
+    private final DemoDataService demoDataService;
+    private final TelemetryMonitorService telemetryMonitorService;
+    private final BuiltInLabTestRunner builtInLabTestRunner;
 
     /**
      * Constructs a service registry bound to a specific {@link DatabaseManager}.
@@ -112,6 +116,10 @@ public class ServiceContext {
                 financeService,
                 aiAssistantService
         );
+        this.backupService = new BackupService(databaseManager, InventoryEventBus.getInstance());
+        this.demoDataService = new DemoDataService(databaseManager, catalogSearchEngine, InventoryEventBus.getInstance());
+        this.telemetryMonitorService = new TelemetryMonitorService(databaseManager, catalogSearchEngine);
+        this.builtInLabTestRunner = new BuiltInLabTestRunner();
         syncSessionSettings();
     }
 
@@ -351,5 +359,41 @@ public class ServiceContext {
      */
     public ExecutivePdfReportGenerator getExecutivePdfReportGenerator() {
         return executivePdfReportGenerator;
+    }
+
+    /**
+     * Returns the SQLite snapshot backup and restore service.
+     *
+     * @return {@link BackupService}
+     */
+    public BackupService getBackupService() {
+        return backupService;
+    }
+
+    /**
+     * Returns the 1,000-item realistic demo store data generator service.
+     *
+     * @return {@link DemoDataService}
+     */
+    public DemoDataService getDemoDataService() {
+        return demoDataService;
+    }
+
+    /**
+     * Returns the JVM and search-latency telemetry monitor service.
+     *
+     * @return {@link TelemetryMonitorService}
+     */
+    public TelemetryMonitorService getTelemetryMonitorService() {
+        return telemetryMonitorService;
+    }
+
+    /**
+     * Returns the built-in 8-case lab verification runner.
+     *
+     * @return {@link BuiltInLabTestRunner}
+     */
+    public BuiltInLabTestRunner getBuiltInLabTestRunner() {
+        return builtInLabTestRunner;
     }
 }

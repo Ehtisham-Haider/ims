@@ -133,6 +133,15 @@ public class MainShellView {
             setActiveDeleteShortcutHandler(null);
             return new AiAssistantView(services, toastManager).build();
         });
+        viewFactories.put(NavigationSection.SETTINGS, () -> {
+            setActiveAddShortcutHandler(null);
+            setActiveSearchShortcutHandler(null);
+            setActiveDeleteShortcutHandler(null);
+            return new SettingsView(services, toastManager, () -> {
+                updateThemeToggleLabel();
+                onApplyTheme.run();
+            }).build();
+        });
     }
 
     /**

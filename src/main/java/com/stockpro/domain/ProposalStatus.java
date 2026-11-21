@@ -19,7 +19,6 @@ public enum ProposalStatus {
      * Creates a proposal status constant.
      *
      * @param displayName user-facing status label
-     * @author Ehtisham Haider, Syed Ahmed
      */
     ProposalStatus(String displayName) {
         this.displayName = displayName;
@@ -29,7 +28,6 @@ public enum ProposalStatus {
      * Returns the friendly status label.
      *
      * @return display name
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public String getDisplayName() {
         return displayName;
@@ -40,7 +38,6 @@ public enum ProposalStatus {
      *
      * @param value stored status text
      * @return matching {@link ProposalStatus}, defaulting to {@link #PENDING}
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public static ProposalStatus fromString(String value) {
         if (value == null || value.isBlank()) {

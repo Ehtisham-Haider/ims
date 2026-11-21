@@ -140,7 +140,6 @@ public class SuppliersOrdersView {
      *
      * @return styled supplier directory card
      */
-    @SuppressWarnings("unchecked")
     private VBox buildSuppliersCard() {
         VBox card = new VBox(12);
         card.getStyleClass().add("card");
@@ -190,7 +189,7 @@ public class SuppliersOrdersView {
                 setGraphic(new HBox(4, edit, del));
             }
         });
-        table.getColumns().addAll(nameCol, phoneCol, leadCol, actCol);
+        table.getColumns().addAll(List.of(nameCol, phoneCol, leadCol, actCol));
 
         card.getChildren().addAll(hdr, table);
         return card;
@@ -201,7 +200,6 @@ public class SuppliersOrdersView {
      *
      * @return styled PO builder card
      */
-    @SuppressWarnings("unchecked")
     private VBox buildPurchaseOrderCard() {
         VBox card = new VBox(12);
         card.getStyleClass().add("card");
@@ -252,7 +250,7 @@ public class SuppliersOrdersView {
         TableColumn<PurchaseOrderItem, String> pTotal = new TableColumn<>("Est. Cost");
         pTotal.setCellValueFactory(c -> new SimpleStringProperty(
                 AppSession.getInstance().formatMoney(c.getValue().getLineTotal())));
-        draftTable.getColumns().addAll(pName, pQty, pTotal);
+        draftTable.getColumns().addAll(List.of(pName, pQty, pTotal));
 
         poTotalLabel = new Label("Estimated Total (incl. Tax): $0.00");
         poTotalLabel.setStyle("-fx-font-weight: bold;");
@@ -271,7 +269,6 @@ public class SuppliersOrdersView {
      *
      * @return styled PO history card
      */
-    @SuppressWarnings("unchecked")
     private VBox buildOrderHistoryCard() {
         VBox card = new VBox(12);
         card.getStyleClass().add("card");
@@ -326,7 +323,7 @@ public class SuppliersOrdersView {
                 setGraphic(box);
             }
         });
-        table.getColumns().addAll(numCol, supCol, costCol, statusCol, actCol);
+        table.getColumns().addAll(List.of(numCol, supCol, costCol, statusCol, actCol));
 
         card.getChildren().addAll(heading, table);
         return card;
@@ -337,7 +334,6 @@ public class SuppliersOrdersView {
      *
      * @return styled dead money card
      */
-    @SuppressWarnings("unchecked")
     private VBox buildDeadMoneyCard() {
         VBox card = new VBox(12);
         card.getStyleClass().add("card");
@@ -367,7 +363,7 @@ public class SuppliersOrdersView {
         TableColumn<Product, String> vCol = new TableColumn<>("Tied Capital");
         vCol.setCellValueFactory(c -> new SimpleStringProperty(
                 AppSession.getInstance().formatMoney(c.getValue().getCostValuation())));
-        table.getColumns().addAll(nCol, qCol, vCol);
+        table.getColumns().addAll(List.of(nCol, qCol, vCol));
 
         card.getChildren().addAll(hdr, table);
         return card;

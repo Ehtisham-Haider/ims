@@ -229,67 +229,68 @@ public class SupplierOrderService {
                 Files.createDirectories(outputPath.getParent());
             }
             AppSession session = AppSession.getInstance();
-            Document doc = new Document(PageSize.A4, 36, 36, 40, 36);
-            PdfWriter.getInstance(doc, new FileOutputStream(outputPath.toFile()));
-            doc.open();
+            try (FileOutputStream fos = new FileOutputStream(outputPath.toFile());
+                 Document doc = new Document(PageSize.A4, 36, 36, 40, 36)) {
+                PdfWriter.getInstance(doc, fos);
+                doc.open();
 
-            Font titleFont = new Font(Font.HELVETICA, 20, Font.BOLD, new Color(79, 70, 229));
-            Font subFont = new Font(Font.HELVETICA, 11, Font.NORMAL, new Color(100, 116, 139));
-            Font headFont = new Font(Font.HELVETICA, 11, Font.BOLD, Color.WHITE);
-            Font bodyFont = new Font(Font.HELVETICA, 10, Font.NORMAL, new Color(15, 23, 42));
-            Font boldFont = new Font(Font.HELVETICA, 11, Font.BOLD, new Color(15, 23, 42));
+                Font titleFont = new Font(Font.HELVETICA, 20, Font.BOLD, new Color(79, 70, 229));
+                Font subFont = new Font(Font.HELVETICA, 11, Font.NORMAL, new Color(100, 116, 139));
+                Font headFont = new Font(Font.HELVETICA, 11, Font.BOLD, Color.WHITE);
+                Font bodyFont = new Font(Font.HELVETICA, 10, Font.NORMAL, new Color(15, 23, 42));
+                Font boldFont = new Font(Font.HELVETICA, 11, Font.BOLD, new Color(15, 23, 42));
 
-            Paragraph header = new Paragraph(session.getStoreName() + " — PURCHASE ORDER", titleFont);
-            doc.add(header);
-            doc.add(new Paragraph("PO Number: " + po.getPoNumber()
-                    + "   |   Status: " + po.getStatus()
-                    + "   |   Date: " + (po.getCreatedAt() != null ? po.getCreatedAt().format(DATE_FMT) : ""), subFont));
-            doc.add(new Paragraph("Supplier: " + po.getSupplierName(), boldFont));
-            doc.add(new Paragraph(" "));
+                Paragraph header = new Paragraph(session.getStoreName() + " — PURCHASE ORDER", titleFont);
+                doc.add(header);
+                doc.add(new Paragraph("PO Number: " + po.getPoNumber()
+                        + "   |   Status: " + po.getStatus()
+                        + "   |   Date: " + (po.getCreatedAt() != null ? po.getCreatedAt().format(DATE_FMT) : ""), subFont));
+                doc.add(new Paragraph("Supplier: " + po.getSupplierName(), boldFont));
+                doc.add(new Paragraph(" "));
 
-            PdfPTable table = new PdfPTable(5);
-            table.setWidthPercentage(100);
-            table.setWidths(new float[]{1.4f, 3.2f, 1.0f, 1.4f, 1.5f});
+                PdfPTable table = new PdfPTable(5);
+                table.setWidthPercentage(100);
+                table.setWidths(new float[]{1.4f, 3.2f, 1.0f, 1.4f, 1.5f});
 
-            String[] headers = {"SKU", "Product Name", "Qty", "Unit Cost", "Line Total"};
-            for (String h : headers) {
-                PdfPCell cell = new PdfPCell(new Phrase(h, headFont));
-                cell.setBackgroundColor(new Color(23, 28, 46));
-                cell.setPadding(8);
-                table.addCell(cell);
+                String[] headers = {"SKU", "Product Name", "Qty", "Unit Cost", "Line Total"};
+                for (String h : headers) {
+                    PdfPCell cell = new PdfPCell(new Phrase(h, headFont));
+                    cell.setBackgroundColor(new Color(23, 28, 46));
+                    cell.setPadding(8);
+                    table.addCell(cell);
+                }
+
+                for (PurchaseOrderItem item : po.getItems()) {
+                    table.addCell(new PdfPCell(new Phrase(item.getProductSku(), bodyFont)));
+                    table.addCell(new PdfPCell(new Phrase(item.getProductName(), bodyFont)));
+                    PdfPCell qCell = new PdfPCell(new Phrase(String.valueOf(item.getQuantity()), bodyFont));
+                    qCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                    table.addCell(qCell);
+                    PdfPCell uCell = new PdfPCell(new Phrase(session.formatMoney(item.getUnitCost()), bodyFont));
+                    uCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                    table.addCell(uCell);
+                    PdfPCell tCell = new PdfPCell(new Phrase(session.formatMoney(item.getLineTotal()), bodyFont));
+                    tCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                    table.addCell(tCell);
+                }
+                doc.add(table);
+
+                doc.add(new Paragraph(" "));
+                double tax = po.getTotalCost() * (session.getTaxRatePercent() / 100.0);
+                double grandTotal = po.getTotalCost() + tax;
+                Paragraph totals = new Paragraph(
+                        String.format("Subtotal: %s\nEstimated Tax (%.1f%%): %s\nGrand Total: %s",
+                                session.formatMoney(po.getTotalCost()),
+                                session.getTaxRatePercent(),
+                                session.formatMoney(tax),
+                                session.formatMoney(grandTotal)),
+                        boldFont
+                );
+                totals.setAlignment(Element.ALIGN_RIGHT);
+                doc.add(totals);
+
+                doc.add(new Paragraph("\n\nAuthorized Signature: ____________________________", subFont));
             }
-
-            for (PurchaseOrderItem item : po.getItems()) {
-                table.addCell(new PdfPCell(new Phrase(item.getProductSku(), bodyFont)));
-                table.addCell(new PdfPCell(new Phrase(item.getProductName(), bodyFont)));
-                PdfPCell qCell = new PdfPCell(new Phrase(String.valueOf(item.getQuantity()), bodyFont));
-                qCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-                table.addCell(qCell);
-                PdfPCell uCell = new PdfPCell(new Phrase(session.formatMoney(item.getUnitCost()), bodyFont));
-                uCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-                table.addCell(uCell);
-                PdfPCell tCell = new PdfPCell(new Phrase(session.formatMoney(item.getLineTotal()), bodyFont));
-                tCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-                table.addCell(tCell);
-            }
-            doc.add(table);
-
-            doc.add(new Paragraph(" "));
-            double tax = po.getTotalCost() * (session.getTaxRatePercent() / 100.0);
-            double grandTotal = po.getTotalCost() + tax;
-            Paragraph totals = new Paragraph(
-                    String.format("Subtotal: %s\nEstimated Tax (%.1f%%): %s\nGrand Total: %s",
-                            session.formatMoney(po.getTotalCost()),
-                            session.getTaxRatePercent(),
-                            session.formatMoney(tax),
-                            session.formatMoney(grandTotal)),
-                    boldFont
-            );
-            totals.setAlignment(Element.ALIGN_RIGHT);
-            doc.add(totals);
-
-            doc.add(new Paragraph("\n\nAuthorized Signature: ____________________________", subFont));
-            doc.close();
             return outputPath;
         } catch (Exception ex) {
             throw new IllegalStateException("Failed to generate Purchase Order PDF", ex);

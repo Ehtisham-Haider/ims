@@ -19,7 +19,6 @@ public enum StockStatus {
      * Creates a stock status constant with its human-readable label.
      *
      * @param displayName label displayed in tables, filters, and reports
-     * @author Ehtisham Haider, Syed Ahmed
      */
     StockStatus(String displayName) {
         this.displayName = displayName;
@@ -29,7 +28,6 @@ public enum StockStatus {
      * Returns the formatted label used in UI pills and exports.
      *
      * @return human-readable status label
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public String getDisplayName() {
         return displayName;
@@ -40,7 +38,6 @@ public enum StockStatus {
      *
      * @param value text representation of the status
      * @return matching {@link StockStatus}, defaulting to {@link #IN_STOCK} when unrecognized
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public static StockStatus fromString(String value) {
         if (value == null || value.isBlank()) {

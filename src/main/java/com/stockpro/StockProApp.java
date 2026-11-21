@@ -23,7 +23,6 @@ import org.slf4j.Logger;
  */
 public class StockProApp extends Application {
     private static final Logger LOG = AppLogger.get(StockProApp.class);
-    private Stage primaryStage;
     private Scene mainScene;
 
     /**
@@ -39,7 +38,6 @@ public class StockProApp extends Application {
      */
     @Override
     public void start(Stage stage) {
-        this.primaryStage = stage;
         GlobalExceptionHandler.install();
         LOG.info("Starting StockPro desktop application...");
 

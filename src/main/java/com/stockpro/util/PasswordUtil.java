@@ -11,8 +11,6 @@ public final class PasswordUtil {
 
     /**
      * Prevents instantiation of utility class.
-     *
-     * @author Ehtisham Haider, Syed Ahmed
      */
     private PasswordUtil() {
     }
@@ -22,7 +20,6 @@ public final class PasswordUtil {
      *
      * @param rawPassword plaintext password to hash
      * @return salted BCrypt hash string
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public static String hash(String rawPassword) {
         if (rawPassword == null || rawPassword.isEmpty()) {
@@ -37,7 +34,6 @@ public final class PasswordUtil {
      * @param rawPassword candidate plaintext password
      * @param storedHash stored BCrypt hash
      * @return {@code true} if the password matches the hash
-     * @author Ehtisham Haider, Syed Ahmed
      */
     public static boolean verify(String rawPassword, String storedHash) {
         if (rawPassword == null || storedHash == null || storedHash.isBlank()) {

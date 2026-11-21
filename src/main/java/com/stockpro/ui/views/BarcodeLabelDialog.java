@@ -1,7 +1,6 @@
 package com.stockpro.ui.views;
 
 import com.stockpro.domain.Product;
-import com.stockpro.service.AppSession;
 import com.stockpro.service.BarcodeLabelService;
 import com.stockpro.ui.components.ToastNotificationManager;
 import com.stockpro.util.AppExecutor;

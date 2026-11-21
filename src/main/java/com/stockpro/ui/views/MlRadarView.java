@@ -55,7 +55,6 @@ public class MlRadarView {
      *
      * @return scrollable JavaFX node
      */
-    @SuppressWarnings("unchecked")
     public Node build() {
         VBox page = new VBox(16);
         page.setPadding(new Insets(12, 4, 16, 0));
@@ -154,7 +153,7 @@ public class MlRadarView {
         tunedCol.setCellValueFactory(c -> new SimpleStringProperty(
                 c.getValue().tunedLowStockThreshold() + " (now " + c.getValue().product().getLowStockThreshold() + ")"));
 
-        table.getColumns().addAll(skuCol, nameCol, abcCol, countdownCol, f7Col, restockCol, tunedCol);
+        table.getColumns().addAll(List.of(skuCol, nameCol, abcCol, countdownCol, f7Col, restockCol, tunedCol));
         tableCard.getChildren().addAll(fTitle, table);
 
         // Theft, Anomaly & Typo Guard Cards
