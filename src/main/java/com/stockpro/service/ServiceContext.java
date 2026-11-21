@@ -3,8 +3,10 @@ package com.stockpro.service;
 import com.stockpro.repository.AuditLogRepository;
 import com.stockpro.repository.DatabaseManager;
 import com.stockpro.repository.ProductRepository;
+import com.stockpro.repository.PurchaseOrderRepository;
 import com.stockpro.repository.SettingsRepository;
 import com.stockpro.repository.StockMovementRepository;
+import com.stockpro.repository.SupplierRepository;
 import com.stockpro.repository.UserRepository;
 import com.stockpro.service.command.CommandHistoryManager;
 
@@ -22,10 +24,14 @@ public class ServiceContext {
     private final SettingsRepository settingsRepository;
     private final StockMovementRepository stockMovementRepository;
     private final AuditLogRepository auditLogRepository;
+    private final SupplierRepository supplierRepository;
+    private final PurchaseOrderRepository purchaseOrderRepository;
     private final InventoryService inventoryService;
     private final AuthService authService;
     private final AuditService auditService;
     private final StockOperationService stockOperationService;
+    private final SupplierOrderService supplierOrderService;
+    private final FinanceService financeService;
 
     /**
      * Constructs a service registry bound to a specific {@link DatabaseManager}.
@@ -39,6 +45,8 @@ public class ServiceContext {
         this.settingsRepository = new SettingsRepository(databaseManager);
         this.stockMovementRepository = new StockMovementRepository(databaseManager);
         this.auditLogRepository = new AuditLogRepository(databaseManager);
+        this.supplierRepository = new SupplierRepository(databaseManager);
+        this.purchaseOrderRepository = new PurchaseOrderRepository(databaseManager);
         this.inventoryService = new InventoryService(
                 productRepository,
                 new CommandHistoryManager(),
@@ -52,6 +60,14 @@ public class ServiceContext {
                 auditService,
                 InventoryEventBus.getInstance()
         );
+        this.supplierOrderService = new SupplierOrderService(
+                supplierRepository,
+                purchaseOrderRepository,
+                stockOperationService,
+                auditService,
+                InventoryEventBus.getInstance()
+        );
+        this.financeService = new FinanceService(databaseManager, productRepository);
         syncSessionSettings();
     }
 
@@ -165,5 +181,41 @@ public class ServiceContext {
      */
     public StockOperationService getStockOperationService() {
         return stockOperationService;
+    }
+
+    /**
+     * Returns the supplier repository.
+     *
+     * @return supplier repository
+     */
+    public SupplierRepository getSupplierRepository() {
+        return supplierRepository;
+    }
+
+    /**
+     * Returns the purchase order repository.
+     *
+     * @return purchase order repository
+     */
+    public PurchaseOrderRepository getPurchaseOrderRepository() {
+        return purchaseOrderRepository;
+    }
+
+    /**
+     * Returns the supplier and purchase order workflow service.
+     *
+     * @return supplier order service
+     */
+    public SupplierOrderService getSupplierOrderService() {
+        return supplierOrderService;
+    }
+
+    /**
+     * Returns the financial engine service.
+     *
+     * @return finance service
+     */
+    public FinanceService getFinanceService() {
+        return financeService;
     }
 }
