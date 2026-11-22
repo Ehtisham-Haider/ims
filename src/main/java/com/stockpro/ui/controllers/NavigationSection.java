@@ -18,6 +18,8 @@ public enum NavigationSection {
     SUPPLIERS_ORDERS("Suppliers & Orders"),
     /** Business analytics charts and PDF/Excel report exports. */
     ANALYTICS_REPORTS("Analytics & Reports"),
+    /** Monte Carlo What-If Time Machine stress simulator. */
+    WHAT_IF_SIMULATOR("What-If Studio"),
     /** Natural-language assistant, ML radar, and agent approval inbox. */
     AI_ASSISTANT("AI Assistant"),
     /** Store settings, staff roles, backups, telemetry, and viva test runner. */

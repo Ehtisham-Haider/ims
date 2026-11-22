@@ -168,6 +168,12 @@ public class MainShellView {
             activeViewThemeRefresh = view::onThemeChanged;
             return view.build();
         });
+        viewFactories.put(NavigationSection.WHAT_IF_SIMULATOR, () -> {
+            clearShortcutHooks();
+            WhatIfTimeMachineView simView = new WhatIfTimeMachineView(services, toastManager);
+            activeViewThemeRefresh = simView::refreshTheme;
+            return simView;
+        });
         viewFactories.put(NavigationSection.AI_ASSISTANT, () -> {
             clearShortcutHooks();
             AiAssistantView aiView = new AiAssistantView(
@@ -805,6 +811,7 @@ public class MainShellView {
             case WAREHOUSE_MAP -> Feather.MAP;
             case SUPPLIERS_ORDERS -> Feather.TRUCK;
             case ANALYTICS_REPORTS -> Feather.BAR_CHART_2;
+            case WHAT_IF_SIMULATOR -> Feather.SLIDERS;
             case AI_ASSISTANT -> Feather.CPU;
             case SETTINGS -> Feather.SETTINGS;
         };
