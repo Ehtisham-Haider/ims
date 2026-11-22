@@ -24,6 +24,16 @@ public class StockOperationService {
     private final StockMovementRepository movementRepository;
     private final AuditService auditService;
     private final InventoryEventBus eventBus;
+    private MultiBranchTransferRmaService branchService;
+
+    /**
+     * Attaches the Version 2 multi-branch service so restocks automatically alert waiting backorders.
+     *
+     * @param branchService multi-branch &amp; backorder coordinator
+     */
+    public void setBranchService(MultiBranchTransferRmaService branchService) {
+        this.branchService = branchService;
+    }
 
     /**
      * Preview snapshot calculated prior to confirming a stock mutation.
@@ -211,6 +221,9 @@ public class StockOperationService {
                         product.getName(), preview.delta(), preview.currentQty(), preview.newQty(), movement.getReason())
         );
 
+        if (branchService != null && preview.delta() > 0 && preview.newQty() > 0) {
+            branchService.notifyWaitingCustomersOnRestock(product.getId());
+        }
         eventBus.publish("STOCK_OPERATION_" + type.name());
         return InventoryOperationResult.ok(saved,
                 type.getDisplayName() + " recorded for " + product.getName() + " (New stock: " + preview.newQty() + ").");

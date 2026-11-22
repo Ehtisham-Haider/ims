@@ -16,6 +16,8 @@ public final class AppSession {
     private String storeName = "StockPro Store";
     private String currencySymbol = "$";
     private double taxRatePercent = 15.0;
+    private long activeBranchId = 1L;
+    private String activeBranchName = "Main Flagship Store";
 
     /**
      * Prevents external instantiation of singleton session holder.
@@ -191,6 +193,46 @@ public final class AppSession {
     public void setTaxRatePercent(double taxRatePercent) {
         if (taxRatePercent >= 0.0 && taxRatePercent <= 100.0) {
             this.taxRatePercent = taxRatePercent;
+        }
+    }
+
+    /**
+     * Returns the currently selected physical store branch ID.
+     *
+     * @return active branch identifier
+     */
+    public long getActiveBranchId() {
+        return activeBranchId;
+    }
+
+    /**
+     * Sets the active physical store branch ID for multi-branch UI filtering.
+     *
+     * @param activeBranchId target branch ID
+     */
+    public void setActiveBranchId(long activeBranchId) {
+        if (activeBranchId > 0) {
+            this.activeBranchId = activeBranchId;
+        }
+    }
+
+    /**
+     * Returns the display name of the currently selected store branch.
+     *
+     * @return active branch name
+     */
+    public String getActiveBranchName() {
+        return activeBranchName;
+    }
+
+    /**
+     * Sets the display name of the currently selected store branch.
+     *
+     * @param activeBranchName branch display name
+     */
+    public void setActiveBranchName(String activeBranchName) {
+        if (activeBranchName != null && !activeBranchName.isBlank()) {
+            this.activeBranchName = activeBranchName.trim();
         }
     }
 }
