@@ -32,24 +32,35 @@ import javafx.stage.Window;
 import org.kordamp.ikonli.feather.Feather;
 
 import java.io.File;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
 /**
  * Add/Edit Product dialog matching {@code Screens and popups/Add Product.png} with live red inline
  * field validation, photo picker, category/tag entry, shelf location, expiry date, substitute SKU,
- * archive toggle, and compact scrolling fit on 1280×752 laptop screens.
+ * custom extra metadata fields, archive toggle, and compact scrolling fit on 1280×752 laptop screens.
  *
- * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
+ * @author Syed Ehtisham Haider Bukhari, Faheem Ahmed Khan
  */
 public class ProductFormDialog {
     private Product result;
     private String selectedPhotoPath;
+    private final Map<String, String> customFieldsResult = new LinkedHashMap<>();
 
     /**
      * Creates a new Add/Edit Product modal helper.
      */
     public ProductFormDialog() {
+    }
+
+    /**
+     * Returns any structured custom fields entered via {@code Custom Extra Fields (key=value)}.
+     *
+     * @return immutable-snapshot custom attribute map
+     */
+    public Map<String, String> getCustomFieldsResult() {
+        return Map.copyOf(customFieldsResult);
     }
 
     /**
@@ -243,6 +254,9 @@ public class ProductFormDialog {
         CheckBox archivedCheck = new CheckBox("Discontinued / Archived");
         archivedCheck.setSelected(existing != null && existing.isArchived());
 
+        TextField customMetaField = new TextField();
+        customMetaField.setPromptText("e.g. Brand=Sony, Voltage=220V");
+
         grid.add(wrapField("Product Name *", nameField, nameErr), 0, 0);
         grid.add(wrapField("Tags", tagsField, null), 1, 0);
         grid.add(wrapField("Category", categoryBox, null), 0, 1);
@@ -255,6 +269,7 @@ public class ProductFormDialog {
         grid.add(wrapField("Status", statusBox, null), 1, 4);
         grid.add(wrapField("Substitute SKU", substituteField, null), 0, 5);
         grid.add(new VBox(6, manualOverrideCheck, archivedCheck), 1, 5);
+        grid.add(wrapField("Custom Extra Fields (key=value)", customMetaField, null), 0, 6, 2, 1);
 
         body.getChildren().addAll(photoBox, grid);
 
@@ -308,6 +323,16 @@ public class ProductFormDialog {
             out.setPhotoPath(selectedPhotoPath);
             out.setSubstituteSku(substituteField.getText() != null ? substituteField.getText().trim() : "");
             out.setArchived(archivedCheck.isSelected());
+            customFieldsResult.clear();
+            String rawMeta = customMetaField.getText();
+            if (rawMeta != null && !rawMeta.isBlank()) {
+                for (String pair : rawMeta.split(",")) {
+                    int eq = pair.indexOf('=');
+                    if (eq > 0 && eq < pair.length() - 1) {
+                        customFieldsResult.put(pair.substring(0, eq).trim(), pair.substring(eq + 1).trim());
+                    }
+                }
+            }
             this.result = out;
             dialog.close();
         });

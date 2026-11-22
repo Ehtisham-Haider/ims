@@ -700,6 +700,10 @@ public class InventoryView {
             InventoryOperationResult<Product> res = inventoryService.addProduct(product);
             if (res.isSuccess()) {
                 Product saved = res.getData();
+                if (saved != null && !dialog.getCustomFieldsResult().isEmpty()) {
+                    services.getCatalogVariantBomService().saveCustomFields(
+                            saved.getId(), dialog.getCustomFieldsResult());
+                }
                 toastManager.showToast(res.getMessage(), "Undo", () -> {
                     inventoryService.undoLastAction();
                     refreshAsync();
@@ -732,6 +736,10 @@ public class InventoryView {
         edited.ifPresent(updated -> {
             InventoryOperationResult<Product> res = inventoryService.updateProduct(updated);
             if (res.isSuccess()) {
+                if (!dialog.getCustomFieldsResult().isEmpty()) {
+                    services.getCatalogVariantBomService().saveCustomFields(
+                            updated.getId(), dialog.getCustomFieldsResult());
+                }
                 thumbnailCache.clear();
                 pendingImageFetches.remove(updated.getId());
                 toastManager.showToast(res.getMessage(), "Undo", () -> {
