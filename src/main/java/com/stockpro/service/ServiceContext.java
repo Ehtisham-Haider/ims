@@ -70,6 +70,9 @@ public class ServiceContext {
     private final com.stockpro.ai.WorldAwareGenAiService worldAwareGenAiService;
     private final com.stockpro.ai.MultiAgentStoreBrainService multiAgentStoreBrainService;
     private final com.stockpro.ml.MonteCarloSimulator monteCarloSimulator;
+    private final UserColumnPreferenceService userColumnPreferenceService;
+    private final AlertDispatcherService alertDispatcherService;
+    private final LocalRestApiServer localRestApiServer;
 
     /**
      * Constructs a service registry bound to a specific {@link DatabaseManager}.
@@ -199,6 +202,21 @@ public class ServiceContext {
                 settingsRepository,
                 auditService,
                 InventoryEventBus.getInstance());
+        this.userColumnPreferenceService = new UserColumnPreferenceService(databaseManager);
+        this.alertDispatcherService = new AlertDispatcherService(databaseManager, settingsRepository);
+        this.localRestApiServer = new LocalRestApiServer(
+                productRepository,
+                stockOperationService,
+                userRepository,
+                settingsRepository);
+        if ("true".equalsIgnoreCase(settingsRepository.get("api.local.enabled", "false"))) {
+            try {
+                int port = Integer.parseInt(settingsRepository.get("api.local.port", "8765"));
+                this.localRestApiServer.start(port);
+            } catch (Exception ignored) {
+                // Keep UI startup non-fatal if local port is already bound.
+            }
+        }
         syncSessionSettings();
     }
 
@@ -636,5 +654,32 @@ public class ServiceContext {
      */
     public com.stockpro.ml.MonteCarloSimulator getMonteCarloSimulator() {
         return monteCarloSimulator;
+    }
+
+    /**
+     * Returns the Branch 11 per-user Inventory column visibility preference service.
+     *
+     * @return {@link UserColumnPreferenceService}
+     */
+    public UserColumnPreferenceService getUserColumnPreferenceService() {
+        return userColumnPreferenceService;
+    }
+
+    /**
+     * Returns the Branch 11 Telegram and Gmail multi-channel alert dispatcher.
+     *
+     * @return {@link AlertDispatcherService}
+     */
+    public AlertDispatcherService getAlertDispatcherService() {
+        return alertDispatcherService;
+    }
+
+    /**
+     * Returns the Branch 11 loopback JWT REST API server manager.
+     *
+     * @return {@link LocalRestApiServer}
+     */
+    public LocalRestApiServer getLocalRestApiServer() {
+        return localRestApiServer;
     }
 }
