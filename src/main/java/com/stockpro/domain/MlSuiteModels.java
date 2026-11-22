@@ -1,7 +1,7 @@
 package com.stockpro.domain;
 
 /**
- * Container class holding immutable DTO records produced by the Branch 07
+ * Container class holding immutable DTO records produced by the
  * Advanced Offline Machine Learning Suite (Holt-Winters, OTIF, Dynamic Pricing,
  * Lost-Sale Imputation, Smart Expiry Markdowns, and Apriori Co-Occurrence Rules).
  *

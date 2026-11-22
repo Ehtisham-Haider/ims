@@ -30,7 +30,8 @@ import java.util.function.Consumer;
 
 /**
  * Offline Machine Learning Radar &amp; DS&amp;A Search Sandbox UI displaying Days-Until-Empty bars,
- * Smart Restock Plan, Auto-Tuned Thresholds, ABC grades, and Theft/Typo anomaly alerts with Light/Dark fidelity.
+ * Smart Restock Plan, Auto-Tuned Thresholds, ABC grades, Holt-Winters 95% confidence bounds,
+ * Supplier OTIF scores, Apriori rules, and Theft/Typo anomaly alerts with Light/Dark fidelity.
  *
  * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */

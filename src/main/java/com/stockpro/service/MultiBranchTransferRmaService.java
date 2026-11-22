@@ -34,7 +34,7 @@ import java.util.Optional;
 /**
  * Manages multi-branch inventory tracking, valuation-safe inter-branch stock transfers,
  * Available-to-Promise (ATP) reservations, blind dock receiving, 3-way supplier invoice matching,
- * customer RMA returns with disposition workflows, and out-of-stock customer backorders.
+ * customer RMA returns with disposition workflows, and customer backorders.
  *
  * @author Syed Ehtisham Haider Bukhari, Faheem Ahmed Khan
  */

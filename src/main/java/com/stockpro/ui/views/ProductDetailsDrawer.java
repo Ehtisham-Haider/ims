@@ -45,13 +45,11 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * Animated right-side Product Details Drawer matching
- * {@code Screens and popups/Product Details.png},
- * displaying product photo, barcode strip, cost/sell/profit cards, stock
- * progress bar, shelf spot, Enterprise catalog details (variants, UoM, BOM,
- * serials, spec sheet attachments, custom fields),
- * real SQLite stock movement history, offline ML forecast bars via
- * {@link ModernBarChart}, and Light/Dark contrast.
+ * Animated right-side Product Details Drawer matching {@code Screens and popups/Product Details.png},
+ * displaying product photo, barcode strip, cost/sell/profit cards, stock progress bar, shelf spot,
+ * Enterprise catalog details (variants, UoM, BOM, serials, spec sheet attachments, custom fields),
+ * real SQLite stock movement history, offline ML forecast bars via {@link ModernBarChart},
+ * and Light/Dark contrast.
  *
  * @author Syed Ehtisham Haider Bukhari, Faheem Ahmed Khan
  */

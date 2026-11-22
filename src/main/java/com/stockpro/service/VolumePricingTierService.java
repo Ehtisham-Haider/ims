@@ -16,7 +16,7 @@ import java.util.Locale;
 
 /**
  * Manages supplier bulk volume price breaks and Minimum Order Quantity (MOQ) rules
- * in {@code vendor_price_tiers}, advising buyers when small order step-ups cut unit cost.
+ * in {@code vendor_price_tiers}, advising buyers when order step-ups cut unit cost.
  *
  * @author Syed Ehtisham Haider Bukhari, Faheem Ahmed Khan
  */

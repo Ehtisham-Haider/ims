@@ -33,7 +33,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Pure-Java Advanced Offline ML Suite providing Holt-Winters seasonal forecasting
+ * Pure-Java Advanced Offline ML Suite providing Holt-Winters additive seasonal forecasting
  * with 95% confidence bands, Supplier OTIF scoring &amp; lead-time prediction,
  * dynamic price optimization, stockout lost-sale imputation, smart 10/20/35% expiry markdowns,
  * and Apriori co-occurrence market-basket rules.

@@ -26,7 +26,7 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * Zero-cost Multi-Currency Foreign Exchange service using Frankfurter ({@code api.frankfurter.dev})
+ * Zero-cost Multi-Currency Foreign Exchange service querying Frankfurter ({@code api.frankfurter.dev})
  * with automatic SQLite caching in {@code fx_rates_cache} and deterministic offline fallback rates.
  *
  * @author Syed Ehtisham Haider Bukhari, Faheem Ahmed Khan

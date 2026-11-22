@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Projects 30-, 60-, and 90-day cash outflows vs expected inflows from open Purchase Orders,
+ * Projects 30-, 60-, and 90-day cash outflows vs. expected inflows from open Purchase Orders,
  * historical sales run-rates, and upcoming low-stock replenishment requirements.
  *
  * @author Syed Ehtisham Haider Bukhari, Faheem Ahmed Khan

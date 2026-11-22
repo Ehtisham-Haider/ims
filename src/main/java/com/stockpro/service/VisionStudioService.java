@@ -32,7 +32,7 @@ import java.util.regex.Pattern;
 /**
  * AI Vision Studio &amp; Optical Scanner service uniting ZXing multi-format 1D/2D barcode decoding,
  * Open Food Facts product enrichment, perceptual duplicate checking, Drag-and-Drop intake,
- * Groq cloud summary enrichment, and deterministic pure-Java local vision analysis across all 6 modes.
+ * Groq cloud summary enrichment, and pure-Java local vision analysis across all 6 modes.
  *
  * @author Syed Ehtisham Haider Bukhari, Faheem Ahmed Khan
  */

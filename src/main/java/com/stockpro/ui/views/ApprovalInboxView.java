@@ -28,9 +28,12 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Human Approval Safety Inbox matching {@code Screens and popups/Approvals.png}, displaying every
- * autonomous Auto-Buyer, Nightly Auditor, and Expiry Rescue recommendation with Feather icons,
- * loading guard on scan trigger, and {@code Approve / Reject} buttons.
+ * Human Approval Safety Inbox matching
+ * {@code Screens and popups/Approvals.png}, displaying every
+ * autonomous Auto-Buyer, Nightly Auditor, Expiry Rescue, and 7-Agent consensus
+ * recommendation
+ * with Feather icons, loading guard on scan trigger, and
+ * {@code Approve / Reject} buttons.
  *
  * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
@@ -47,7 +50,7 @@ public class ApprovalInboxView {
     /**
      * Constructs the Human Approval Safety Inbox panel.
      *
-     * @param services shared service registry
+     * @param services     shared service registry
      * @param toastManager toast notification helper
      */
     public ApprovalInboxView(ServiceContext services, ToastNotificationManager toastManager) {
@@ -79,7 +82,8 @@ public class ApprovalInboxView {
         Label heading = new Label("AI Agent Approval Inbox");
         heading.getStyleClass().add("section-title");
         heading.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
-        Label sub = new Label("Zero database writes occur silently — every AI proposal awaits explicit human confirmation.");
+        Label sub = new Label(
+                "Zero database writes occur silently — every AI proposal awaits explicit human confirmation.");
         sub.getStyleClass().add("muted-text");
         titleCol.getChildren().addAll(heading, sub);
 
@@ -108,8 +112,7 @@ public class ApprovalInboxView {
                         runAgentsBtn.setDisable(false);
                         runAgentsBtn.setText("Run All 3 AI Agents");
                         toastManager.showInfo("Agent scan error: " + ex.getMessage());
-                    }
-            );
+                    });
         });
 
         Button team7Btn = new Button("Run 7-Agent Store Brain");
@@ -121,14 +124,14 @@ public class ApprovalInboxView {
                     () -> services.getMultiAgentStoreBrainService().runSevenAgentTeamConsensus(),
                     created -> {
                         team7Btn.setDisable(false);
-                        toastManager.showInfo("7-Agent Store Brain queued " + created.size() + " ranked consensus proposal(s).");
+                        toastManager.showInfo(
+                                "7-Agent Store Brain queued " + created.size() + " ranked consensus proposal(s).");
                         refreshAsync();
                     },
                     ex -> {
                         team7Btn.setDisable(false);
                         toastManager.showInfo("Team consensus error: " + ex.getMessage());
-                    }
-            );
+                    });
         });
 
         header.getChildren().addAll(titleCol, sp, pendingOnlyCheck, runAgentsBtn, team7Btn);
@@ -154,7 +157,7 @@ public class ApprovalInboxView {
     public void refreshAsync() {
         boolean pendingOnly = pendingOnlyCheck == null || pendingOnlyCheck.isSelected();
         AppExecutor.runAsync(
-                () -> new Object[]{
+                () -> new Object[] {
                         orchestrator.listProposals(pendingOnly),
                         services.getMultiAgentStoreBrainService().computeStoreHealthScore(),
                         services.getMultiAgentStoreBrainService().investigateSalesDrivers(14),
@@ -172,8 +175,7 @@ public class ApprovalInboxView {
                     }
                     renderCards(list);
                 },
-                ex -> toastManager.showInfo("Failed to load proposals: " + ex.getMessage())
-        );
+                ex -> toastManager.showInfo("Failed to load proposals: " + ex.getMessage()));
     }
 
     private void renderCards(List<AgentProposal> proposals) {
@@ -188,7 +190,8 @@ public class ApprovalInboxView {
             emptyCard.setPadding(new Insets(32));
             Label lbl = new Label("No pending AI proposals in the Approval Inbox.");
             lbl.getStyleClass().add("section-title");
-            Label hint = new Label("Click 'Run All 3 AI Agents' above to scan for restock needs, audit anomalies, and expiring items.");
+            Label hint = new Label(
+                    "Click 'Run All 3 AI Agents' above to scan for restock needs, audit anomalies, and expiring items.");
             hint.getStyleClass().add("muted-text");
             emptyCard.getChildren().addAll(lbl, hint);
             cardsContainer.getChildren().add(emptyCard);
@@ -247,7 +250,8 @@ public class ApprovalInboxView {
                         () -> {
                             var res = orchestrator.approveProposal(proposal.getId(), actor, canApprove);
                             if (res.isSuccess()) {
-                                services.getMultiAgentStoreBrainService().recordDecisionFeedback(proposal.getAgentName(), true);
+                                services.getMultiAgentStoreBrainService()
+                                        .recordDecisionFeedback(proposal.getAgentName(), true);
                             }
                             return res;
                         },
@@ -255,8 +259,7 @@ public class ApprovalInboxView {
                             toastManager.showInfo(res.getMessage());
                             refreshAsync();
                         },
-                        ex -> toastManager.showInfo("Approval error: " + ex.getMessage())
-                );
+                        ex -> toastManager.showInfo("Approval error: " + ex.getMessage()));
             });
 
             Button rejectBtn = new Button("Reject");
@@ -268,7 +271,8 @@ public class ApprovalInboxView {
                         () -> {
                             var res = orchestrator.rejectProposal(proposal.getId(), actor);
                             if (res.isSuccess()) {
-                                services.getMultiAgentStoreBrainService().recordDecisionFeedback(proposal.getAgentName(), false);
+                                services.getMultiAgentStoreBrainService()
+                                        .recordDecisionFeedback(proposal.getAgentName(), false);
                             }
                             return res;
                         },
@@ -276,8 +280,7 @@ public class ApprovalInboxView {
                             toastManager.showInfo(res.getMessage());
                             refreshAsync();
                         },
-                        ex -> toastManager.showInfo("Rejection error: " + ex.getMessage())
-                );
+                        ex -> toastManager.showInfo("Rejection error: " + ex.getMessage()));
             });
 
             HBox buttons = new HBox(10, approveBtn, rejectBtn);
