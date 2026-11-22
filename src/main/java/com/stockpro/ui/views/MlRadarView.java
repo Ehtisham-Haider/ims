@@ -37,10 +37,12 @@ import java.util.function.Consumer;
 public class MlRadarView {
     private final CatalogSearchEngine searchEngine;
     private final OfflineMlEngine mlEngine;
+    private final com.stockpro.ml.AdvancedOfflineMlService advancedMlService;
     private final Consumer<String> eventListener = topic -> refreshAsync();
 
     private final ObservableList<OfflineMlEngine.ProductForecast> forecastRows = FXCollections.observableArrayList();
     private VBox anomalyCardsBox;
+    private VBox advancedMlBox;
     private Label searchStatsLabel;
 
     /**
@@ -51,6 +53,7 @@ public class MlRadarView {
     public MlRadarView(ServiceContext services) {
         this.searchEngine = services.getCatalogSearchEngine();
         this.mlEngine = services.getOfflineMlEngine();
+        this.advancedMlService = services.getAdvancedOfflineMlService();
         InventoryEventBus.getInstance().subscribe(eventListener);
     }
 
@@ -188,7 +191,17 @@ public class MlRadarView {
         anomalyCardsBox = new VBox(8);
         anomalyCard.getChildren().addAll(aHdr, anomalyCardsBox);
 
-        page.getChildren().addAll(searchCard, tableCard, anomalyCard);
+        VBox advancedCard = new VBox(10);
+        advancedCard.getStyleClass().add("card");
+        HBox advHdr = new HBox(8, AppIcons.of(Feather.TRENDING_UP, 16, "#4F46E5"));
+        advHdr.setAlignment(Pos.CENTER_LEFT);
+        Label advTitle = new Label("Enterprise ML Suite (Holt-Winters 95% CI • Supplier OTIF • Dynamic Pricing • Expiry • Apriori)");
+        advTitle.getStyleClass().add("section-title");
+        advHdr.getChildren().add(advTitle);
+        advancedMlBox = new VBox(8);
+        advancedCard.getChildren().addAll(advHdr, advancedMlBox);
+
+        page.getChildren().addAll(searchCard, tableCard, anomalyCard, advancedCard);
 
         refreshAsync();
 
@@ -203,12 +216,24 @@ public class MlRadarView {
     public void refreshAsync() {
         AppExecutor.runAsync(() -> new Object[]{
                 mlEngine.analyzeCatalog(),
-                mlEngine.detectAnomalies()
+                mlEngine.detectAnomalies(),
+                advancedMlService.forecastCatalogHoltWinters(),
+                advancedMlService.scoreSuppliersOtif(),
+                advancedMlService.suggestExpiryMarkdowns(),
+                advancedMlService.mineBoughtTogetherRules(1)
         }, data -> {
             @SuppressWarnings("unchecked")
             List<OfflineMlEngine.ProductForecast> forecasts = (List<OfflineMlEngine.ProductForecast>) data[0];
             @SuppressWarnings("unchecked")
             List<OfflineMlEngine.AnomalyAlert> alerts = (List<OfflineMlEngine.AnomalyAlert>) data[1];
+            @SuppressWarnings("unchecked")
+            List<com.stockpro.domain.MlSuiteModels.HoltWintersPrediction> hwList = (List<com.stockpro.domain.MlSuiteModels.HoltWintersPrediction>) data[2];
+            @SuppressWarnings("unchecked")
+            List<com.stockpro.domain.MlSuiteModels.SupplierOtifScore> otifs = (List<com.stockpro.domain.MlSuiteModels.SupplierOtifScore>) data[3];
+            @SuppressWarnings("unchecked")
+            List<com.stockpro.domain.MlSuiteModels.ExpiryMarkdownSuggestion> expiries = (List<com.stockpro.domain.MlSuiteModels.ExpiryMarkdownSuggestion>) data[4];
+            @SuppressWarnings("unchecked")
+            List<com.stockpro.domain.MlSuiteModels.BasketAssociationRule> basket = (List<com.stockpro.domain.MlSuiteModels.BasketAssociationRule>) data[5];
 
             forecastRows.setAll(forecasts);
             anomalyCardsBox.getChildren().clear();
@@ -228,6 +253,36 @@ public class MlRadarView {
                     HBox.setHgrow(desc, Priority.ALWAYS);
                     row.getChildren().addAll(badge, desc);
                     anomalyCardsBox.getChildren().add(row);
+                }
+            }
+
+            if (advancedMlBox != null) {
+                advancedMlBox.getChildren().clear();
+                if (!hwList.isEmpty()) {
+                    var topHw = hwList.get(0);
+                    advancedMlBox.getChildren().add(new Label(String.format(
+                            "Holt-Winters Leader: %s -> Next 7d %.1f units (95%% CI: %.1f..%.1f) • %s",
+                            topHw.productName(), topHw.next7DaysForecast(), topHw.lower95Bound(), topHw.upper95Bound(), topHw.seasonalityNote())));
+                }
+                if (!otifs.isEmpty()) {
+                    var topSup = otifs.get(0);
+                    advancedMlBox.getChildren().add(new Label(String.format(
+                            "Top Supplier OTIF: %s (%.1f%% • %s • Est. Lead %.1fd)",
+                            topSup.supplierName(), topSup.otifScorePercent(), topSup.tier(), topSup.predictedDeliveryDays())));
+                }
+                if (!expiries.isEmpty()) {
+                    var ex0 = expiries.get(0);
+                    advancedMlBox.getChildren().add(new Label(String.format(
+                            "Expiry Rescue Markdown: %s expires in %dd -> Suggest -%d%% ($%.2f) to recover $%.2f",
+                            ex0.productName(), ex0.daysUntilExpiry(), ex0.recommendedDiscountPercent(), ex0.clearanceUnitPrice(), ex0.recoverableRevenue())));
+                }
+                if (!basket.isEmpty()) {
+                    advancedMlBox.getChildren().add(new Label("Apriori Basket Tip: " + basket.get(0).pitch()));
+                }
+                if (advancedMlBox.getChildren().isEmpty()) {
+                    Label none = new Label("Add inventory and sales movements to unlock seasonal, OTIF, and Apriori rules.");
+                    none.getStyleClass().add("muted-text");
+                    advancedMlBox.getChildren().add(none);
                 }
             }
         }, ex -> {});

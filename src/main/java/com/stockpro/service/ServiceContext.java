@@ -66,6 +66,7 @@ public class ServiceContext {
     private final VoiceAudioRecorder voiceAudioRecorder;
     private final com.stockpro.ai.GroqWhisperClient groqWhisperClient;
     private final VoiceCommandEngine voiceCommandEngine;
+    private final com.stockpro.ml.AdvancedOfflineMlService advancedOfflineMlService;
 
     /**
      * Constructs a service registry bound to a specific {@link DatabaseManager}.
@@ -172,6 +173,8 @@ public class ServiceContext {
         this.groqWhisperClient = new com.stockpro.ai.GroqWhisperClient(groqApiClient);
         this.voiceCommandEngine = new VoiceCommandEngine(
                 inventoryService, stockOperationService, catalogSearchEngine, groqWhisperClient, auditService);
+        this.advancedOfflineMlService = new com.stockpro.ml.AdvancedOfflineMlService(
+                databaseManager, productRepository, supplierRepository, purchaseOrderRepository, offlineMlEngine);
         syncSessionSettings();
     }
 
@@ -573,5 +576,14 @@ public class ServiceContext {
      */
     public VoiceCommandEngine getVoiceCommandEngine() {
         return voiceCommandEngine;
+    }
+
+    /**
+     * Returns the Branch 07 Advanced Offline ML analytics service.
+     *
+     * @return {@link com.stockpro.ml.AdvancedOfflineMlService}
+     */
+    public com.stockpro.ml.AdvancedOfflineMlService getAdvancedOfflineMlService() {
+        return advancedOfflineMlService;
     }
 }
