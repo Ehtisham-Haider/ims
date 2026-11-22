@@ -73,6 +73,9 @@ public class ServiceContext {
     private final UserColumnPreferenceService userColumnPreferenceService;
     private final AlertDispatcherService alertDispatcherService;
     private final LocalRestApiServer localRestApiServer;
+    private final com.stockpro.dsa.LruProductCache<String, com.stockpro.domain.Product> lruProductCache;
+    private final MegaScaleBenchmarkService megaScaleBenchmarkService;
+    private final EncryptedBackupService encryptedBackupService;
 
     /**
      * Constructs a service registry bound to a specific {@link DatabaseManager}.
@@ -209,6 +212,9 @@ public class ServiceContext {
                 stockOperationService,
                 userRepository,
                 settingsRepository);
+        this.lruProductCache = new com.stockpro.dsa.LruProductCache<>(1024);
+        this.megaScaleBenchmarkService = new MegaScaleBenchmarkService(databaseManager, lruProductCache);
+        this.encryptedBackupService = new EncryptedBackupService(backupService, auditService);
         if ("true".equalsIgnoreCase(settingsRepository.get("api.local.enabled", "false"))) {
             try {
                 int port = Integer.parseInt(settingsRepository.get("api.local.port", "8765"));
@@ -681,5 +687,32 @@ public class ServiceContext {
      */
     public LocalRestApiServer getLocalRestApiServer() {
         return localRestApiServer;
+    }
+
+    /**
+     * Returns the Branch 12 thread-safe O(1) LRU product cache.
+     *
+     * @return {@link com.stockpro.dsa.LruProductCache}
+     */
+    public com.stockpro.dsa.LruProductCache<String, com.stockpro.domain.Product> getLruProductCache() {
+        return lruProductCache;
+    }
+
+    /**
+     * Returns the Branch 12 SQLite pagination and 100k-SKU benchmark service.
+     *
+     * @return {@link MegaScaleBenchmarkService}
+     */
+    public MegaScaleBenchmarkService getMegaScaleBenchmarkService() {
+        return megaScaleBenchmarkService;
+    }
+
+    /**
+     * Returns the Branch 12 AES-256-GCM encrypted backup and restore coordinator.
+     *
+     * @return {@link EncryptedBackupService}
+     */
+    public EncryptedBackupService getEncryptedBackupService() {
+        return encryptedBackupService;
     }
 }
