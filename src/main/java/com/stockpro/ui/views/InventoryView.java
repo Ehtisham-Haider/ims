@@ -12,6 +12,7 @@ import com.stockpro.service.ProductValidator;
 import com.stockpro.service.ServiceContext;
 import com.stockpro.service.UsbBarcodeScannerListener;
 import com.stockpro.ui.components.AppIcons;
+import com.stockpro.ui.components.ThemeManager;
 import com.stockpro.ui.components.ToastNotificationManager;
 import com.stockpro.util.AppExecutor;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -895,11 +896,7 @@ public class InventoryView {
         );
 
         Scene sc = new Scene(card, 400, 240);
-        String cssPath = AppSession.getInstance().isDarkMode() ? "/css/dark-theme.css" : "/css/light-theme.css";
-        var cssUrl = getClass().getResource(cssPath);
-        if (cssUrl != null) {
-            sc.getStylesheets().add(cssUrl.toExternalForm());
-        }
+        ThemeManager.apply(sc);
         dialog.setScene(sc);
         dialog.showAndWait();
     }

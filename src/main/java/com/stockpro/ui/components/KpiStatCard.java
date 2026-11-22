@@ -1,219 +1,257 @@
 package com.stockpro.ui.components;
 
-import javafx.geometry.Insets;
+import javafx.animation.FadeTransition;
+import javafx.animation.Interpolator;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.animation.ParallelTransition;
+import javafx.animation.TranslateTransition;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Polyline;
-import javafx.scene.shape.StrokeLineCap;
-import javafx.scene.shape.StrokeLineJoin;
+import javafx.util.Duration;
 import org.kordamp.ikonli.feather.Feather;
 
 import java.util.List;
 
 /**
- * Reusable soft-pastel KPI summary card matching the Dashboard and Business Report mockups
- * with crisp Feather vector icons, subtle micro-sparkline accents, and theme-adaptive contrast tokens.
+ * KPI summary card in the StockPro editorial style: a title with a small icon at the top right,
+ * a large Red Hat Display figure, a caption line and an optional real-data meter.
  *
- * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
+ * <p>Cards come in four surface variants that mirror the reference layout:
+ * {@code kpi-inverse} (black card), {@code kpi-accent} (orange / neon-green card),
+ * {@code kpi-muted} (grey card) and {@code kpi-plain} (white card). Values fade/slide in
+ * subtly whenever they change.</p>
+ *
+ * @author Syed Ehtisham Haider Bukhari, Faheem Ahmad Khan
  */
 public class KpiStatCard extends VBox {
 
     /**
-     * Semantic color tone applied to the KPI delta badge for crisp Light and Dark contrast.
+     * Semantic color tone applied to the KPI caption line.
      *
      * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
      */
     public enum DeltaTone {
-        /** Healthy positive growth state (emerald). */
+        /** Healthy positive state. */
         POSITIVE("kpi-delta-positive"),
-        /** Caution/attention state (amber). */
+        /** Caution/attention state. */
         WARNING("kpi-delta-warning"),
-        /** Critical alert state (rose/red). */
+        /** Critical alert state. */
         DANGER("kpi-delta-danger"),
-        /** Primary indigo accent state. */
+        /** Brand accent state. */
         ACCENT("kpi-delta-accent"),
-        /** Neutral muted caption. */
-        MUTED("muted-text");
+        /** Neutral secondary text. */
+        MUTED("kpi-caption");
 
         private final String cssClass;
 
+        /**
+         * Creates a tone bound to a CSS class.
+         *
+         * @param cssClass style class applied to the caption label
+         */
         DeltaTone(String cssClass) {
             this.cssClass = cssClass;
         }
 
         /**
-         * Returns the stylesheet class backing this delta tone.
+         * Returns the CSS class for this tone.
          *
-         * @return CSS class name
+         * @return style class name
          */
         public String getCssClass() {
             return cssClass;
         }
     }
 
+    /** Black (inverse) card variant. */
+    public static final String INVERSE = "kpi-inverse";
+    /** Accent card variant (orange in light mode, neon green in dark mode). */
+    public static final String ACCENT = "kpi-accent";
+    /** Grey card variant. */
+    public static final String MUTED = "kpi-muted";
+    /** Plain surface card variant. */
+    public static final String PLAIN = "kpi-plain";
+
     private static final List<String> ALL_DELTA_CLASSES = List.of(
-            "kpi-delta-positive", "kpi-delta-warning", "kpi-delta-danger", "kpi-delta-accent", "muted-text"
+            "kpi-delta-positive", "kpi-delta-warning", "kpi-delta-danger", "kpi-delta-accent", "kpi-caption"
     );
 
     private final Label valueLabel;
     private final Label deltaLabel;
+    private final StackPane meterTrack;
+    private final Region meterFill;
+    private final DoubleProperty meterLevel = new SimpleDoubleProperty(0);
 
     /**
-     * Creates a styled KPI card with a legacy text glyph fallback.
+     * Creates a KPI card with a text glyph icon.
      *
-     * @param iconText compact icon glyph
-     * @param iconColor hex accent color for the circular icon pill
-     * @param pastelStyleClass CSS class such as {@code kpi-card-blue} or {@code kpi-card-green}
-     * @param title metric label
-     * @param initialValue initial formatted value
-     * @param deltaText secondary trend or subtext badge
+     * @param iconText short glyph text shown as the icon
+     * @param iconColor legacy color hint (ignored: colors come from the variant)
+     * @param variant surface variant ({@link #INVERSE}, {@link #ACCENT}, {@link #MUTED}, {@link #PLAIN})
+     * @param title card title
+     * @param initialValue initial figure
+     * @param deltaText initial caption
      */
-    public KpiStatCard(
-            String iconText,
-            String iconColor,
-            String pastelStyleClass,
-            String title,
-            String initialValue,
-            String deltaText) {
-        this(buildTextIconBadge(iconText, iconColor), iconColor, pastelStyleClass, title, initialValue, deltaText);
+    public KpiStatCard(String iconText, String iconColor, String variant, String title,
+                       String initialValue, String deltaText) {
+        this(textGlyph(iconText), variant, title, initialValue, deltaText);
     }
 
     /**
-     * Creates a styled KPI card powered by a crisp Feather vector icon and micro-sparkline accent.
+     * Creates a KPI card with a Feather icon.
      *
-     * @param feather Feather vector glyph
-     * @param iconColor hex accent color for the badge and sparkline
-     * @param pastelStyleClass CSS class such as {@code kpi-card-blue} or {@code kpi-card-green}
-     * @param title metric label
-     * @param initialValue initial formatted value
-     * @param deltaText secondary trend or subtext badge
+     * @param feather icon glyph
+     * @param iconColor legacy color hint (ignored: colors come from the variant)
+     * @param variant surface variant ({@link #INVERSE}, {@link #ACCENT}, {@link #MUTED}, {@link #PLAIN})
+     * @param title card title
+     * @param initialValue initial figure
+     * @param deltaText initial caption
      */
-    public KpiStatCard(
-            Feather feather,
-            String iconColor,
-            String pastelStyleClass,
-            String title,
-            String initialValue,
-            String deltaText) {
-        this(buildFeatherBadge(feather, iconColor), iconColor, pastelStyleClass, title, initialValue, deltaText);
+    public KpiStatCard(Feather feather, String iconColor, String variant, String title,
+                       String initialValue, String deltaText) {
+        this(AppIcons.of(feather, 16), variant, title, initialValue, deltaText);
     }
 
-    /**
-     * Internal shared constructor building the card body and decorative micro-sparkline.
-     *
-     * @param iconBadge badge node
-     * @param iconColor accent hex
-     * @param pastelStyleClass card tone CSS class
-     * @param title metric title
-     * @param initialValue headline value
-     * @param deltaText subtext delta
-     */
-    private KpiStatCard(
-            Node iconBadge,
-            String iconColor,
-            String pastelStyleClass,
-            String title,
-            String initialValue,
-            String deltaText) {
-        getStyleClass().addAll("card", pastelStyleClass);
-        setSpacing(8);
-        setPadding(new Insets(14, 16, 12, 16));
-        setMinWidth(160);
+    private KpiStatCard(Node icon, String variant, String title, String initialValue, String deltaText) {
+        getStyleClass().addAll("card", "kpi-card", normalizeVariant(variant));
+        setSpacing(4);
+        setMinWidth(150);
+        setPrefWidth(170);
+        setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(this, Priority.ALWAYS);
 
-        HBox topRow = new HBox(12);
-        topRow.setAlignment(Pos.CENTER_LEFT);
-
-        VBox textCol = new VBox(2);
         Label titleLbl = new Label(title);
-        titleLbl.getStyleClass().add("muted-text");
-        titleLbl.setStyle("-fx-font-size: 11.5px; -fx-font-weight: 600;");
+        titleLbl.getStyleClass().add("kpi-title");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox topRow = new HBox(8, titleLbl, spacer, icon);
+        topRow.setAlignment(Pos.CENTER_LEFT);
 
         valueLabel = new Label(initialValue);
         valueLabel.getStyleClass().add("kpi-value");
 
-        textCol.getChildren().addAll(titleLbl, valueLabel);
-        topRow.getChildren().addAll(iconBadge, textCol);
-
         deltaLabel = new Label(deltaText);
-        deltaLabel.getStyleClass().add("kpi-delta-positive");
+        deltaLabel.getStyleClass().add("kpi-caption");
 
-        Polyline sparkline = new Polyline(0, 12, 22, 9, 44, 11, 66, 6, 88, 8, 112, 3, 134, 4);
-        Color accent = Color.web(iconColor != null && !iconColor.isBlank() ? iconColor : "#4F46E5");
-        sparkline.setStroke(Color.color(accent.getRed(), accent.getGreen(), accent.getBlue(), 0.42));
-        sparkline.setStrokeWidth(1.9);
-        sparkline.setStrokeLineCap(StrokeLineCap.ROUND);
-        sparkline.setStrokeLineJoin(StrokeLineJoin.ROUND);
+        meterFill = new Region();
+        meterFill.getStyleClass().add("kpi-meter-fill");
+        meterFill.setMaxWidth(0);
+        meterTrack = new StackPane(meterFill);
+        meterTrack.getStyleClass().add("kpi-meter-track");
+        meterTrack.setAlignment(Pos.CENTER_LEFT);
+        meterTrack.setMinHeight(6);
+        meterTrack.setPrefHeight(6);
+        meterTrack.setMaxHeight(6);
+        meterTrack.setVisible(false);
+        meterTrack.setManaged(false);
+        VBox.setMargin(meterTrack, new javafx.geometry.Insets(6, 0, 0, 0));
 
-        HBox bottomRow = new HBox(8, deltaLabel);
-        bottomRow.setAlignment(Pos.CENTER_LEFT);
+        getChildren().addAll(topRow, valueLabel, deltaLabel, meterTrack);
+    }
 
-        getChildren().addAll(topRow, bottomRow, sparkline);
+    private static String normalizeVariant(String variant) {
+        if (variant == null) {
+            return PLAIN;
+        }
+        return switch (variant) {
+            case INVERSE, ACCENT, MUTED, PLAIN -> variant;
+            case "kpi-card-blue" -> INVERSE;
+            case "kpi-card-green" -> ACCENT;
+            case "kpi-card-purple" -> MUTED;
+            default -> PLAIN;
+        };
+    }
+
+    private static Node textGlyph(String text) {
+        Label glyph = new Label(text);
+        glyph.getStyleClass().add("kpi-title");
+        return glyph;
     }
 
     /**
-     * Updates the primary metric text and secondary delta label using an explicit semantic {@link DeltaTone}.
+     * Updates the figure and caption with a subtle fade/slide when the value changes.
      *
-     * @param value formatted KPI headline
-     * @param delta secondary status or trend description
-     * @param tone semantic CSS contrast tone
+     * @param value new figure
+     * @param delta new caption
+     * @param tone caption tone
      */
     public void updateMetric(String value, String delta, DeltaTone tone) {
+        boolean changed = value != null && !value.equals(valueLabel.getText());
         valueLabel.setText(value);
         deltaLabel.setText(delta);
         deltaLabel.getStyleClass().removeAll(ALL_DELTA_CLASSES);
         deltaLabel.getStyleClass().add((tone != null ? tone : DeltaTone.MUTED).getCssClass());
+        if (changed) {
+            animateValue();
+        }
     }
 
     /**
-     * Updates the primary metric text and maps legacy hex hints to theme-safe semantic {@link DeltaTone} classes.
+     * Updates the figure and caption, inferring the tone from a legacy hex color hint.
      *
-     * @param value formatted KPI headline
-     * @param delta secondary status or trend description
-     * @param deltaColor optional hex hint mapped to Light/Dark readable semantic classes
+     * @param value new figure
+     * @param delta new caption
+     * @param deltaColor legacy hex color hint
      */
     public void updateMetric(String value, String delta, String deltaColor) {
         updateMetric(value, delta, inferTone(deltaColor));
+    }
+
+    /**
+     * Shows a thin meter under the caption filled to the given real-data ratio.
+     *
+     * @param fraction ratio between {@code 0} and {@code 1}, or {@code null}/negative to hide the meter
+     */
+    public void setMeter(Double fraction) {
+        boolean show = fraction != null && fraction >= 0;
+        meterTrack.setVisible(show);
+        meterTrack.setManaged(show);
+        if (show) {
+            double f = Math.max(0.0, Math.min(1.0, fraction));
+            if (!meterFill.maxWidthProperty().isBound()) {
+                meterFill.maxWidthProperty().bind(meterTrack.widthProperty().multiply(meterLevel));
+            }
+            // Ease the meter from its current level to the new one.
+            Timeline grow = new Timeline(new KeyFrame(Duration.millis(650),
+                    new KeyValue(meterLevel, f, Motion.EASE)));
+            grow.play();
+        }
+    }
+
+    private void animateValue() {
+        FadeTransition fade = new FadeTransition(Duration.millis(260), valueLabel);
+        fade.setFromValue(0.0);
+        fade.setToValue(1.0);
+        TranslateTransition slide = new TranslateTransition(Duration.millis(260), valueLabel);
+        slide.setFromY(6);
+        slide.setToY(0);
+        slide.setInterpolator(Interpolator.EASE_OUT);
+        new ParallelTransition(fade, slide).play();
     }
 
     private DeltaTone inferTone(String hex) {
         if (hex == null) {
             return DeltaTone.MUTED;
         }
-        String upper = hex.toUpperCase();
-        if (upper.contains("B91C") || upper.contains("DC26") || upper.contains("EF44")) {
-            return DeltaTone.DANGER;
+        String tone = AppIcons.toneFor(hex);
+        if (tone == null || "icon-muted".equals(tone)) {
+            return DeltaTone.MUTED;
         }
-        if (upper.contains("B453") || upper.contains("D977") || upper.contains("F59E")) {
-            return DeltaTone.WARNING;
-        }
-        if (upper.contains("1580") || upper.contains("10B9") || upper.contains("0596")) {
-            return DeltaTone.POSITIVE;
-        }
-        return DeltaTone.ACCENT;
-    }
-
-    private static Node buildFeatherBadge(Feather feather, String iconColor) {
-        StackPane badge = new StackPane(AppIcons.of(feather, 18, "#FFFFFF"));
-        badge.setMinSize(38, 38);
-        badge.setPrefSize(38, 38);
-        badge.setMaxSize(38, 38);
-        badge.setStyle("-fx-background-color: " + iconColor + "; -fx-background-radius: 11;");
-        return badge;
-    }
-
-    private static Node buildTextIconBadge(String iconText, String iconColor) {
-        Label badge = new Label(iconText);
-        badge.setMinSize(38, 38);
-        badge.setAlignment(Pos.CENTER);
-        badge.setStyle("-fx-background-color: " + iconColor
-                + "; -fx-text-fill: #FFFFFF; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 11;");
-        return badge;
+        return switch (tone) {
+            case "icon-danger" -> DeltaTone.DANGER;
+            case "icon-warning" -> DeltaTone.WARNING;
+            case "icon-success" -> DeltaTone.POSITIVE;
+            default -> DeltaTone.ACCENT;
+        };
     }
 }

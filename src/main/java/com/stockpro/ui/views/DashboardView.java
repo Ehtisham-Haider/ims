@@ -12,14 +12,18 @@ import com.stockpro.service.ServiceContext;
 import com.stockpro.ui.components.AppIcons;
 import com.stockpro.ui.components.KpiStatCard;
 import com.stockpro.ui.components.KpiStatCard.DeltaTone;
-import com.stockpro.ui.components.ModernTrendChart;
+import com.stockpro.ui.components.ModernBarChart;
 import com.stockpro.ui.components.StockDonutChart;
+import com.stockpro.ui.components.ThemeManager;
 import com.stockpro.ui.controllers.NavigationSection;
 import com.stockpro.util.AppExecutor;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.HBox;
@@ -34,15 +38,16 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Executive Dashboard view aligned with {@code Dashboard.png} and {@code Dasboard Optional.png},
- * rendering 5 Feather-badged KPI cards, interactive smooth cubic-bezier Sales &amp; Profit trend chart
- * with 7d/30d period pills, high-DPI Stock Status donut breakdown, clickable Urgent Alerts, Recent Activity feed,
- * and AI Business Briefing card with Groq key quick-connect action.
+ * Executive Dashboard in the StockPro editorial layout: a full-width row of KPI cards
+ * (black / accent / grey / white), a hatched-top Sales &amp; Profit bar chart with a 7/30-day
+ * segmented switch, a Recent Activity list, and a right column holding the segmented Stock Status
+ * pie, clickable Urgent Alerts and the inverse AI Business Briefing card.
  *
  * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class DashboardView {
-    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("hh:mm a");
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("MMM d, hh:mm a");
+    private static final double SIDE_COLUMN_WIDTH = 360;
 
     private final ServiceContext services;
     private final DashboardMetricsService metricsService;
@@ -58,8 +63,10 @@ public class DashboardView {
     private KpiStatCard lowStockCard;
     private KpiStatCard outOfStockCard;
 
-    private ModernTrendChart trendChart;
+    private ModernBarChart salesChart;
     private StockDonutChart donutChart;
+    private Canvas legendHatch;
+    private Canvas legendSolid;
     private VBox urgentAlertsBox;
     private VBox recentActivityBox;
     private VBox briefingBodyBox;
@@ -67,23 +74,23 @@ public class DashboardView {
     private int trendDays = 7;
 
     /**
-     * Constructs a dashboard view controller with core section navigation.
+     * Creates the dashboard with navigation support only.
      *
-     * @param services active application service registry
-     * @param onNavigate navigation callback to switch sidebar screens
+     * @param services shared service registry
+     * @param onNavigate navigation callback
      */
     public DashboardView(ServiceContext services, Consumer<NavigationSection> onNavigate) {
         this(services, onNavigate, null, null, null);
     }
 
     /**
-     * Constructs a dashboard view controller wired to full cross-screen drill-down actions.
+     * Creates the dashboard with cross-screen deep-link callbacks.
      *
-     * @param services active application service registry
-     * @param onNavigate navigation callback to switch sidebar screens
-     * @param onInspectProduct callback opening a product in the Inventory details drawer
-     * @param onFilterInventory callback opening Inventory with a pre-applied filter
-     * @param onOpenAiSettings callback jumping directly to Settings -&gt; AI &amp; Groq API
+     * @param services shared service registry
+     * @param onNavigate navigation callback
+     * @param onInspectProduct opens a product in the Inventory details drawer
+     * @param onFilterInventory opens Inventory with filter criteria applied
+     * @param onOpenAiSettings opens the AI settings tab
      */
     public DashboardView(
             ServiceContext services,
@@ -102,169 +109,153 @@ public class DashboardView {
     }
 
     /**
-     * Unsubscribes from {@link InventoryEventBus} when navigating away from the dashboard.
+     * Unsubscribes the live-refresh EventBus listener.
      */
     public void dispose() {
         InventoryEventBus.getInstance().unsubscribe(eventListener);
     }
 
     /**
-     * Repaints custom vector Canvas charts cleanly whenever the user switches Light/Dark mode.
+     * Repaints canvas-rendered charts after a Light/Dark switch.
      */
     public void onThemeChanged() {
-        if (trendChart != null) {
-            trendChart.redraw();
+        if (salesChart != null) {
+            salesChart.redraw();
         }
         if (donutChart != null) {
             donutChart.redraw();
         }
+        paintLegendSwatches();
     }
 
     /**
-     * Builds the scrollable Dashboard node and triggers an asynchronous initial data load.
+     * Builds the dashboard layout and kicks off the first asynchronous data load.
      *
-     * @return JavaFX dashboard {@link Node}
+     * @return scrollable dashboard root node
      */
     public Node build() {
-        VBox page = new VBox(16);
-        page.setPadding(new Insets(0, 4, 16, 0));
+        VBox page = new VBox(12);
+        page.setPadding(new Insets(0, 8, 4, 0));
 
-        HBox headerRow = new HBox(12);
-        headerRow.setAlignment(Pos.CENTER_LEFT);
-        VBox titleGroup = new VBox(2);
-        Label title = new Label("Dashboard");
-        title.getStyleClass().add("page-title");
-        Label subtitle = new Label("Welcome back, " + AppSession.getInstance().getActorName() + "!");
-        subtitle.getStyleClass().add("page-subtitle");
-        titleGroup.getChildren().addAll(title, subtitle);
-
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        Button refreshBtn = new Button("Refresh");
-        refreshBtn.setGraphic(AppIcons.of(Feather.REFRESH_CW, 14));
-        refreshBtn.getStyleClass().add("btn-secondary");
-        refreshBtn.setOnAction(e -> refreshAsync());
-
-        headerRow.getChildren().addAll(titleGroup, spacer, refreshBtn);
-
-        // Row 1: 5 Pastel KPI Stat Cards with Feather icons & micro-sparklines
-        totalProductsCard = new KpiStatCard(Feather.PACKAGE, "#4F46E5", "kpi-card-blue", "Total Products", "0", "Active SKUs");
-        inventoryValueCard = new KpiStatCard(Feather.DOLLAR_SIGN, "#10B981", "kpi-card-green", "Inventory Value", "$0.00", "Cost valuation");
-        estProfitCard = new KpiStatCard(Feather.TRENDING_UP, "#8B5CF6", "kpi-card-purple", "Est. Profit", "$0.00", "Projected margin");
-        lowStockCard = new KpiStatCard(Feather.ALERT_TRIANGLE, "#F59E0B", "kpi-card-amber", "Low Stock", "0", "Needs restock");
-        outOfStockCard = new KpiStatCard(Feather.X_CIRCLE, "#EF4444", "kpi-card-rose", "Out of Stock", "0", "Zero units");
-
+        totalProductsCard = new KpiStatCard(Feather.PACKAGE, null, KpiStatCard.INVERSE, "Total Products", "0", "Active SKUs");
+        inventoryValueCard = new KpiStatCard(Feather.DOLLAR_SIGN, null, KpiStatCard.ACCENT, "Inventory Value", "$0.00", "Cost on hand");
+        estProfitCard = new KpiStatCard(Feather.TRENDING_UP, null, KpiStatCard.MUTED, "Est. Profit", "$0.00", "Projected margin");
+        lowStockCard = new KpiStatCard(Feather.ALERT_TRIANGLE, null, KpiStatCard.PLAIN, "Low Stock", "0", "Needs restock");
+        outOfStockCard = new KpiStatCard(Feather.X_CIRCLE, null, KpiStatCard.PLAIN, "Out of Stock", "0", "Zero units");
         HBox kpiRow = new HBox(12, totalProductsCard, inventoryValueCard, estProfitCard, lowStockCard, outOfStockCard);
 
-        // Row 2: Dual-Series Sales & Profit Trend + Stock Status Donut & Urgent Alerts
-        VBox trendCard = buildTrendChartCard();
-        HBox.setHgrow(trendCard, Priority.ALWAYS);
+        VBox chartCard = buildSalesChartCard();
+        VBox activityCard = buildRecentActivityCard();
+        VBox leftCol = new VBox(12, chartCard, activityCard);
+        HBox.setHgrow(leftCol, Priority.ALWAYS);
 
-        VBox rightMiddleCol = new VBox(14, buildDonutCard(), buildUrgentAlertsCard());
-        rightMiddleCol.setPrefWidth(390);
-        rightMiddleCol.setMinWidth(340);
+        VBox rightCol = new VBox(12, buildDonutCard(), buildUrgentAlertsCard(), buildAiBriefingCard());
+        rightCol.setPrefWidth(SIDE_COLUMN_WIDTH);
+        rightCol.setMinWidth(SIDE_COLUMN_WIDTH);
+        rightCol.setMaxWidth(SIDE_COLUMN_WIDTH);
 
-        HBox middleRow = new HBox(16, trendCard, rightMiddleCol);
-
-        // Row 3: Recent Activity + AI Business Briefing Card
-        VBox recentCard = buildRecentActivityCard();
-        HBox.setHgrow(recentCard, Priority.ALWAYS);
-
-        VBox briefingCard = buildAiBriefingCard();
-        briefingCard.setPrefWidth(390);
-        briefingCard.setMinWidth(340);
-
-        HBox bottomRow = new HBox(16, recentCard, briefingCard);
-
-        page.getChildren().addAll(headerRow, kpiRow, middleRow, bottomRow);
+        HBox body = new HBox(12, leftCol, rightCol);
+        page.getChildren().addAll(kpiRow, body);
 
         ScrollPane scrollPane = new ScrollPane(page);
         scrollPane.setFitToWidth(true);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
 
         refreshAsync();
         return scrollPane;
     }
 
-    /**
-     * Creates the interactive dual-series smooth Sales &amp; Profit Trend card with period switcher pills.
-     *
-     * @return styled chart card
-     */
-    private VBox buildTrendChartCard() {
-        VBox card = new VBox(10);
-        card.getStyleClass().add("card");
-
-        HBox top = new HBox(8);
-        top.setAlignment(Pos.CENTER_LEFT);
-        Label title = new Label("Sales & Profit Trend");
-        title.getStyleClass().add("section-title");
+    private HBox cardHeader(String title, Node... trailing) {
+        Label t = new Label(title);
+        t.getStyleClass().add("section-title");
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox header = new HBox(10, t, spacer);
+        header.getChildren().addAll(trailing);
+        header.setAlignment(Pos.CENTER_LEFT);
+        return header;
+    }
+
+    private Button arrowLink(Runnable action) {
+        Button b = new Button();
+        b.setGraphic(AppIcons.of(Feather.ARROW_UP_RIGHT, 16));
+        b.getStyleClass().add("icon-btn");
+        b.setOnAction(e -> action.run());
+        return b;
+    }
+
+    private VBox buildSalesChartCard() {
+        VBox card = new VBox(8);
+        card.getStyleClass().add("card");
+
+        legendHatch = new Canvas(12, 12);
+        legendSolid = new Canvas(12, 12);
+        Label revenueLbl = new Label("Revenue");
+        revenueLbl.getStyleClass().add("legend-label");
+        Label profitLbl = new Label("Profit");
+        profitLbl.getStyleClass().add("legend-label");
+        HBox legend = new HBox(6, legendHatch, revenueLbl, new Region(), legendSolid, profitLbl);
+        ((Region) legend.getChildren().get(2)).setMinWidth(8);
+        legend.setAlignment(Pos.CENTER_LEFT);
+        paintLegendSwatches();
 
         Button p7Btn = new Button("7 Days");
         p7Btn.getStyleClass().addAll("filter-chip", "filter-chip-active");
         Button p30Btn = new Button("30 Days");
         p30Btn.getStyleClass().add("filter-chip");
+        p7Btn.setOnAction(e -> switchPeriod(7, p7Btn, p30Btn));
+        p30Btn.setOnAction(e -> switchPeriod(30, p30Btn, p7Btn));
+        HBox segmented = new HBox(p7Btn, p30Btn);
+        segmented.getStyleClass().add("segmented");
 
-        p7Btn.setOnAction(e -> {
-            trendDays = 7;
-            p7Btn.getStyleClass().add("filter-chip-active");
-            p30Btn.getStyleClass().remove("filter-chip-active");
-            refreshAsync();
-        });
-        p30Btn.setOnAction(e -> {
-            trendDays = 30;
-            p30Btn.getStyleClass().add("filter-chip-active");
-            p7Btn.getStyleClass().remove("filter-chip-active");
-            refreshAsync();
-        });
+        salesChart = new ModernBarChart(236);
+        salesChart.setCurrencyFormat(true);
+        salesChart.setSeriesNames("Profit", "Revenue");
+        VBox.setVgrow(salesChart, Priority.ALWAYS);
 
-        top.getChildren().addAll(title, spacer, p7Btn, p30Btn);
-
-        trendChart = new ModernTrendChart(295);
-        VBox.setVgrow(trendChart, Priority.ALWAYS);
-
-        card.getChildren().addAll(top, trendChart);
+        card.getChildren().addAll(cardHeader("Sales & Profit", legend, segmented), salesChart);
         return card;
     }
 
-    /**
-     * Builds the Stock Status Donut breakdown card.
-     *
-     * @return donut chart card
-     */
+    private void switchPeriod(int days, Button activate, Button deactivate) {
+        if (trendDays == days) {
+            return;
+        }
+        trendDays = days;
+        activate.getStyleClass().add("filter-chip-active");
+        deactivate.getStyleClass().remove("filter-chip-active");
+        refreshAsync();
+    }
+
+    private void paintLegendSwatches() {
+        if (legendHatch == null) {
+            return;
+        }
+        GraphicsContext h = legendHatch.getGraphicsContext2D();
+        h.clearRect(0, 0, 12, 12);
+        h.setFill(ThemeManager.hatch(ThemeManager.ink(), null));
+        h.fillRect(0, 0, 12, 12);
+        h.setStroke(ThemeManager.ink());
+        h.strokeRect(0.5, 0.5, 11, 11);
+        GraphicsContext s = legendSolid.getGraphicsContext2D();
+        s.clearRect(0, 0, 12, 12);
+        s.setFill(ThemeManager.ink());
+        s.fillRect(0, 0, 12, 12);
+    }
+
     private VBox buildDonutCard() {
-        VBox card = new VBox(10);
+        VBox card = new VBox(8);
         card.getStyleClass().add("card");
-        Label title = new Label("Stock Status");
-        title.getStyleClass().add("section-title");
         donutChart = new StockDonutChart();
-        card.getChildren().addAll(title, donutChart);
+        card.getChildren().addAll(cardHeader("Stock Status", arrowLink(() -> onNavigate.accept(NavigationSection.INVENTORY))),
+                donutChart);
         return card;
     }
 
-    /**
-     * Builds the Urgent Alerts card summarizing expiring, out-of-stock, and low-stock SKUs.
-     *
-     * @return urgent alerts card
-     */
     private VBox buildUrgentAlertsCard() {
-        VBox card = new VBox(10);
+        VBox card = new VBox(6);
         card.getStyleClass().add("card");
-
-        HBox header = new HBox(8);
-        header.setAlignment(Pos.CENTER_LEFT);
-        Label title = new Label("Urgent Alerts");
-        title.getStyleClass().add("section-title");
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        Button viewAll = new Button("View All");
-        viewAll.setGraphic(AppIcons.of(Feather.ARROW_RIGHT, 13));
-        viewAll.setContentDisplay(javafx.scene.control.ContentDisplay.RIGHT);
-        viewAll.getStyleClass().add("link-btn");
-        viewAll.setOnAction(e -> {
+        Button viewAll = arrowLink(() -> {
             if (onFilterInventory != null) {
                 InventoryFilterCriteria c = new InventoryFilterCriteria();
                 c.setStatusChip(StatusFilterChip.LOW_STOCK);
@@ -273,55 +264,29 @@ public class DashboardView {
                 onNavigate.accept(NavigationSection.INVENTORY);
             }
         });
-        header.getChildren().addAll(title, spacer, viewAll);
-
-        urgentAlertsBox = new VBox(8);
-        card.getChildren().addAll(header, urgentAlertsBox);
+        urgentAlertsBox = new VBox(2);
+        card.getChildren().addAll(cardHeader("Urgent Alerts", viewAll), urgentAlertsBox);
         return card;
     }
 
-    /**
-     * Builds the Recent Activity feed card showing latest stock changes.
-     *
-     * @return recent activity card
-     */
     private VBox buildRecentActivityCard() {
-        VBox card = new VBox(10);
+        VBox card = new VBox(6);
         card.getStyleClass().add("card");
-
-        HBox header = new HBox(8);
-        header.setAlignment(Pos.CENTER_LEFT);
-        Label title = new Label("Recent Activity");
-        title.getStyleClass().add("section-title");
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        Button viewAll = new Button("View All");
-        viewAll.setGraphic(AppIcons.of(Feather.ARROW_RIGHT, 13));
-        viewAll.setContentDisplay(javafx.scene.control.ContentDisplay.RIGHT);
-        viewAll.getStyleClass().add("link-btn");
-        viewAll.setOnAction(e -> onNavigate.accept(NavigationSection.STOCK_OPERATIONS));
-        header.getChildren().addAll(title, spacer, viewAll);
-
-        recentActivityBox = new VBox(8);
-        card.getChildren().addAll(header, recentActivityBox);
+        recentActivityBox = new VBox(0);
+        card.getChildren().addAll(
+                cardHeader("Recent Activity", arrowLink(() -> onNavigate.accept(NavigationSection.STOCK_OPERATIONS))),
+                recentActivityBox);
         return card;
     }
 
-    /**
-     * Builds the gradient AI Business Briefing card linking to AI Assistant or Groq Settings setup.
-     *
-     * @return styled briefing card
-     */
     private VBox buildAiBriefingCard() {
-        VBox card = new VBox(12);
+        VBox card = new VBox(10);
         card.getStyleClass().add("ai-briefing-card");
 
-        HBox headingRow = new HBox(8, AppIcons.of(Feather.CPU, 18, "#FFFFFF"));
-        headingRow.setAlignment(Pos.CENTER_LEFT);
         Label heading = new Label("AI Business Briefing");
-        heading.setStyle("-fx-text-fill: #FFFFFF; -fx-font-size: 16px; -fx-font-weight: bold;");
-        headingRow.getChildren().add(heading);
+        heading.getStyleClass().add("briefing-title");
+        HBox headingRow = new HBox(8, AppIcons.of(Feather.CPU, 16), heading);
+        headingRow.setAlignment(Pos.CENTER_LEFT);
 
         briefingBodyBox = new VBox(6);
         briefingActionsRow = new HBox(8);
@@ -332,7 +297,7 @@ public class DashboardView {
     }
 
     /**
-     * Reloads dashboard metrics in a background worker thread and applies updates on the JavaFX thread.
+     * Reloads the dashboard snapshot on a background thread and applies it on the FX thread.
      */
     public void refreshAsync() {
         int horizon = trendDays;
@@ -343,150 +308,180 @@ public class DashboardView {
         );
     }
 
-    /**
-     * Binds a loaded {@link DashboardMetricsService.DashboardSnapshot} into all KPI, chart, and alert widgets.
-     *
-     * @param snap aggregated metrics snapshot
-     */
     private void applySnapshot(DashboardMetricsService.DashboardSnapshot snap) {
         if (totalProductsCard == null) {
             return;
         }
         AppSession session = AppSession.getInstance();
+        double total = Math.max(1, snap.totalProducts());
 
-        totalProductsCard.updateMetric(
-                String.valueOf(snap.totalProducts()),
-                snap.inStockCount() + " healthy items",
-                DeltaTone.POSITIVE);
-        inventoryValueCard.updateMetric(
-                session.formatMoney(snap.inventoryValue()),
-                "Total cost on hand",
-                DeltaTone.POSITIVE);
-        estProfitCard.updateMetric(
-                session.formatMoney(snap.estimatedProfit()),
-                "Potential gross profit",
-                DeltaTone.ACCENT);
-        lowStockCard.updateMetric(
-                String.valueOf(snap.lowStockCount()),
-                snap.lowStockCount() > 0 ? "Action recommended" : "All clear",
+        totalProductsCard.updateMetric(String.valueOf(snap.totalProducts()),
+                snap.inStockCount() + " healthy  ·  " + Math.round(snap.inStockPercent()) + "%", DeltaTone.MUTED);
+        totalProductsCard.setMeter(snap.inStockCount() / total);
+
+        inventoryValueCard.updateMetric(session.formatMoney(snap.inventoryValue()),
+                "Total cost on hand", DeltaTone.MUTED);
+
+        double margin = snap.inventoryValue() + snap.estimatedProfit() <= 0 ? 0
+                : snap.estimatedProfit() / (snap.inventoryValue() + snap.estimatedProfit());
+        estProfitCard.updateMetric(session.formatMoney(snap.estimatedProfit()),
+                Math.round(margin * 100) + "% potential margin", DeltaTone.MUTED);
+        estProfitCard.setMeter(margin);
+
+        lowStockCard.updateMetric(String.valueOf(snap.lowStockCount()),
+                snap.lowStockCount() > 0 ? "Restock recommended" : "All clear",
                 snap.lowStockCount() > 0 ? DeltaTone.WARNING : DeltaTone.POSITIVE);
-        outOfStockCard.updateMetric(
-                String.valueOf(snap.outOfStockCount()),
+        lowStockCard.setMeter(snap.lowStockCount() / total);
+
+        outOfStockCard.updateMetric(String.valueOf(snap.outOfStockCount()),
                 snap.outOfStockCount() > 0 ? "Immediate restock" : "Zero stockouts",
                 snap.outOfStockCount() > 0 ? DeltaTone.DANGER : DeltaTone.POSITIVE);
+        outOfStockCard.setMeter(snap.outOfStockCount() / total);
 
-        // Update custom Canvas Trend Chart
-        List<String> xLabels = snap.trendPoints().stream().map(DashboardMetricsService.TrendPoint::dayLabel).toList();
-        List<Double> salesVals = snap.trendPoints().stream().map(DashboardMetricsService.TrendPoint::salesRevenue).toList();
-        List<Double> profitVals = snap.trendPoints().stream().map(DashboardMetricsService.TrendPoint::profitAmount).toList();
-        trendChart.setSeries(xLabels, List.of(
-                new ModernTrendChart.SeriesData("Sales", "#4F46E5", salesVals),
-                new ModernTrendChart.SeriesData("Profit", "#8B5CF6", profitVals)
-        ));
+        salesChart.setData(null, snap.trendPoints().stream()
+                .map(p -> new ModernBarChart.BarPoint(p.dayLabel(), p.salesRevenue(),
+                        Math.max(0, Math.min(p.salesRevenue(), p.profitAmount()))))
+                .toList());
 
-        // Update Donut Chart
         donutChart.setData(
                 String.valueOf(snap.totalProducts()),
-                "Total",
-                new StockDonutChart.Slice("In Stock", String.format("%.0f%%", snap.inStockPercent()),
-                        snap.inStockPercent() / 100.0, "#10B981"),
-                new StockDonutChart.Slice("Low Stock", String.format("%.0f%%", snap.lowStockPercent()),
-                        snap.lowStockPercent() / 100.0, "#F59E0B"),
-                new StockDonutChart.Slice("Out of Stock", String.format("%.0f%%", snap.outOfStockPercent()),
-                        snap.outOfStockPercent() / 100.0, "#EF4444"));
+                "Products by status",
+                new StockDonutChart.Slice("In Stock", String.valueOf(snap.inStockCount()),
+                        snap.inStockPercent() / 100.0, "ink"),
+                new StockDonutChart.Slice("Low Stock", String.valueOf(snap.lowStockCount()),
+                        snap.lowStockPercent() / 100.0, "hatch"),
+                new StockDonutChart.Slice("Out of Stock", String.valueOf(snap.outOfStockCount()),
+                        snap.outOfStockPercent() / 100.0, "accent"));
 
-        // Update Urgent Alerts (clickable to inspect directly)
+        renderAlerts(snap);
+        renderActivity(snap.recentMovements());
+        renderBriefing(snap.briefingLines());
+    }
+
+    private void renderAlerts(DashboardMetricsService.DashboardSnapshot snap) {
         urgentAlertsBox.getChildren().clear();
         if (snap.expiringSoonCount() > 0) {
-            urgentAlertsBox.getChildren().add(alertLine(Feather.CLOCK, "#FEF3C7", "#B45309",
-                    snap.expiringSoonCount() + " item(s) expire within 7 days", null));
+            urgentAlertsBox.getChildren().add(listRow(Feather.CLOCK, "row-icon-warning",
+                    snap.expiringSoonCount() + " item(s) expire within 7 days", "Expiry tracking", null));
         }
         if (snap.outOfStockCount() > 0) {
-            urgentAlertsBox.getChildren().add(alertLine(Feather.X_CIRCLE, "#FEE2E2", "#B91C1C",
-                    snap.outOfStockCount() + " item(s) out of stock", null));
+            urgentAlertsBox.getChildren().add(listRow(Feather.X_CIRCLE, "row-icon-danger",
+                    snap.outOfStockCount() + " item(s) out of stock", "Immediate restock", null));
         }
-        for (Product p : snap.urgentProducts().stream().limit(2).toList()) {
+        int room = Math.max(1, 3 - urgentAlertsBox.getChildren().size());
+        for (Product p : snap.urgentProducts().stream().limit(room).toList()) {
             boolean out = p.getStatus() == StockStatus.OUT_OF_STOCK || p.getQuantity() <= 0;
-            urgentAlertsBox.getChildren().add(alertLine(
+            urgentAlertsBox.getChildren().add(listRow(
                     out ? Feather.X_CIRCLE : Feather.ALERT_TRIANGLE,
-                    out ? "#FEE2E2" : "#FEF3C7",
-                    out ? "#B91C1C" : "#B45309",
-                    (out ? "Out of stock: " : "Low stock: ") + p.getName() + " (" + p.getQuantity() + " left)",
+                    out ? "row-icon-danger" : "row-icon-warning",
+                    p.getName(),
+                    (out ? "Out of stock" : "Low stock") + "  ·  " + p.getQuantity() + " left",
                     p));
         }
         if (urgentAlertsBox.getChildren().isEmpty()) {
-            Label healthy = new Label("All inventory levels and expiry dates are healthy.");
-            healthy.getStyleClass().add("muted-text");
-            urgentAlertsBox.getChildren().add(healthy);
+            urgentAlertsBox.getChildren().add(listRow(Feather.CHECK, "row-icon-success",
+                    "All levels healthy", "No low stock or expiring items", null));
         }
+    }
 
-        // Update Recent Activity
+    private void renderActivity(List<StockMovement> movements) {
         recentActivityBox.getChildren().clear();
-        if (snap.recentMovements().isEmpty()) {
-            Label emptyMsg = new Label(
-                    "No stock movements recorded yet. Record a Restock or Sale in Stock Operations.");
+        if (movements.isEmpty()) {
+            Label emptyMsg = new Label("No stock movements yet. Record a Restock or Sale in Stock Operations.");
             emptyMsg.getStyleClass().add("muted-text");
             emptyMsg.setWrapText(true);
             recentActivityBox.getChildren().add(emptyMsg);
-        } else {
-            for (StockMovement m : snap.recentMovements()) {
-                HBox row = new HBox(10);
-                row.setAlignment(Pos.CENTER_LEFT);
-                String deltaStr = (m.getQuantityDelta() >= 0 ? "+" : "") + m.getQuantityDelta();
-                Label badge = new Label(m.getMovementType().getDisplayName());
-                badge.getStyleClass().addAll("status-pill",
-                        m.getQuantityDelta() >= 0 ? "status-in-stock" : "status-low-stock");
-                Label text = new Label(m.getProductName() + " (" + deltaStr + ") by " + m.getPerformedBy());
-                Region sp = new Region();
-                HBox.setHgrow(sp, Priority.ALWAYS);
-                Label time = new Label(m.getCreatedAt() != null ? m.getCreatedAt().format(TIME_FMT) : "");
-                time.getStyleClass().add("muted-text");
-                row.getChildren().addAll(badge, text, sp, time);
-                recentActivityBox.getChildren().add(row);
-            }
+            return;
         }
+        boolean first = true;
+        for (StockMovement m : movements) {
+            if (!first) {
+                Region div = new Region();
+                div.getStyleClass().add("divider");
+                recentActivityBox.getChildren().add(div);
+            }
+            first = false;
+            boolean inbound = m.getQuantityDelta() >= 0;
 
-        // Update AI Briefing Card
+            StackPane icon = new StackPane(AppIcons.of(inbound ? Feather.ARROW_DOWN_LEFT : Feather.ARROW_UP_RIGHT, 15));
+            icon.getStyleClass().addAll("row-icon", "row-icon-neutral");
+
+            Label name = new Label(m.getProductName());
+            name.getStyleClass().add("row-title");
+            Label meta = new Label(m.getMovementType().getDisplayName() + "  ·  by " + m.getPerformedBy());
+            meta.getStyleClass().add("row-meta");
+            VBox text = new VBox(1, name, meta);
+            HBox.setHgrow(text, Priority.ALWAYS);
+
+            Label delta = new Label((inbound ? "+" : "") + m.getQuantityDelta());
+            delta.getStyleClass().addAll("legend-value", inbound ? "kpi-delta-positive" : "kpi-delta-danger");
+            delta.setMinWidth(54);
+            delta.setAlignment(Pos.CENTER_RIGHT);
+
+            Label time = new Label(m.getCreatedAt() != null ? m.getCreatedAt().format(TIME_FMT) : "");
+            time.getStyleClass().add("row-meta");
+            time.setMinWidth(118);
+            time.setAlignment(Pos.CENTER_RIGHT);
+
+            HBox row = new HBox(12, icon, text, delta, time);
+            row.setAlignment(Pos.CENTER_LEFT);
+            row.getStyleClass().add("list-row");
+            row.setPadding(new Insets(8, 4, 8, 0));
+            recentActivityBox.getChildren().add(row);
+        }
+    }
+
+    private void renderBriefing(List<String> lines) {
         briefingBodyBox.getChildren().clear();
-        for (String line : snap.briefingLines()) {
-            Label lbl = new Label("• " + line);
+        for (String line : lines) {
+            Label lbl = new Label(line);
             lbl.setWrapText(true);
-            lbl.setStyle("-fx-text-fill: #EEF2FF; -fx-font-size: 13px;");
-            briefingBodyBox.getChildren().add(lbl);
+            lbl.getStyleClass().add("briefing-line");
+            Region bullet = new Region();
+            bullet.getStyleClass().add("kpi-meter-fill");
+            bullet.setMinSize(6, 6);
+            bullet.setMaxSize(6, 6);
+            HBox row = new HBox(8, bullet, lbl);
+            row.setAlignment(Pos.TOP_LEFT);
+            HBox.setMargin(bullet, new Insets(6, 0, 0, 0));
+            briefingBodyBox.getChildren().add(row);
         }
 
         briefingActionsRow.getChildren().clear();
         Button detailsBtn = new Button("Open AI Assistant");
-        detailsBtn.setGraphic(AppIcons.of(Feather.ARROW_RIGHT, 13, "#FFFFFF"));
-        detailsBtn.setContentDisplay(javafx.scene.control.ContentDisplay.RIGHT);
-        detailsBtn.setStyle("-fx-background-color: rgba(255,255,255,0.22); -fx-text-fill: #FFFFFF; -fx-font-weight: bold; -fx-background-radius: 9; -fx-padding: 8 14 8 14; -fx-cursor: hand;");
+        detailsBtn.setGraphic(AppIcons.of(Feather.ARROW_RIGHT, 14));
+        detailsBtn.setContentDisplay(ContentDisplay.RIGHT);
+        detailsBtn.getStyleClass().add("btn-on-inverse");
         detailsBtn.setOnAction(e -> onNavigate.accept(NavigationSection.AI_ASSISTANT));
         briefingActionsRow.getChildren().add(detailsBtn);
 
         if (!services.getGroqApiClient().isApiKeyConfigured() && onOpenAiSettings != null) {
-            Button keyBtn = new Button("Add Groq API Key");
-            keyBtn.setGraphic(AppIcons.of(Feather.KEY, 13, "#FFFFFF"));
-            keyBtn.setStyle("-fx-background-color: rgba(255,255,255,0.14); -fx-text-fill: #FFFFFF; -fx-font-weight: 600; -fx-background-radius: 9; -fx-padding: 8 12 8 12; -fx-cursor: hand;");
+            Button keyBtn = new Button("Add API Key");
+            keyBtn.setGraphic(AppIcons.of(Feather.KEY, 14));
+            keyBtn.getStyleClass().add("btn-ghost-inverse");
             keyBtn.setOnAction(e -> onOpenAiSettings.run());
             briefingActionsRow.getChildren().add(keyBtn);
         }
     }
 
-    private HBox alertLine(Feather feather, String bgHex, String fgHex, String message, Product targetProduct) {
-        HBox row = new HBox(10);
-        row.setAlignment(Pos.CENTER_LEFT);
-        StackPane iconBadge = new StackPane(AppIcons.of(feather, 13, fgHex));
-        iconBadge.setMinSize(26, 26);
-        iconBadge.setPrefSize(26, 26);
-        iconBadge.setStyle("-fx-background-color: " + bgHex + "; -fx-background-radius: 999;");
+    private HBox listRow(Feather feather, String toneClass, String title, String meta, Product targetProduct) {
+        StackPane iconBadge = new StackPane(AppIcons.of(feather, 15));
+        iconBadge.getStyleClass().addAll("row-icon", toneClass);
 
-        Label text = new Label(message);
-        text.setWrapText(true);
+        Label titleLbl = new Label(title);
+        titleLbl.getStyleClass().add("row-title");
+        Label metaLbl = new Label(meta);
+        metaLbl.getStyleClass().add("row-meta");
+        VBox text = new VBox(1, titleLbl, metaLbl);
         HBox.setHgrow(text, Priority.ALWAYS);
-        row.getChildren().addAll(iconBadge, text);
+
+        HBox row = new HBox(10, iconBadge, text);
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.getStyleClass().add("list-row");
 
         if (targetProduct != null && onInspectProduct != null) {
-            row.setStyle("-fx-cursor: hand;");
+            row.getStyleClass().add("list-row-clickable");
+            row.getChildren().add(AppIcons.of(Feather.CHEVRON_RIGHT, 15, "#94A3B8"));
             row.setOnMouseClicked(e -> onInspectProduct.accept(targetProduct));
         }
         return row;

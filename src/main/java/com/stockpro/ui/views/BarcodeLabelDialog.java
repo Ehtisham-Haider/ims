@@ -3,6 +3,7 @@ package com.stockpro.ui.views;
 import com.stockpro.domain.Product;
 import com.stockpro.service.BarcodeLabelService;
 import com.stockpro.ui.components.AppIcons;
+import com.stockpro.ui.components.ThemeManager;
 import com.stockpro.ui.components.ToastNotificationManager;
 import com.stockpro.util.AppExecutor;
 import javafx.geometry.Insets;
@@ -71,7 +72,7 @@ public class BarcodeLabelDialog {
         VBox printableCard = new VBox(12);
         printableCard.setAlignment(Pos.CENTER);
         printableCard.setPadding(new Insets(16));
-        printableCard.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12; -fx-border-color: #E2E8F0; -fx-border-radius: 12;");
+        printableCard.getStyleClass().add("print-card");
 
         Label nameLbl = new Label(product.getName());
         nameLbl.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #0F172A;");
@@ -135,10 +136,7 @@ public class BarcodeLabelDialog {
         root.getChildren().addAll(printableCard, actions);
 
         Scene scene = new Scene(root, 430, 290);
-        var css = getClass().getResource(darkMode ? "/css/dark-theme.css" : "/css/light-theme.css");
-        if (css != null) {
-            scene.getStylesheets().add(css.toExternalForm());
-        }
+        ThemeManager.apply(scene);
         dialog.setScene(scene);
         dialog.showAndWait();
     }

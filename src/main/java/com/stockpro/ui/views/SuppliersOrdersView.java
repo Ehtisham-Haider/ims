@@ -12,6 +12,7 @@ import com.stockpro.service.ProductValidator;
 import com.stockpro.service.ServiceContext;
 import com.stockpro.service.SupplierOrderService;
 import com.stockpro.ui.components.AppIcons;
+import com.stockpro.ui.components.ThemeManager;
 import com.stockpro.ui.components.KpiStatCard;
 import com.stockpro.ui.components.KpiStatCard.DeltaTone;
 import com.stockpro.ui.components.ToastNotificationManager;
@@ -115,10 +116,10 @@ public class SuppliersOrdersView {
         subtitle.getStyleClass().add("page-subtitle");
 
         // Top Financial Engine KPI Strip with Feather vector icons
-        storeValueCard = new KpiStatCard(Feather.DOLLAR_SIGN, "#4F46E5", "kpi-card-blue", "Total Store Value", "$0.00", "Cost valuation");
-        storeProfitCard = new KpiStatCard(Feather.TRENDING_UP, "#10B981", "kpi-card-green", "Est. Total Profit", "$0.00", "0% avg margin");
-        taxEstimateCard = new KpiStatCard(Feather.PERCENT, "#8B5CF6", "kpi-card-purple", "Tax / GST Estimate", "$0.00", "15% store rate");
-        deadMoneyCard = new KpiStatCard(Feather.CLOCK, "#F59E0B", "kpi-card-amber", "Dead Money Stock", "$0.00", "0 stagnant SKUs");
+        storeValueCard = new KpiStatCard(Feather.DOLLAR_SIGN, "#4F46E5", KpiStatCard.INVERSE, "Total Store Value", "$0.00", "Cost valuation");
+        storeProfitCard = new KpiStatCard(Feather.TRENDING_UP, "#10B981", KpiStatCard.ACCENT, "Est. Total Profit", "$0.00", "0% avg margin");
+        taxEstimateCard = new KpiStatCard(Feather.PERCENT, "#8B5CF6", KpiStatCard.MUTED, "Tax / GST Estimate", "$0.00", "15% store rate");
+        deadMoneyCard = new KpiStatCard(Feather.CLOCK, "#F59E0B", KpiStatCard.PLAIN, "Dead Money Stock", "$0.00", "0 stagnant SKUs");
         HBox financeKpiRow = new HBox(12, storeValueCard, storeProfitCard, taxEstimateCard, deadMoneyCard);
 
         // Two-Column Suppliers + PO Builder
@@ -543,10 +544,7 @@ public class SuppliersOrdersView {
         card.getChildren().addAll(heading, hint, actions);
 
         Scene sc = new Scene(card, 400, 175);
-        var css = getClass().getResource(AppSession.getInstance().isDarkMode() ? "/css/dark-theme.css" : "/css/light-theme.css");
-        if (css != null) {
-            sc.getStylesheets().add(css.toExternalForm());
-        }
+        ThemeManager.apply(sc);
         dialog.setScene(sc);
         dialog.showAndWait();
     }
@@ -608,10 +606,7 @@ public class SuppliersOrdersView {
         );
 
         Scene sc = new Scene(box, 390, 460);
-        var css = getClass().getResource(AppSession.getInstance().isDarkMode() ? "/css/dark-theme.css" : "/css/light-theme.css");
-        if (css != null) {
-            sc.getStylesheets().add(css.toExternalForm());
-        }
+        ThemeManager.apply(sc);
         dialog.setScene(sc);
         dialog.showAndWait();
     }
