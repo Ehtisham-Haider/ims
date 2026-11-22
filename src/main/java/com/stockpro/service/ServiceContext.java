@@ -19,7 +19,7 @@ import com.stockpro.service.command.CommandHistoryManager;
 /**
  * Central service registry wiring repositories and business services around the active {@link DatabaseManager}.
  *
- * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
+ * @author Syed Ehtisham Haider Bukhari, Faheem Ahmed Khan
  */
 public class ServiceContext {
     private static volatile ServiceContext instance;
@@ -53,6 +53,7 @@ public class ServiceContext {
     private final TelemetryMonitorService telemetryMonitorService;
     private final BuiltInLabTestRunner builtInLabTestRunner;
     private final ProductImageService productImageService;
+    private final CatalogVariantBomService catalogVariantBomService;
 
     /**
      * Constructs a service registry bound to a specific {@link DatabaseManager}.
@@ -128,6 +129,13 @@ public class ServiceContext {
         );
         this.telemetryMonitorService = new TelemetryMonitorService(databaseManager, catalogSearchEngine);
         this.builtInLabTestRunner = new BuiltInLabTestRunner();
+        this.catalogVariantBomService = new CatalogVariantBomService(
+                databaseManager,
+                productRepository,
+                stockMovementRepository,
+                auditService,
+                InventoryEventBus.getInstance()
+        );
         syncSessionSettings();
     }
 
@@ -412,5 +420,14 @@ public class ServiceContext {
      */
     public ProductImageService getProductImageService() {
         return productImageService;
+    }
+
+    /**
+     * Returns the Version 2 catalog variants, UoM, BOM bundles, serials, batches, and custom fields service.
+     *
+     * @return {@link CatalogVariantBomService}
+     */
+    public CatalogVariantBomService getCatalogVariantBomService() {
+        return catalogVariantBomService;
     }
 }
