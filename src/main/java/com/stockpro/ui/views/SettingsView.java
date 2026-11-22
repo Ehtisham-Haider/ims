@@ -698,6 +698,77 @@ public class SettingsView {
         return tabRoot;
     }
 
+    private void handleEncryptedBackupFlow(Button triggerBtn) {
+        String pass = promptPassphrase("Encrypt Backup (.enc)", "Enter AES-256-GCM encryption passphrase (min 6 chars):");
+        if (pass == null || pass.length() < 6) {
+            if (pass != null) {
+                toastManager.showInfo("Passphrase must be at least 6 characters.");
+            }
+            return;
+        }
+        javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
+        fc.setTitle("Save Encrypted StockPro Vault");
+        fc.setInitialFileName("stockpro-vault.enc");
+        fc.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("Encrypted Vault (*.enc)", "*.enc"));
+        java.io.File file = fc.showSaveDialog(triggerBtn.getScene() != null ? triggerBtn.getScene().getWindow() : null);
+        if (file == null) {
+            return;
+        }
+        triggerBtn.setDisable(true);
+        String actor = AppSession.getInstance().getActorName();
+        AppExecutor.runAsync(
+                () -> services.getEncryptedBackupService().createEncryptedBackup(file.toPath(), pass.toCharArray(), actor),
+                res -> {
+                    triggerBtn.setDisable(false);
+                    toastManager.showInfo(res.getMessage());
+                },
+                ex -> {
+                    triggerBtn.setDisable(false);
+                    toastManager.showInfo("Encrypted backup failed: " + ex.getMessage());
+                }
+        );
+    }
+
+    private void handleEncryptedRestoreFlow(Button triggerBtn) {
+        javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
+        fc.setTitle("Select Encrypted StockPro Vault (.enc)");
+        fc.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("Encrypted Vault (*.enc)", "*.enc"));
+        java.io.File file = fc.showOpenDialog(triggerBtn.getScene() != null ? triggerBtn.getScene().getWindow() : null);
+        if (file == null) {
+            return;
+        }
+        String pass = promptPassphrase("Decrypt & Restore Vault", "Enter passphrase used to encrypt " + file.getName() + ":");
+        if (pass == null || pass.isBlank()) {
+            return;
+        }
+        triggerBtn.setDisable(true);
+        String actor = AppSession.getInstance().getActorName();
+        AppExecutor.runAsync(
+                () -> services.getEncryptedBackupService().restoreEncryptedBackup(file.toPath(), pass.toCharArray(), actor),
+                res -> {
+                    triggerBtn.setDisable(false);
+                    toastManager.showInfo(res.getMessage());
+                },
+                ex -> {
+                    triggerBtn.setDisable(false);
+                    toastManager.showInfo("Encrypted restore failed: " + ex.getMessage());
+                }
+        );
+    }
+
+    private String promptPassphrase(String title, String caption) {
+        javafx.scene.control.Dialog<String> dlg = new javafx.scene.control.Dialog<>();
+        dlg.setTitle(title);
+        dlg.getDialogPane().getButtonTypes().addAll(javafx.scene.control.ButtonType.OK, javafx.scene.control.ButtonType.CANCEL);
+        javafx.scene.control.PasswordField pf = new javafx.scene.control.PasswordField();
+        pf.setPromptText("Minimum 6 characters");
+        VBox box = new VBox(8, new Label(caption), pf);
+        box.setPadding(new Insets(12));
+        dlg.getDialogPane().setContent(box);
+        dlg.setResultConverter(bt -> bt == javafx.scene.control.ButtonType.OK ? pf.getText() : null);
+        return dlg.showAndWait().orElse(null);
+    }
+
     /**
      * Builds the private user-owned Pexels API section inside the AI &amp; API Keys tab.
      *
@@ -1055,7 +1126,44 @@ public class SettingsView {
             }
         });
 
-        backupCard.getChildren().addAll(bHead, bDesc, new HBox(12, backupBtn, restoreBtn));
+        Button encBackupBtn = new Button("Create Encrypted Backup (.enc)");
+        encBackupBtn.getStyleClass().add("btn-primary");
+        encBackupBtn.setGraphic(AppIcons.of(Feather.LOCK, 14));
+        encBackupBtn.setOnAction(e -> handleEncryptedBackupFlow(encBackupBtn));
+
+        Button encRestoreBtn = new Button("Restore Encrypted Backup");
+        encRestoreBtn.getStyleClass().add("btn-secondary");
+        encRestoreBtn.setGraphic(AppIcons.of(Feather.UNLOCK, 14));
+        encRestoreBtn.setOnAction(e -> handleEncryptedRestoreFlow(encRestoreBtn));
+
+        Button benchBtn = new Button("Run 100k-SKU Scale Benchmark");
+        benchBtn.getStyleClass().add("btn-secondary");
+        benchBtn.setGraphic(AppIcons.of(Feather.ZAP, 14));
+        benchBtn.setOnAction(e -> {
+            benchBtn.setDisable(true);
+            AppExecutor.runAsync(
+                    () -> services.getMegaScaleBenchmarkService().benchmarkScaleSearch(100_000),
+                    res -> {
+                        benchBtn.setDisable(false);
+                        toastManager.showInfo(String.format(
+                                java.util.Locale.US,
+                                "Indexed %d SKUs | Search: %.3f ms | Warm Cache: %.3f ms | Heap: %d MB",
+                                res.totalIndexedSkus(), res.coldSearchMs(), res.cachedLookupMs(), res.heapUsedMb()
+                        ));
+                    },
+                    ex -> {
+                        benchBtn.setDisable(false);
+                        toastManager.showInfo("Benchmark failed: " + ex.getMessage());
+                    }
+            );
+        });
+
+        backupCard.getChildren().addAll(
+                bHead,
+                bDesc,
+                new HBox(12, backupBtn, restoreBtn),
+                new HBox(12, encBackupBtn, encRestoreBtn, benchBtn)
+        );
 
         // Demo Data & Empty State Reset Card
         VBox demoCard = new VBox(10);

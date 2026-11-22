@@ -74,6 +74,7 @@ class V2VoiceControlWhisperTest {
     @Test
     void voiceCommandEngineExecutesAddSaleRestockNavigateAndVoiceToSearch() {
         DatabaseManager db = DatabaseManager.createForFile(tempDir.resolve("v2-branch06-cmds.db"));
+        CatalogSearchEngine searchEngine = null;
         try {
             ProductRepository productRepo = new ProductRepository(db);
             StockMovementRepository moveRepo = new StockMovementRepository(db);
@@ -82,7 +83,7 @@ class V2VoiceControlWhisperTest {
                     productRepo, new CommandHistoryManager(), InventoryEventBus.getInstance());
             StockOperationService stockOps = new StockOperationService(
                     productRepo, moveRepo, auditService, InventoryEventBus.getInstance());
-            CatalogSearchEngine searchEngine = new CatalogSearchEngine(productRepo, InventoryEventBus.getInstance());
+            searchEngine = new CatalogSearchEngine(productRepo, InventoryEventBus.getInstance());
             searchEngine.rebuildIndices();
 
             GroqWhisperClient offlineWhisper = new GroqWhisperClient(
@@ -129,6 +130,9 @@ class V2VoiceControlWhisperTest {
             assertEquals(VoiceIntent.VOICE_SEARCH, searchRes.intent());
             assertEquals("VC-RICE", searchRes.matchedSku());
         } finally {
+            if (searchEngine != null) {
+                searchEngine.close();
+            }
             db.close();
         }
     }
