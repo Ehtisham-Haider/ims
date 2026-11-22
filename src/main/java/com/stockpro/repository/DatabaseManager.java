@@ -19,9 +19,10 @@ import java.sql.Statement;
 import java.time.LocalDateTime;
 
 /**
- * Manages the local SQLite database lifecycle, HikariCP connection pool, schema creation, and default seed data.
+ * Manages the local SQLite database lifecycle, HikariCP connection pool, schema creation,
+ * versioned {@link SchemaMigrator} upgrades, and default seed data.
  *
- * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
+ * @author Syed Ehtisham Haider Bukhari, Faheem Ahmed Khan
  */
 public final class DatabaseManager implements AutoCloseable {
     private static final Logger LOG = AppLogger.get(DatabaseManager.class);
@@ -266,6 +267,7 @@ public final class DatabaseManager implements AutoCloseable {
             for (String sql : statements) {
                 stmt.execute(sql);
             }
+            SchemaMigrator.migrate(conn);
             LOG.info("SQLite schema initialized cleanly at {}", jdbcUrl);
         } catch (SQLException ex) {
             throw new IllegalStateException("Failed to initialize SQLite schema", ex);
