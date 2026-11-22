@@ -1,4 +1,4 @@
-﻿package com.stockpro.ui.views;
+package com.stockpro.ui.views;
 
 import com.stockpro.domain.PickRoutePlan;
 import com.stockpro.domain.PickRouteStep;
