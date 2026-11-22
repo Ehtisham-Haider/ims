@@ -148,6 +148,12 @@ public class MainShellView {
             activeViewDispose = stockView::dispose;
             return stockView.build();
         });
+        viewFactories.put(NavigationSection.WAREHOUSE_MAP, () -> {
+            clearShortcutHooks();
+            WarehouseMapView mapView = new WarehouseMapView(services, toastManager);
+            activeViewThemeRefresh = mapView::refreshTheme;
+            return mapView;
+        });
         viewFactories.put(NavigationSection.SUPPLIERS_ORDERS, () -> {
             clearShortcutHooks();
             SuppliersOrdersView supView = new SuppliersOrdersView(services, toastManager);
@@ -723,6 +729,7 @@ public class MainShellView {
             case DASHBOARD -> Feather.HOME;
             case INVENTORY -> Feather.PACKAGE;
             case STOCK_OPERATIONS -> Feather.SHOPPING_CART;
+            case WAREHOUSE_MAP -> Feather.MAP;
             case SUPPLIERS_ORDERS -> Feather.TRUCK;
             case ANALYTICS_REPORTS -> Feather.BAR_CHART_2;
             case AI_ASSISTANT -> Feather.CPU;

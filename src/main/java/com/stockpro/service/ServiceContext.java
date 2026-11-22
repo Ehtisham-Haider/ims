@@ -55,6 +55,7 @@ public class ServiceContext {
     private final ProductImageService productImageService;
     private final CatalogVariantBomService catalogVariantBomService;
     private final MultiBranchTransferRmaService multiBranchTransferRmaService;
+    private final WarehouseMapPickingService warehouseMapPickingService;
 
     /**
      * Constructs a service registry bound to a specific {@link DatabaseManager}.
@@ -146,6 +147,8 @@ public class ServiceContext {
                 InventoryEventBus.getInstance()
         );
         this.stockOperationService.setBranchService(this.multiBranchTransferRmaService);
+        this.warehouseMapPickingService = new WarehouseMapPickingService(
+                databaseManager, productRepository, auditService, InventoryEventBus.getInstance());
         syncSessionSettings();
     }
 
@@ -448,5 +451,14 @@ public class ServiceContext {
      */
     public MultiBranchTransferRmaService getMultiBranchTransferRmaService() {
         return multiBranchTransferRmaService;
+    }
+
+    /**
+     * Returns the interactive 2D warehouse floorplan and Dijkstra pick-routing service.
+     *
+     * @return {@link WarehouseMapPickingService}
+     */
+    public WarehouseMapPickingService getWarehouseMapPickingService() {
+        return warehouseMapPickingService;
     }
 }
