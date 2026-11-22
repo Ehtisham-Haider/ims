@@ -220,6 +220,40 @@ public class StockOperationsView {
         });
         qtyField.textProperty().addListener((o, a, b) -> updateLivePreview());
 
+        Button scanReceiptBtn = new Button("Scan Receipt / Shelf Photo (Vision Studio)");
+        scanReceiptBtn.setGraphic(AppIcons.of(Feather.CAMERA, 14));
+        scanReceiptBtn.getStyleClass().add("btn-secondary");
+        scanReceiptBtn.setMaxWidth(Double.MAX_VALUE);
+        scanReceiptBtn.setOnAction(e -> new VisionStudioDialog(services, toastManager).show(
+                card.getScene() != null ? card.getScene().getWindow() : null,
+                null,
+                com.stockpro.domain.VisionAnalysisResult.VisionMode.RECEIPT_BILL_SCANNER));
+
+        card.setOnDragOver(ev -> {
+            if (ev.getDragboard().hasFiles()) {
+                ev.acceptTransferModes(javafx.scene.input.TransferMode.COPY);
+            }
+            ev.consume();
+        });
+        card.setOnDragDropped(ev -> {
+            List<java.io.File> files = ev.getDragboard().getFiles();
+            boolean handled = false;
+            if (files != null) {
+                for (java.io.File f : files) {
+                    if (services.getVisionStudioService().isSupportedImageFile(f)) {
+                        new VisionStudioDialog(services, toastManager).show(
+                                card.getScene() != null ? card.getScene().getWindow() : null,
+                                f.toPath(),
+                                com.stockpro.domain.VisionAnalysisResult.VisionMode.RECEIPT_BILL_SCANNER);
+                        handled = true;
+                        break;
+                    }
+                }
+            }
+            ev.setDropCompleted(handled);
+            ev.consume();
+        });
+
         card.getChildren().addAll(
                 formHeading,
                 prodLbl, productPicker,
@@ -227,7 +261,8 @@ public class StockOperationsView {
                 previewLabel,
                 reasonLbl, reasonBox,
                 notesLbl, notesArea,
-                submitBtn
+                submitBtn,
+                scanReceiptBtn
         );
         return card;
     }
