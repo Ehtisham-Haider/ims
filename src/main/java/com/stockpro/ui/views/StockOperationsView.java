@@ -1,12 +1,16 @@
 package com.stockpro.ui.views;
 
 import com.stockpro.domain.AuditLogEntry;
+import com.stockpro.domain.BranchStockRecord;
+import com.stockpro.domain.CustomerBackorder;
 import com.stockpro.domain.MovementType;
 import com.stockpro.domain.Product;
 import com.stockpro.domain.StockMovement;
+import com.stockpro.domain.StoreBranch;
 import com.stockpro.service.AppSession;
 import com.stockpro.service.AuditService;
 import com.stockpro.service.InventoryEventBus;
+import com.stockpro.service.InventoryOperationResult;
 import com.stockpro.service.ProductValidator;
 import com.stockpro.service.ServiceContext;
 import com.stockpro.service.StockOperationService;
@@ -48,9 +52,9 @@ import java.util.function.Consumer;
 /**
  * Stock Operations screen matching {@code Screens and popups/Stock.png}, featuring Feather icon tabs,
  * live stock change preview using theme-safe CSS badges, mandatory reason codes, colored movement type pills,
- * damaged stock quarantine, FEFO expiry tracking, and SHA-256 tamper-proof audit verification.
+ * damaged stock quarantine, FEFO expiry tracking, SHA-256 tamper-proof audit verification, and V2 Multi-Branch/RMA controls.
  *
- * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
+ * @author Syed Ehtisham Haider Bukhari, Faheem Ahmed Khan
  */
 public class StockOperationsView {
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("MMM dd, hh:mm a");
@@ -368,7 +372,8 @@ public class StockOperationsView {
                 new Tab("Recent Movements", moveTable),
                 new Tab("Expiry Tracker (FEFO)", fefoTable),
                 new Tab("Damaged Quarantine", dmgTable),
-                new Tab("SHA-256 Audit Ledger", auditTable)
+                new Tab("SHA-256 Audit Ledger", auditTable),
+                new Tab("Transfers, RMA & ATP", buildEnterpriseOpsPane())
         );
 
         VBox tabCard = new VBox(tabs);
@@ -377,6 +382,159 @@ public class StockOperationsView {
 
         wrapper.getChildren().addAll(sealBar, tabCard);
         return wrapper;
+    }
+
+    private Node buildEnterpriseOpsPane() {
+        VBox box = new VBox(12);
+        box.setPadding(new Insets(12, 4, 8, 4));
+
+        // 1. Inter-branch Transfer + RMA + Backorder Quick Controls
+        HBox controls = new HBox(10);
+        controls.setAlignment(Pos.CENTER_LEFT);
+
+        ComboBox<Product> skuBox = new ComboBox<>();
+        skuBox.setPrefWidth(190);
+        skuBox.setPromptText("Product");
+        TextField qtyInput = new TextField("1");
+        qtyInput.setPrefWidth(65);
+        ComboBox<String> rmaDispBox = new ComboBox<>();
+        rmaDispBox.getItems().addAll("RESTOCK_SELLABLE", "MARK_DAMAGED", "SCRAP");
+        rmaDispBox.setValue("RESTOCK_SELLABLE");
+
+        Button rmaBtn = new Button("Process Customer RMA");
+        rmaBtn.getStyleClass().add("btn-primary");
+        Label statusLbl = new Label("Branch & ATP live");
+        statusLbl.getStyleClass().add("muted-text");
+
+        Button backorderBtn = new Button("Log Backorder");
+        backorderBtn.getStyleClass().add("btn-secondary");
+
+        ComboBox<StoreBranch> toBranchBox = new ComboBox<>();
+        toBranchBox.setPrefWidth(145);
+        Button trfBtn = new Button("Transfer to Branch");
+        trfBtn.getStyleClass().add("btn-secondary");
+
+        controls.getChildren().addAll(skuBox, qtyInput, rmaDispBox, rmaBtn, backorderBtn, toBranchBox, trfBtn);
+
+        TableView<BranchStockRecord> atpTable = new TableView<>();
+        atpTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        atpTable.setPrefHeight(220);
+        TableColumn<BranchStockRecord, String> bSku = new TableColumn<>("SKU");
+        bSku.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().sku()));
+        TableColumn<BranchStockRecord, String> bName = new TableColumn<>("Product");
+        bName.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().productName()));
+        TableColumn<BranchStockRecord, String> bOnHand = new TableColumn<>("On-Hand");
+        bOnHand.setCellValueFactory(c -> new SimpleStringProperty(String.valueOf(c.getValue().onHandQty())));
+        TableColumn<BranchStockRecord, String> bRes = new TableColumn<>("Reserved");
+        bRes.setCellValueFactory(c -> new SimpleStringProperty(String.valueOf(c.getValue().reservedQty())));
+        TableColumn<BranchStockRecord, String> bAtp = new TableColumn<>("ATP");
+        bAtp.setCellValueFactory(c -> new SimpleStringProperty(String.valueOf(c.getValue().availableToPromise())));
+        atpTable.getColumns().addAll(List.of(bSku, bName, bOnHand, bRes, bAtp));
+
+        Runnable reloadPane = () -> AppExecutor.runAsync(() -> {
+            long bid = AppSession.getInstance().getActiveBranchId();
+            List<Product> all = services.getInventoryService().getAllProducts();
+            List<BranchStockRecord> stock = services.getMultiBranchTransferRmaService().listBranchStock(bid);
+            List<StoreBranch> branches = services.getMultiBranchTransferRmaService().listBranches();
+            List<CustomerBackorder> wait = services.getMultiBranchTransferRmaService().listBackorders();
+            double val = services.getMultiBranchTransferRmaService().computeCompanyValuationIncludingInTransit();
+            return new Object[]{all, stock, branches, wait, val};
+        }, res -> {
+            @SuppressWarnings("unchecked")
+            List<Product> all = (List<Product>) res[0];
+            @SuppressWarnings("unchecked")
+            List<BranchStockRecord> stock = (List<BranchStockRecord>) res[1];
+            @SuppressWarnings("unchecked")
+            List<StoreBranch> branches = (List<StoreBranch>) res[2];
+            @SuppressWarnings("unchecked")
+            List<CustomerBackorder> wait = (List<CustomerBackorder>) res[3];
+            double val = (Double) res[4];
+            skuBox.getItems().setAll(all.stream().limit(100).toList());
+            if (skuBox.getValue() == null && !all.isEmpty()) {
+                skuBox.setValue(all.get(0));
+            }
+            toBranchBox.getItems().setAll(branches);
+            if (toBranchBox.getValue() == null && branches.size() > 1) {
+                toBranchBox.setValue(branches.get(1));
+            }
+            atpTable.getItems().setAll(stock);
+            long readyCount = wait.stream().filter(w -> "READY_NOTIFY".equals(w.status())).count();
+            statusLbl.setText(String.format("Enterprise Valuation (incl. In-Transit): %s | Waiting Backorders: %d (%d Ready)",
+                    AppSession.getInstance().formatMoney(val), wait.size(), readyCount));
+        }, ex -> {
+        });
+
+        rmaBtn.setOnAction(e -> {
+            Product p = skuBox.getValue();
+            if (p == null) {
+                return;
+            }
+            int q;
+            try {
+                q = Integer.parseInt(qtyInput.getText().trim());
+            } catch (NumberFormatException ex) {
+                toastManager.showInfo("Enter valid numeric quantity.");
+                return;
+            }
+            AppExecutor.runAsync(
+                    () -> services.getMultiBranchTransferRmaService().processReturnRma(
+                            p.getId(), AppSession.getInstance().getActiveBranchId(), q,
+                            rmaDispBox.getValue(), "Customer RMA desk", AppSession.getInstance().getActorName()),
+                    r -> {
+                        toastManager.showInfo(r.getMessage());
+                        reloadPane.run();
+                    },
+                    ex -> toastManager.showInfo(ex.getMessage()));
+        });
+
+        backorderBtn.setOnAction(e -> {
+            Product p = skuBox.getValue();
+            if (p == null) {
+                return;
+            }
+            AppExecutor.runAsync(
+                    () -> services.getMultiBranchTransferRmaService().recordBackorder(
+                            p.getId(), "Walk-in Customer", "counter@store.local", 1),
+                    r -> {
+                        toastManager.showInfo(r.getMessage());
+                        reloadPane.run();
+                    },
+                    ex -> {
+                    });
+        });
+
+        trfBtn.setOnAction(e -> {
+            Product p = skuBox.getValue();
+            StoreBranch target = toBranchBox.getValue();
+            if (p == null || target == null) {
+                return;
+            }
+            int q;
+            try {
+                q = Integer.parseInt(qtyInput.getText().trim());
+            } catch (NumberFormatException ex) {
+                toastManager.showInfo("Enter valid numeric quantity.");
+                return;
+            }
+            AppExecutor.runAsync(() -> {
+                InventoryOperationResult<com.stockpro.domain.StockTransfer> tr =
+                        services.getMultiBranchTransferRmaService().createTransfer(
+                                AppSession.getInstance().getActiveBranchId(), target.id(),
+                                p.getId(), q, "Branch rebalance", AppSession.getInstance().getActorName());
+                if (tr.isSuccess()) {
+                    services.getMultiBranchTransferRmaService().dispatchTransfer(
+                            tr.getData().id(), AppSession.getInstance().getActorName());
+                }
+                return tr;
+            }, r -> {
+                toastManager.showInfo(r.getMessage());
+                reloadPane.run();
+            }, ex -> toastManager.showInfo(ex.getMessage()));
+        });
+
+        reloadPane.run();
+        box.getChildren().addAll(statusLbl, controls, atpTable);
+        return box;
     }
 
     private void switchMode(MovementType mode) {

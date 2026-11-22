@@ -3,6 +3,7 @@ package com.stockpro.ui.views;
 import com.stockpro.domain.InventoryFilterCriteria;
 import com.stockpro.domain.Product;
 import com.stockpro.domain.StockStatus;
+import com.stockpro.domain.StoreBranch;
 import com.stockpro.domain.User;
 import com.stockpro.service.AppSession;
 import com.stockpro.service.InventoryOperationResult;
@@ -21,6 +22,7 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
@@ -398,6 +400,35 @@ public class MainShellView {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
+        ComboBox<StoreBranch> branchSwitcher = new ComboBox<>();
+        branchSwitcher.setPrefWidth(190);
+        branchSwitcher.setTooltip(new Tooltip("Switch active physical store / warehouse branch"));
+        AppExecutor.runAsync(
+                () -> services.getMultiBranchTransferRmaService().listBranches(),
+                branches -> {
+                    if (branches != null && !branches.isEmpty()) {
+                        branchSwitcher.getItems().setAll(branches);
+                        long currId = AppSession.getInstance().getActiveBranchId();
+                        StoreBranch matched = branches.stream()
+                                .filter(b -> b.id() == currId)
+                                .findFirst()
+                                .orElse(branches.get(0));
+                        branchSwitcher.setValue(matched);
+                        AppSession.getInstance().setActiveBranchId(matched.id());
+                        AppSession.getInstance().setActiveBranchName(matched.name());
+                    }
+                },
+                ex -> {
+                });
+        branchSwitcher.setOnAction(e -> {
+            StoreBranch selected = branchSwitcher.getValue();
+            if (selected != null) {
+                AppSession.getInstance().setActiveBranchId(selected.id());
+                AppSession.getInstance().setActiveBranchName(selected.name());
+                toastManager.showInfo("Switched active branch to " + selected.name() + " (" + selected.branchCode() + ").");
+            }
+        });
+
         clockLabel = new Label("Live • " + LocalTime.now().format(CLOCK_FORMAT));
         clockLabel.getStyleClass().add("clock-pill");
 
@@ -437,7 +468,7 @@ public class MainShellView {
             onExitApp.run();
         });
 
-        bar.getChildren().addAll(searchTrigger, spacer, clockLabel, bellButton, themePill, exitBtn);
+        bar.getChildren().addAll(searchTrigger, spacer, branchSwitcher, clockLabel, bellButton, themePill, exitBtn);
         return bar;
     }
 
