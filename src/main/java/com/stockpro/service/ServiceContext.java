@@ -68,6 +68,7 @@ public class ServiceContext {
     private final VoiceCommandEngine voiceCommandEngine;
     private final com.stockpro.ml.AdvancedOfflineMlService advancedOfflineMlService;
     private final com.stockpro.ai.WorldAwareGenAiService worldAwareGenAiService;
+    private final com.stockpro.ai.MultiAgentStoreBrainService multiAgentStoreBrainService;
 
     /**
      * Constructs a service registry bound to a specific {@link DatabaseManager}.
@@ -179,6 +180,18 @@ public class ServiceContext {
         this.worldAwareGenAiService = new com.stockpro.ai.WorldAwareGenAiService(
                 productRepository, groqApiClient, new DashboardMetricsService(databaseManager, productRepository), financeService);
         this.executivePdfReportGenerator.setWorldAwareGenAiService(this.worldAwareGenAiService);
+        this.multiAgentStoreBrainService = new com.stockpro.ai.MultiAgentStoreBrainService(
+                databaseManager,
+                agentProposalRepository,
+                productRepository,
+                supplierRepository,
+                purchaseOrderRepository,
+                settingsRepository,
+                agenticOrchestratorService,
+                advancedOfflineMlService,
+                warehouseMapPickingService,
+                auditService,
+                InventoryEventBus.getInstance());
         syncSessionSettings();
     }
 
@@ -598,5 +611,14 @@ public class ServiceContext {
      */
     public com.stockpro.ai.WorldAwareGenAiService getWorldAwareGenAiService() {
         return worldAwareGenAiService;
+    }
+
+    /**
+     * Returns the Branch 09 7-Agent Store Brain, Self-Learning Feedback, and Store Health service.
+     *
+     * @return {@link com.stockpro.ai.MultiAgentStoreBrainService}
+     */
+    public com.stockpro.ai.MultiAgentStoreBrainService getMultiAgentStoreBrainService() {
+        return multiAgentStoreBrainService;
     }
 }
