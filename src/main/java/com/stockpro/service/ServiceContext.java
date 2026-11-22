@@ -60,6 +60,9 @@ public class ServiceContext {
     private final LandedCostEngine landedCostEngine;
     private final VolumePricingTierService volumePricingTierService;
     private final CashFlowForecastService cashFlowForecastService;
+    private final PerceptualImageHasher perceptualImageHasher;
+    private final OpenFoodFactsClient openFoodFactsClient;
+    private final VisionStudioService visionStudioService;
 
     /**
      * Constructs a service registry bound to a specific {@link DatabaseManager}.
@@ -158,6 +161,10 @@ public class ServiceContext {
                 databaseManager, purchaseOrderRepository, productRepository, auditService, InventoryEventBus.getInstance());
         this.volumePricingTierService = new VolumePricingTierService(databaseManager);
         this.cashFlowForecastService = new CashFlowForecastService(databaseManager, productRepository, purchaseOrderRepository);
+        this.perceptualImageHasher = new PerceptualImageHasher(databaseManager);
+        this.openFoodFactsClient = new OpenFoodFactsClient();
+        this.visionStudioService = new VisionStudioService(
+                productRepository, perceptualImageHasher, openFoodFactsClient, groqApiClient, auditService);
         syncSessionSettings();
     }
 
@@ -505,5 +512,32 @@ public class ServiceContext {
      */
     public CashFlowForecastService getCashFlowForecastService() {
         return cashFlowForecastService;
+    }
+
+    /**
+     * Returns the 64-bit perceptual image duplicate detector service.
+     *
+     * @return {@link PerceptualImageHasher}
+     */
+    public PerceptualImageHasher getPerceptualImageHasher() {
+        return perceptualImageHasher;
+    }
+
+    /**
+     * Returns the Open Food Facts barcode metadata REST client.
+     *
+     * @return {@link OpenFoodFactsClient}
+     */
+    public OpenFoodFactsClient getOpenFoodFactsClient() {
+        return openFoodFactsClient;
+    }
+
+    /**
+     * Returns the AI Vision Studio &amp; ZXing optical scanner service.
+     *
+     * @return {@link VisionStudioService}
+     */
+    public VisionStudioService getVisionStudioService() {
+        return visionStudioService;
     }
 }
