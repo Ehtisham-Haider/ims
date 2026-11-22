@@ -69,6 +69,7 @@ public class ServiceContext {
     private final com.stockpro.ml.AdvancedOfflineMlService advancedOfflineMlService;
     private final com.stockpro.ai.WorldAwareGenAiService worldAwareGenAiService;
     private final com.stockpro.ai.MultiAgentStoreBrainService multiAgentStoreBrainService;
+    private final com.stockpro.ml.MonteCarloSimulator monteCarloSimulator;
 
     /**
      * Constructs a service registry bound to a specific {@link DatabaseManager}.
@@ -190,6 +191,12 @@ public class ServiceContext {
                 agenticOrchestratorService,
                 advancedOfflineMlService,
                 warehouseMapPickingService,
+                auditService,
+                InventoryEventBus.getInstance());
+        this.monteCarloSimulator = new com.stockpro.ml.MonteCarloSimulator(
+                productRepository,
+                offlineMlEngine,
+                settingsRepository,
                 auditService,
                 InventoryEventBus.getInstance());
         syncSessionSettings();
@@ -620,5 +627,14 @@ public class ServiceContext {
      */
     public com.stockpro.ai.MultiAgentStoreBrainService getMultiAgentStoreBrainService() {
         return multiAgentStoreBrainService;
+    }
+
+    /**
+     * Returns the Branch 10 1,000-trial Monte Carlo What-If Time Machine simulator.
+     *
+     * @return {@link com.stockpro.ml.MonteCarloSimulator}
+     */
+    public com.stockpro.ml.MonteCarloSimulator getMonteCarloSimulator() {
+        return monteCarloSimulator;
     }
 }
