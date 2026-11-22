@@ -19,7 +19,7 @@ import com.stockpro.service.command.CommandHistoryManager;
 /**
  * Central service registry wiring repositories and business services around the active {@link DatabaseManager}.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class ServiceContext {
     private static volatile ServiceContext instance;
@@ -52,6 +52,7 @@ public class ServiceContext {
     private final DemoDataService demoDataService;
     private final TelemetryMonitorService telemetryMonitorService;
     private final BuiltInLabTestRunner builtInLabTestRunner;
+    private final ProductImageService productImageService;
 
     /**
      * Constructs a service registry bound to a specific {@link DatabaseManager}.
@@ -68,11 +69,13 @@ public class ServiceContext {
         this.supplierRepository = new SupplierRepository(databaseManager);
         this.purchaseOrderRepository = new PurchaseOrderRepository(databaseManager);
         this.agentProposalRepository = new AgentProposalRepository(databaseManager);
+        this.productImageService = new ProductImageService(settingsRepository, productRepository);
         this.inventoryService = new InventoryService(
                 productRepository,
                 new CommandHistoryManager(),
                 InventoryEventBus.getInstance()
         );
+        this.inventoryService.setProductImageService(productImageService);
         this.authService = new AuthService(userRepository, AppSession.getInstance());
         this.auditService = new AuditService(auditLogRepository);
         this.stockOperationService = new StockOperationService(
@@ -117,7 +120,12 @@ public class ServiceContext {
                 aiAssistantService
         );
         this.backupService = new BackupService(databaseManager, InventoryEventBus.getInstance());
-        this.demoDataService = new DemoDataService(databaseManager, catalogSearchEngine, InventoryEventBus.getInstance());
+        this.demoDataService = new DemoDataService(
+                databaseManager,
+                catalogSearchEngine,
+                InventoryEventBus.getInstance(),
+                productImageService
+        );
         this.telemetryMonitorService = new TelemetryMonitorService(databaseManager, catalogSearchEngine);
         this.builtInLabTestRunner = new BuiltInLabTestRunner();
         syncSessionSettings();
@@ -395,5 +403,14 @@ public class ServiceContext {
      */
     public BuiltInLabTestRunner getBuiltInLabTestRunner() {
         return builtInLabTestRunner;
+    }
+
+    /**
+     * Returns the product image and optional Pexels photo resolver service.
+     *
+     * @return {@link ProductImageService}
+     */
+    public ProductImageService getProductImageService() {
+        return productImageService;
     }
 }

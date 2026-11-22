@@ -3,7 +3,7 @@ package com.stockpro.domain;
 /**
  * Represents the availability state of an inventory product.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public enum StockStatus {
     /** Product quantity is above its configured low-stock threshold. */

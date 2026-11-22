@@ -10,7 +10,7 @@ import java.util.Optional;
 /**
  * Handles staff authentication with BCrypt password verification, role validation, and Demo Mode sign-in.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class AuthService {
     private final UserRepository userRepository;
@@ -89,7 +89,7 @@ public class AuthService {
         User user = demoUser.orElseGet(() -> {
             User fallback = new User();
             fallback.setUsername(demoUsername);
-            fallback.setFullName("Syed Ahmed");
+            fallback.setFullName("Syed Ehtisham Haider Bukhari");
             fallback.setRole(targetRole);
             fallback.setActive(true);
             return fallback;

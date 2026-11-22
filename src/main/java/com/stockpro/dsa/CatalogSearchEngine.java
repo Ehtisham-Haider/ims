@@ -14,7 +14,7 @@ import java.util.function.Consumer;
  * Unified DS&amp;A search facade combining {@link SkuBarcodeIndex}, {@link ProductTrie},
  * {@link BkTree}, {@link UrgencyMinHeap}, and {@link RangeIndexTree}.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class CatalogSearchEngine implements AutoCloseable {
     private final ProductRepository productRepository;
@@ -32,7 +32,7 @@ public class CatalogSearchEngine implements AutoCloseable {
      * @param results matched products
      * @param latencyMs elapsed query duration in milliseconds
      * @param strategyUsed label describing whether HashMap, Trie, or BK-Tree resolved the query
-     * @author Ehtisham Haider, Syed Ahmed
+     * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
      */
     public record SearchResult(List<Product> results, double latencyMs, String strategyUsed) {
     }

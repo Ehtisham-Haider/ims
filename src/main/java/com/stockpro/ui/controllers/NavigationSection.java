@@ -3,7 +3,7 @@ package com.stockpro.ui.controllers;
 /**
  * Primary navigation destinations in the StockPro left sidebar.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public enum NavigationSection {
     /** Executive KPI dashboard and trends. */

@@ -7,7 +7,7 @@ import java.util.Optional;
 /**
  * Manages dual Undo and Redo stacks using the Command Pattern for Ctrl+Z / Ctrl+Y reversals.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class CommandHistoryManager {
     private static final int DEFAULT_MAX_HISTORY = 50;

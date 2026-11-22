@@ -28,7 +28,7 @@ import java.util.Optional;
  * Manages supplier CRUD, multi-item Purchase Order creation and fulfillment lifecycle,
  * and branded OpenPDF Purchase Order exports.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class SupplierOrderService {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");

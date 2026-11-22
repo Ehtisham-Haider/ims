@@ -28,7 +28,7 @@ import java.util.List;
 /**
  * Generates crisp Code-128 barcodes and QR codes via ZXing and exports printable A4 sticker sheets via OpenPDF.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class BarcodeLabelService {
 

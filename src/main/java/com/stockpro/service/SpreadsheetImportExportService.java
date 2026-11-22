@@ -28,7 +28,7 @@ import java.util.Locale;
  * Provides Apache POI Excel ({@code .xlsx}) and CSV full-catalog export plus a dry-run validated
  * spreadsheet import wizard blocking malformed rows before committing to SQLite.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class SpreadsheetImportExportService {
     private static final String[] HEADERS = {
@@ -42,7 +42,7 @@ public class SpreadsheetImportExportService {
      * @param totalRows total data rows scanned
      * @param validProducts validated {@link Product} entities ready to insert
      * @param rowErrors row-by-row diagnostic errors
-     * @author Ehtisham Haider, Syed Ahmed
+     * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
      */
     public record DryRunImportReport(
             int totalRows,

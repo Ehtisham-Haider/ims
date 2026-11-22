@@ -26,11 +26,13 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Verifies all 5 explicit DS&amp;A data structures (HashMap, Compressed Trie, BK-Tree, Min-Heap, TreeMap)
- * and all 6 pure-Java offline ML engines (Forecasting, Smart Restock, Threshold Tuner, Countdown,
+ * Verifies all 5 explicit DS&amp;A data structures (HashMap, Compressed Trie,
+ * BK-Tree, Min-Heap, TreeMap)
+ * and all 6 pure-Java offline ML engines (Forecasting, Smart Restock, Threshold
+ * Tuner, Countdown,
  * Anomaly Guard, and ABC Velocity Grading).
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 class DsaAndOfflineMlTest {
 
@@ -48,13 +50,13 @@ class DsaAndOfflineMlTest {
     void setUp() {
         dbManager = DatabaseManager.createForFile(tempDir.resolve("dsa-ml-test.db"));
         productRepo = new ProductRepository(dbManager);
-        inventoryService = new InventoryService(productRepo, new CommandHistoryManager(), InventoryEventBus.getInstance());
+        inventoryService = new InventoryService(productRepo, new CommandHistoryManager(),
+                InventoryEventBus.getInstance());
         stockService = new StockOperationService(
                 productRepo,
                 new StockMovementRepository(dbManager),
                 new AuditService(new AuditLogRepository(dbManager)),
-                InventoryEventBus.getInstance()
-        );
+                InventoryEventBus.getInstance());
         searchEngine = new CatalogSearchEngine(productRepo, InventoryEventBus.getInstance());
         mlEngine = new OfflineMlEngine(dbManager, productRepo);
     }
@@ -89,7 +91,8 @@ class DsaAndOfflineMlTest {
 
         // 1. HashMap O(1) SKU lookup
         assertTrue(searchEngine.getSkuBarcodeIndex().containsSku("PRD-1001"));
-        assertEquals("Wireless Keyboard", searchEngine.getSkuBarcodeIndex().findBySku("PRD-1001").orElseThrow().getName());
+        assertEquals("Wireless Keyboard",
+                searchEngine.getSkuBarcodeIndex().findBySku("PRD-1001").orElseThrow().getName());
 
         // 2. Compressed Trie prefix autocomplete
         List<Product> prefixHits = searchEngine.getProductTrie().autocomplete("wire", 5);
@@ -100,7 +103,8 @@ class DsaAndOfflineMlTest {
         assertFalse(fuzzyHits.isEmpty());
         assertEquals("Wireless Keyboard", fuzzyHits.get(0).getName());
 
-        // 4. Min-Heap Urgency Tracker (Out-of-stock milk at 0 score before low-stock mouse)
+        // 4. Min-Heap Urgency Tracker (Out-of-stock milk at 0 score before low-stock
+        // mouse)
         List<UrgencyMinHeap.UrgencyEntry> topUrgent = searchEngine.getUrgencyMinHeap().topCritical(2);
         assertEquals(2, topUrgent.size());
         assertEquals("Fresh Milk", topUrgent.get(0).product().getName());
@@ -131,7 +135,7 @@ class DsaAndOfflineMlTest {
         inventoryService.addProduct(typoItem);
 
         // Record recent sales to drive velocity & ABC differentiation
-        stockService.recordOperation(stand.getId(), MovementType.SALE, "6", "Order #1", "", "Ahmed");
+        stockService.recordOperation(stand.getId(), MovementType.SALE, "6", "Order #1", "", "Faheen Ahmad Khan");
 
         List<OfflineMlEngine.ProductForecast> forecasts = mlEngine.analyzeCatalog();
         assertEquals(3, forecasts.size());

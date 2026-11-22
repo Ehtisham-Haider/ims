@@ -5,40 +5,67 @@ import com.stockpro.domain.StockStatus;
 import com.stockpro.dsa.CatalogSearchEngine;
 import com.stockpro.repository.DatabaseManager;
 
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 /**
- * Generates 1,000 realistic store products, suppliers, and sales history in a single fast SQLite transaction
- * and provides a one-click store wipe for testing empty-inventory workflows.
+ * Generates 1,000 realistic store products with category/product images, suppliers, and sales history
+ * in a single fast SQLite transaction and provides a one-click store wipe for testing empty-inventory workflows.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class DemoDataService {
-    private static final String[] CATEGORIES = {
-            "Groceries", "Dairy", "Bakery", "Snacks", "Drinks", "Electronics", "Accessories", "Household"
-    };
-    private static final String[] ADJECTIVES = {
-            "Fresh", "Organic", "Premium", "Wireless", "Compact", "Classic", "Ultra", "Family", "Daily", "Pro"
-    };
-    private static final String[] NOUNS = {
-            "Rice 5kg", "Milk 1L", "Wheat Bread", "Potato Chips", "Sparkling Cola", "Mouse",
-            "Keyboard", "USB-C Cable", "Phone Stand", "Olive Oil", "Coffee Beans", "Green Tea",
-            "Greek Yogurt", "Cheddar Cheese", "Laundry Gel", "Hand Soap", "Notebook", "Bluetooth Speaker",
-            "Power Bank", "LED Bulb"
+    private record DemoTemplate(
+            String baseName,
+            String category,
+            String[] variants,
+            double minBuy,
+            double maxBuy,
+            boolean perishable) {
+    }
+
+    private static final DemoTemplate[] TEMPLATES = {
+            new DemoTemplate("Basmati Rice 5kg", "Groceries", new String[]{"Royal", "Harvest", "Golden", "Himalayan", "Super"}, 4.50, 8.50, false),
+            new DemoTemplate("Whole Milk 1L", "Dairy", new String[]{"FreshFarm", "Organic", "Creamy", "Valley", "Pure"}, 0.90, 1.60, true),
+            new DemoTemplate("Artisan Bread Loaf", "Bakery", new String[]{"Multigrain", "Sourdough", "Whole Wheat", "Honey Oat", "Country"}, 0.80, 1.80, true),
+            new DemoTemplate("Bluetooth Speaker", "Electronics", new String[]{"Pulse", "Acoustic", "Studio", "Pocket", "BassPro"}, 18.00, 36.00, false),
+            new DemoTemplate("Sea Salt Potato Chips", "Snacks", new String[]{"Kettle", "Crunchy", "BBQ", "Classic", "Spicy"}, 0.90, 1.90, false),
+            new DemoTemplate("Sparkling Cola 330ml", "Drinks", new String[]{"Zero Sugar", "Chilled", "Craft", "Classic", "Cherry"}, 0.55, 1.10, true),
+            new DemoTemplate("USB-C Fast Cable", "Accessories", new String[]{"Braided 2m", "60W PD", "Armor", "Travel", "Slim"}, 3.00, 7.50, false),
+            new DemoTemplate("Laundry Detergent Gel", "Household", new String[]{"Lavender", "Fresh Linen", "Active", "Sensitive", "Eco"}, 4.50, 9.00, false),
+            new DemoTemplate("Arabica Coffee Beans", "Drinks", new String[]{"Dark Roast", "Espresso", "Colombian", "Medium Roast", "Single Origin"}, 6.50, 13.50, false),
+            new DemoTemplate("Wireless Optical Mouse", "Electronics", new String[]{"Ergo", "Silent", "Travel", "Precision", "Pro"}, 9.00, 22.00, false),
+            new DemoTemplate("Extra Virgin Olive Oil", "Groceries", new String[]{"Cold Pressed", "Mediterranean", "Reserve", "Organic", "Pure"}, 5.50, 12.00, false),
+            new DemoTemplate("Greek Yogurt Cup", "Dairy", new String[]{"Honey", "Vanilla", "Plain", "Berry", "Low-Fat"}, 1.10, 2.40, true),
+            new DemoTemplate("Butter Croissant Pack", "Bakery", new String[]{"French", "Almond", "Chocolate", "Warm", "Classic"}, 1.80, 3.80, true),
+            new DemoTemplate("Mechanical Keyboard", "Electronics", new String[]{"Compact", "RGB", "Tactile", "Quiet", "Creator"}, 24.00, 52.00, false),
+            new DemoTemplate("Roasted Almond Mix", "Snacks", new String[]{"Smoked", "Honey Glazed", "Raw", "Lightly Salted", "Trail"}, 2.80, 6.20, false),
+            new DemoTemplate("Smartphone Desk Stand", "Accessories", new String[]{"Aluminum", "Foldable", "MagSafe", "Adjustable", "DeskPro"}, 4.50, 11.50, false),
+            new DemoTemplate("Botanical Hand Soap", "Household", new String[]{"Citrus", "Aloe Vera", "Oatmeal", "Mint", "Rosewater"}, 1.80, 4.20, false),
+            new DemoTemplate("Aged Cheddar Cheese", "Dairy", new String[]{"Sharp", "Mild", "Farmhouse", "Sliced", "Reserve"}, 2.40, 5.20, true),
+            new DemoTemplate("Matcha Green Tea", "Drinks", new String[]{"Jasmine", "Organic", "Sencha", "Mint", "Imperial"}, 3.20, 7.00, false),
+            new DemoTemplate("Portable Power Bank", "Electronics", new String[]{"10000mAh", "20000mAh", "Slim PD", "Solar", "Travel"}, 12.00, 28.00, false),
+            new DemoTemplate("Spiral Hardcover Notebook", "Accessories", new String[]{"Dotted A5", "Ruled", "Executive", "Sketch", "Minimal"}, 2.00, 5.00, false),
+            new DemoTemplate("Smart LED Bulb 12W", "Household", new String[]{"Warm White", "Daylight", "Dimmable", "Color RGB", "Eco"}, 2.50, 6.50, false),
+            new DemoTemplate("Organic Farm Eggs (12)", "Dairy", new String[]{"Free Range", "Brown", "Pasture", "Omega-3", "Jumbo"}, 1.90, 3.60, true),
+            new DemoTemplate("Dark Chocolate Bar", "Snacks", new String[]{"70% Cacao", "Hazelnut", "Sea Salt", "Caramel", "Artisan"}, 1.40, 3.20, false)
     };
 
     private final DatabaseManager dbManager;
     private final CatalogSearchEngine searchEngine;
     private final InventoryEventBus eventBus;
+    private final ProductImageService productImageService;
 
     /**
-     * Constructs a demo data generator service.
+     * Constructs a demo data generator service using a database-local image cache.
      *
      * @param dbManager database manager
      * @param searchEngine catalog search engine to refresh after bulk changes
@@ -48,14 +75,40 @@ public class DemoDataService {
             DatabaseManager dbManager,
             CatalogSearchEngine searchEngine,
             InventoryEventBus eventBus) {
-        this.dbManager = dbManager;
-        this.searchEngine = searchEngine;
-        this.eventBus = eventBus;
+        this(dbManager, searchEngine, eventBus, null);
     }
 
     /**
-     * Generates {@code targetProductCount} realistic products (default 1,000), 6 suppliers,
-     * and 250 sales/restock movement records in a single batch transaction.
+     * Constructs a demo data generator service wired to a shared {@link ProductImageService}.
+     *
+     * @param dbManager database manager
+     * @param searchEngine catalog search engine to refresh after bulk changes
+     * @param eventBus shared UI refresh event bus
+     * @param productImageService image resolver assigning demo product visuals
+     */
+    public DemoDataService(
+            DatabaseManager dbManager,
+            CatalogSearchEngine searchEngine,
+            InventoryEventBus eventBus,
+            ProductImageService productImageService) {
+        this.dbManager = dbManager;
+        this.searchEngine = searchEngine;
+        this.eventBus = eventBus;
+        this.productImageService = productImageService;
+    }
+
+    /**
+     * Returns the number of distinct curated retail templates cycled during demo store generation.
+     *
+     * @return count of curated product templates
+     */
+    public static int getTemplateCount() {
+        return TEMPLATES.length;
+    }
+
+    /**
+     * Generates {@code targetProductCount} realistic products (default 1,000) with product images,
+     * 6 suppliers, and 250 sales/restock movement records in a single batch transaction.
      *
      * @param targetProductCount number of demo products to insert
      * @return count of inserted products
@@ -64,6 +117,8 @@ public class DemoDataService {
         int count = Math.max(10, targetProductCount);
         Random random = new Random(42L);
         LocalDateTime now = LocalDateTime.now();
+        ProductImageService imageResolver = resolveImageService();
+        Map<String, String> cachedSlugPaths = new HashMap<>();
 
         String insertSup = """
                 INSERT INTO suppliers (name, phone, email, delivery_days, reliability_score, linked_categories, created_at)
@@ -75,7 +130,7 @@ public class DemoDataService {
                     low_stock_threshold, buy_price, sell_price, shelf_location,
                     expiry_date, status, manual_status_override, photo_path,
                     substitute_sku, archived, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, 0, NULL, NULL, 0, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, 0, ?, NULL, 0, ?, ?)
                 """;
         String insertMove = """
                 INSERT INTO stock_movements (
@@ -119,10 +174,21 @@ public class DemoDataService {
             try (PreparedStatement psProd = conn.prepareStatement(insertProd)) {
                 for (int i = 1; i <= count; i++) {
                     String sku = String.format("PRD-%04d", 1000 + i);
-                    String cat = CATEGORIES[i % CATEGORIES.length];
-                    String adj = ADJECTIVES[i % ADJECTIVES.length];
-                    String noun = NOUNS[(i / ADJECTIVES.length) % NOUNS.length];
-                    String name = adj + " " + noun + " #" + i;
+                    int zeroIdx = i - 1;
+                    DemoTemplate tpl = TEMPLATES[zeroIdx % TEMPLATES.length];
+                    int cycle = zeroIdx / TEMPLATES.length;
+                    String variant = tpl.variants()[cycle % tpl.variants().length];
+                    int batchNum = (cycle / tpl.variants().length) + 1;
+                    String name = batchNum == 1
+                            ? variant + " " + tpl.baseName()
+                            : variant + " " + tpl.baseName() + " #" + i;
+                    String cat = tpl.category();
+
+                    String imgKey = cat + "|"
+                            + ProductImageService.toSlug(ProductImageService.buildSearchQuery(name, cat))
+                            + "|" + ProductImageService.variantSlot(name);
+                    String photoPath = cachedSlugPaths.computeIfAbsent(
+                            imgKey, k -> imageResolver.resolveImagePath(name, cat, false));
 
                     int qty;
                     if (i % 17 == 0) {
@@ -133,10 +199,11 @@ public class DemoDataService {
                         qty = 18 + random.nextInt(140);
                     }
                     int threshold = 10;
-                    double buy = Math.round((1.0 + random.nextDouble() * 35.0) * 100.0) / 100.0;
+                    double buy = Math.round(
+                            (tpl.minBuy() + random.nextDouble() * (tpl.maxBuy() - tpl.minBuy())) * 100.0) / 100.0;
                     double sell = Math.round(buy * (1.28 + random.nextDouble() * 0.35) * 100.0) / 100.0;
                     String shelf = String.format("%c%d-%02d", 'A' + (i % 5), 1 + (i % 4), 1 + (i % 12));
-                    LocalDate expiry = ("Dairy".equals(cat) || "Bakery".equals(cat) || "Drinks".equals(cat))
+                    LocalDate expiry = tpl.perishable()
                             ? LocalDate.now().plusDays(2 + random.nextInt(35))
                             : null;
                     StockStatus st = qty <= 0 ? StockStatus.OUT_OF_STOCK : (qty <= threshold ? StockStatus.LOW_STOCK : StockStatus.IN_STOCK);
@@ -153,8 +220,9 @@ public class DemoDataService {
                     psProd.setString(10, shelf);
                     psProd.setString(11, expiry != null ? expiry.toString() : null);
                     psProd.setString(12, st.getDisplayName());
-                    psProd.setString(13, now.toString());
+                    psProd.setString(13, photoPath);
                     psProd.setString(14, now.toString());
+                    psProd.setString(15, now.toString());
                     psProd.addBatch();
                 }
                 psProd.executeBatch();
@@ -184,7 +252,7 @@ public class DemoDataService {
                         psMove.setInt(7, qty);
                         psMove.setString(8, isSale ? "POS Customer Sale" : "Supplier Replenishment");
                         psMove.setString(9, "Demo Store History");
-                        psMove.setString(10, isSale ? "Sara Khan" : "Syed Ahmed");
+                        psMove.setString(10, isSale ? "Faheen Ahmad Khan" : "Syed Ehtisham Haider Bukhari");
                         psMove.setString(11, moveTs.toString());
                         psMove.addBatch();
                         mCount++;
@@ -204,6 +272,17 @@ public class DemoDataService {
         }
         eventBus.publish("DEMO_DATA_LOADED");
         return count;
+    }
+
+    private ProductImageService resolveImageService() {
+        if (productImageService != null) {
+            return productImageService;
+        }
+        Path dbFile = dbManager != null ? dbManager.getDatabaseFilePath() : null;
+        Path cacheDir = (dbFile != null && dbFile.getParent() != null)
+                ? dbFile.getParent().resolve("product-images")
+                : Path.of("data", "product-images");
+        return new ProductImageService(null, null, cacheDir);
     }
 
     /**

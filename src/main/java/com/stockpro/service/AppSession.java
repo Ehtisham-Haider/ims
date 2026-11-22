@@ -6,7 +6,7 @@ import com.stockpro.domain.UserRole;
 /**
  * Holds active session state including authenticated user, theme preference, and permission checks.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public final class AppSession {
     private static final AppSession INSTANCE = new AppSession();

@@ -10,7 +10,7 @@ import java.util.Map;
 /**
  * Validates product attributes and raw form input strings against business and lab rules.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public final class ProductValidator {
     private static final int MAX_NAME_LENGTH = 140;

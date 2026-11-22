@@ -15,7 +15,7 @@ import java.sql.Statement;
  * Provides one-click atomic SQLite database snapshot creation ({@code VACUUM INTO})
  * and validated snapshot restoration without leaving stale pool handles.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class BackupService {
     private final DatabaseManager dbManager;

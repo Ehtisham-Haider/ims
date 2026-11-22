@@ -3,7 +3,7 @@ package com.stockpro.domain;
 /**
  * Tamper-evident audit ledger entry linked by a SHA-256 hash chain.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class AuditLogEntry {
     private long id;

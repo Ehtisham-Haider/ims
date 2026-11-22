@@ -13,7 +13,7 @@ import java.sql.Statement;
 /**
  * Collects live application speed, memory, search latency, and SQLite storage health telemetry.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class TelemetryMonitorService {
     private final DatabaseManager dbManager;
@@ -31,7 +31,7 @@ public class TelemetryMonitorService {
      * @param movementCount stock movement row count
      * @param supplierCount supplier row count
      * @param auditCount audit log row count
-     * @author Ehtisham Haider, Syed Ahmed
+     * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
      */
     public record TelemetrySnapshot(
             long usedHeapMb,

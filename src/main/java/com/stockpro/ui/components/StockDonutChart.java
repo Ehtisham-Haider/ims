@@ -1,27 +1,39 @@
 package com.stockpro.ui.components;
 
+import com.stockpro.service.AppSession;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Arc;
 import javafx.scene.shape.ArcType;
 import javafx.scene.shape.Circle;
+import javafx.scene.shape.StrokeLineCap;
+
+import java.util.Arrays;
+import java.util.List;
 
 /**
- * Reusable vector donut chart displaying proportional segments, a center KPI label, and a clean legend.
+ * High-DPI Canvas Donut Chart displaying proportional slices, crisp slice separation,
+ * centered headline KPI text, right-aligned percentage legend, and Light/Dark theme sync.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class StockDonutChart extends HBox {
-    private final Pane ringCanvas;
+    private static final double SIZE = 148;
+
+    private final Canvas ringCanvas;
     private final Label centerPrimaryLabel;
     private final Label centerSecondaryLabel;
     private final VBox legendBox;
+
+    private List<Slice> lastSlices = List.of();
 
     /**
      * Immutable slice specification rendered inside {@link StockDonutChart}.
@@ -30,7 +42,7 @@ public class StockDonutChart extends HBox {
      * @param valueDisplay formatted value or percentage text
      * @param fraction fraction in range 0..1
      * @param hexColor hex fill/stroke color
-     * @author Ehtisham Haider, Syed Ahmed
+     * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
      */
     public record Slice(String label, String valueDisplay, double fraction, String hexColor) {
     }
@@ -43,26 +55,26 @@ public class StockDonutChart extends HBox {
         setAlignment(Pos.CENTER_LEFT);
         setPadding(new Insets(6, 4, 6, 4));
 
-        ringCanvas = new Pane();
-        ringCanvas.setMinSize(148, 148);
-        ringCanvas.setPrefSize(148, 148);
-        ringCanvas.setMaxSize(148, 148);
+        ringCanvas = new Canvas(SIZE, SIZE);
 
         centerPrimaryLabel = new Label("0");
+        centerPrimaryLabel.getStyleClass().add("section-title");
         centerPrimaryLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
         centerSecondaryLabel = new Label("Total");
         centerSecondaryLabel.getStyleClass().add("muted-text");
         centerSecondaryLabel.setStyle("-fx-font-size: 11px;");
 
-        VBox centerBox = new VBox(2, centerPrimaryLabel, centerSecondaryLabel);
+        VBox centerBox = new VBox(1, centerPrimaryLabel, centerSecondaryLabel);
         centerBox.setAlignment(Pos.CENTER);
 
         StackPane donutStack = new StackPane(ringCanvas, centerBox);
-        donutStack.setMinSize(148, 148);
-        donutStack.setPrefSize(148, 148);
+        donutStack.setMinSize(SIZE, SIZE);
+        donutStack.setPrefSize(SIZE, SIZE);
+        donutStack.setMaxSize(SIZE, SIZE);
 
-        legendBox = new VBox(10);
+        legendBox = new VBox(9);
         legendBox.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(legendBox, Priority.ALWAYS);
 
         getChildren().addAll(donutStack, legendBox);
     }
@@ -77,40 +89,53 @@ public class StockDonutChart extends HBox {
     public void setData(String centerValue, String centerSub, Slice... slices) {
         centerPrimaryLabel.setText(centerValue);
         centerSecondaryLabel.setText(centerSub);
-        ringCanvas.getChildren().clear();
+        this.lastSlices = slices != null ? Arrays.asList(slices) : List.of();
+        redraw();
+    }
+
+    /**
+     * Repaints the donut arcs and legend rows using the active Light or Dark palette.
+     */
+    public void redraw() {
+        GraphicsContext gc = ringCanvas.getGraphicsContext2D();
+        gc.clearRect(0, 0, SIZE, SIZE);
+
+        boolean dark = AppSession.getInstance().isDarkMode();
+        double strokeW = 18.0;
+        double inset = strokeW / 2.0 + 6.0;
+        double d = SIZE - (inset * 2.0);
+
+        gc.setLineWidth(strokeW);
+        gc.setLineCap(StrokeLineCap.BUTT);
+        gc.setStroke(Color.web(dark ? "#334155" : "#E2E8F0"));
+        gc.strokeOval(inset, inset, d, d);
+
         legendBox.getChildren().clear();
-
-        double cx = 74;
-        double cy = 74;
-        double radius = 56;
-
-        Circle track = new Circle(cx, cy, radius);
-        track.setFill(Color.TRANSPARENT);
-        track.setStroke(Color.web("#E2E8F0"));
-        track.setStrokeWidth(18);
-        ringCanvas.getChildren().add(track);
-
         double startAngle = 90.0;
-        for (Slice slice : slices) {
-            if (slice.fraction() > 0.001) {
-                double sweep = -360.0 * Math.min(1.0, slice.fraction());
-                Arc arc = new Arc(cx, cy, radius, radius, startAngle, sweep);
-                arc.setType(ArcType.OPEN);
-                arc.setFill(Color.TRANSPARENT);
-                arc.setStroke(Color.web(slice.hexColor()));
-                arc.setStrokeWidth(18);
-                ringCanvas.getChildren().add(arc);
-                startAngle += sweep;
+        long nonZero = lastSlices.stream().filter(s -> s.fraction() > 0.004).count();
+        double gapDeg = nonZero > 1 ? 2.4 : 0.0;
+
+        for (Slice slice : lastSlices) {
+            if (slice.fraction() > 0.004) {
+                double fullSweep = -360.0 * Math.min(1.0, slice.fraction());
+                double sweep = fullSweep + (fullSweep < -gapDeg ? gapDeg : 0.0);
+                gc.setStroke(Color.web(slice.hexColor()));
+                gc.setLineCap(StrokeLineCap.ROUND);
+                gc.strokeArc(inset, inset, d, d, startAngle - gapDeg / 2.0, sweep, ArcType.OPEN);
+                startAngle += fullSweep;
             }
 
             HBox row = new HBox(8);
             row.setAlignment(Pos.CENTER_LEFT);
             Circle dot = new Circle(5, Color.web(slice.hexColor()));
             Label nameLbl = new Label(slice.label());
-            nameLbl.setMinWidth(92);
+            nameLbl.setMinWidth(88);
+            Region spacer = new Region();
+            HBox.setHgrow(spacer, Priority.ALWAYS);
             Label valLbl = new Label(slice.valueDisplay());
-            valLbl.setStyle("-fx-font-weight: bold;");
-            row.getChildren().addAll(dot, nameLbl, valLbl);
+            valLbl.getStyleClass().add("section-title");
+            valLbl.setStyle("-fx-font-size: 12.5px; -fx-font-weight: bold;");
+            row.getChildren().addAll(dot, nameLbl, spacer, valLbl);
             legendBox.getChildren().add(row);
         }
     }

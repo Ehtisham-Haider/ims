@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Verifies BCrypt staff authentication, role checks, Demo Mode, and Spotlight command parsing.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 class AuthAndCommandTest {
 

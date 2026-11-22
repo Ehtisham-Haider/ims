@@ -4,19 +4,17 @@ import com.stockpro.ai.AiAssistantService;
 import com.stockpro.ai.ChartSpec;
 import com.stockpro.domain.InventoryFilterCriteria;
 import com.stockpro.domain.Product;
-import com.stockpro.domain.Supplier;
+import com.stockpro.service.AppSession;
 import com.stockpro.service.ServiceContext;
+import com.stockpro.ui.components.AppIcons;
+import com.stockpro.ui.components.ModernBarChart;
+import com.stockpro.ui.components.ModernTrendChart;
+import com.stockpro.ui.components.StockDonutChart;
 import com.stockpro.ui.components.ToastNotificationManager;
 import com.stockpro.util.AppExecutor;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.chart.BarChart;
-import javafx.scene.chart.CategoryAxis;
-import javafx.scene.chart.LineChart;
-import javafx.scene.chart.NumberAxis;
-import javafx.scene.chart.PieChart;
-import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
@@ -26,42 +24,99 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import org.kordamp.ikonli.feather.Feather;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * AI Assistant &amp; Intelligence Hub matching {@code Screens and popups/AI Chat.png},
- * combining natural-language Store Q&amp;A, Ask-for-Any-Chart live JavaFX charts, supplier email drafting,
- * Explain-It-To-Me helper, Smart Natural Search, and the Offline ML Radar tab.
+ * AI Assistant &amp; Intelligence Hub matching
+ * {@code Screens and popups/AI Chat.png},
+ * featuring user-owned Groq API key status &amp; one-click Settings
+ * configuration,
+ * honest Cloud vs Offline preview routing, live
+ * {@link ModernBarChart}/{@link ModernTrendChart}/{@link StockDonutChart}
+ * chart specs, Run AI Audit action, Smart Natural Search with Inventory
+ * drill-down, ML Radar, and Approval Inbox.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class AiAssistantView {
     private final ServiceContext services;
     private final AiAssistantService assistantService;
     private final ToastNotificationManager toastManager;
+    private final Runnable onOpenAiSettings;
+    private final java.util.function.Consumer<InventoryFilterCriteria> onOpenFilteredInventory;
 
+    private final List<Runnable> themeRefreshers = new ArrayList<>();
+    private MlRadarView mlRadarView;
+    private ApprovalInboxView approvalInboxView;
+
+    private HBox apiStatusBanner;
     private VBox chatMessagesBox;
     private ScrollPane chatScroll;
     private TextField chatInput;
     private TabPane tabs;
+    private Tab approvalTab;
 
     /**
-     * Constructs the AI Assistant hub.
+     * Constructs the AI Assistant hub with core services.
      *
-     * @param services shared service registry
+     * @param services     shared service registry
      * @param toastManager toast notification helper
      */
     public AiAssistantView(ServiceContext services, ToastNotificationManager toastManager) {
-        this.services = services;
-        this.assistantService = services.getAiAssistantService();
-        this.toastManager = toastManager;
+        this(services, toastManager, null, null);
     }
 
     /**
-     * Builds the tabbed AI Assistant workspace (Chat Studio, ML Radar, and Approval Inbox slot).
+     * Constructs the AI Assistant hub wired with deep navigation into Settings and
+     * Inventory filtering.
+     *
+     * @param services                shared service registry
+     * @param toastManager            toast notification helper
+     * @param onOpenAiSettings        callback opening Settings -&gt; AI &amp; Groq
+     *                                API tab
+     * @param onOpenFilteredInventory callback opening Inventory pre-filtered with
+     *                                Smart Natural Search criteria
+     */
+    public AiAssistantView(
+            ServiceContext services,
+            ToastNotificationManager toastManager,
+            Runnable onOpenAiSettings,
+            java.util.function.Consumer<InventoryFilterCriteria> onOpenFilteredInventory) {
+        this.services = services;
+        this.assistantService = services.getAiAssistantService();
+        this.toastManager = toastManager;
+        this.onOpenAiSettings = onOpenAiSettings;
+        this.onOpenFilteredInventory = onOpenFilteredInventory;
+    }
+
+    /**
+     * Releases child tab EventBus subscriptions when navigating away.
+     */
+    public void dispose() {
+        if (mlRadarView != null) {
+            mlRadarView.dispose();
+        }
+        if (approvalInboxView != null) {
+            approvalInboxView.dispose();
+        }
+    }
+
+    /**
+     * Repaints any inline generated Canvas charts on Light/Dark toggle.
+     */
+    public void onThemeChanged() {
+        themeRefreshers.forEach(Runnable::run);
+    }
+
+    /**
+     * Builds the tabbed AI Assistant workspace (Chat Studio, ML Radar, and Approval
+     * Inbox).
      *
      * @return JavaFX root node
      */
@@ -71,41 +126,44 @@ public class AiAssistantView {
 
         Label title = new Label("AI Assistant");
         title.getStyleClass().add("page-title");
-        Label subtitle = new Label("Ask store questions, generate live charts, draft supplier emails, and inspect ML forecasts");
+        Label subtitle = new Label(
+                "Connect your own free Groq API key in Settings for live Gen AI chat, briefings, emails & custom charts");
         subtitle.getStyleClass().add("page-subtitle");
+
+        mlRadarView = new MlRadarView(services);
+        approvalInboxView = new ApprovalInboxView(services, toastManager);
 
         tabs = new TabPane();
         tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
         VBox.setVgrow(tabs, Priority.ALWAYS);
 
-        Tab chatTab = new Tab("💬 AI Chat Studio", buildChatStudio());
-        Tab mlTab = new Tab("📡 ML Radar & Search", new MlRadarView(services).build());
-        tabs.getTabs().addAll(chatTab, mlTab);
-        appendExtraTabs(tabs);
+        Tab chatTab = new Tab("AI Chat Studio", buildChatStudio());
+        Tab mlTab = new Tab("ML Radar & DS&A", mlRadarView.build());
+        approvalTab = new Tab("Approval Inbox", approvalInboxView.build());
+        tabs.getTabs().addAll(chatTab, mlTab, approvalTab);
 
         root.getChildren().addAll(title, subtitle, tabs);
         return root;
     }
 
     /**
-     * Attaches the Human Approval Safety Inbox tab alongside Chat Studio and ML Radar.
+     * Attaches extra tabs if subclassed.
      *
      * @param tabPane host tab pane
      */
     protected void appendExtraTabs(TabPane tabPane) {
-        tabPane.getTabs().add(new Tab("✅ Approval Inbox",
-                new ApprovalInboxView(services, toastManager).build()));
+        // Approval Inbox is already registered in build().
     }
 
-    /**
-     * Builds the conversational AI Chat workspace matching {@code AI Chat.png}.
-     *
-     * @return chat studio card
-     */
     private Node buildChatStudio() {
         VBox container = new VBox(12);
         container.getStyleClass().add("card");
         container.setPadding(new Insets(16));
+
+        // API Key Status Banner
+        apiStatusBanner = new HBox(12);
+        apiStatusBanner.setAlignment(Pos.CENTER_LEFT);
+        refreshApiStatusBanner();
 
         // Smart Natural Search Bar
         HBox naturalSearchBar = new HBox(8);
@@ -114,72 +172,112 @@ public class AiAssistantView {
         naturalInput.setPromptText("Smart Natural Search (e.g. 'cheap snacks running low' or 'expiring dairy')...");
         HBox.setHgrow(naturalInput, Priority.ALWAYS);
         Button naturalBtn = new Button("Filter Store");
+        naturalBtn.setGraphic(AppIcons.of(Feather.FILTER, 13));
         naturalBtn.getStyleClass().add("btn-secondary");
         naturalBtn.setOnAction(e -> runNaturalFilterPreview(naturalInput.getText()));
+        naturalInput.setOnAction(e -> runNaturalFilterPreview(naturalInput.getText()));
         naturalSearchBar.getChildren().addAll(naturalInput, naturalBtn);
 
         // Chat Transcript Scroll Area
         chatMessagesBox = new VBox(12);
-        chatMessagesBox.setPadding(new Insets(10));
+        chatMessagesBox.setPadding(new Insets(8));
         chatScroll = new ScrollPane(chatMessagesBox);
         chatScroll.setFitToWidth(true);
-        chatScroll.setPrefHeight(360);
+        chatScroll.setPrefHeight(310);
         VBox.setVgrow(chatScroll, Priority.ALWAYS);
 
-        appendAssistantMessage(
-                "Hello! I am grounded in your local SQLite store inventory. Ask me anything, request a chart, or click a quick action below.",
-                false,
-                null
-        );
+        boolean cloudReady = assistantService.isCloudAiReady();
+        appendAssistantCard(
+                cloudReady
+                        ? "Groq Cloud (" + assistantService.getActiveModel()
+                                + ") is active and grounded in your live SQLite store catalog. Ask any question or request a chart below!"
+                        : "Welcome! Live cloud AI requires your own free Groq API key (Settings -> AI & Groq API). You can add your key now or click any action to preview offline mode.",
+                cloudReady ? "Groq Cloud • " + assistantService.getActiveModel() : "Setup Needed",
+                cloudReady,
+                null,
+                null,
+                null);
 
-        // Quick Action Chips matching AI Chat.png
-        Button chipRunOut = makeQuickChip("Which items run out this week?",
+        // Quick Action Chips
+        Button chipRunOut = makeQuickChip("Which items run out this week?", Feather.CLOCK,
                 () -> sendUserPrompt("Which items run out this week?"));
-        Button chipChart = makeQuickChip("Show Chart",
+        Button chipChart = makeQuickChip("Show Chart", Feather.BAR_CHART_2,
                 () -> sendUserPrompt("Show a bar chart of top 5 valuable categories"));
-        Button chipEmail = makeQuickChip("Write Supplier Email", this::runSupplierEmailDraft);
-        Button chipExplain = makeQuickChip("Explain It To Me", this::runExplainWarning);
-        Button chipBriefing = makeQuickChip("Morning Briefing", this::runMorningBriefing);
+        Button chipEmail = makeQuickChip("Write Supplier Email", Feather.MAIL, this::runSupplierEmailDraft);
+        Button chipExplain = makeQuickChip("Explain It To Me", Feather.HELP_CIRCLE, this::runExplainWarning);
+        Button chipAudit = makeQuickChip("Run AI Audit", Feather.SHIELD, this::runAgentAuditFromChat);
 
-        HBox quickChips = new HBox(8, chipRunOut, chipChart, chipEmail, chipExplain, chipBriefing);
+        HBox quickChips = new HBox(8, chipRunOut, chipChart, chipEmail, chipExplain, chipAudit);
         quickChips.setAlignment(Pos.CENTER_LEFT);
 
         // Input Composer
         chatInput = new TextField();
-        chatInput.setPromptText("Ask anything...");
+        chatInput.setPromptText("Ask anything about your inventory, sales trends, supplier emails, or charts...");
         HBox.setHgrow(chatInput, Priority.ALWAYS);
         chatInput.setOnAction(e -> sendUserPrompt(chatInput.getText()));
 
-        Button sendBtn = new Button("➤");
+        Button sendBtn = new Button("Send");
+        sendBtn.setGraphic(AppIcons.of(Feather.SEND, 14));
         sendBtn.getStyleClass().add("btn-primary");
         sendBtn.setOnAction(e -> sendUserPrompt(chatInput.getText()));
 
         HBox composer = new HBox(10, chatInput, sendBtn);
         composer.setAlignment(Pos.CENTER_LEFT);
 
-        container.getChildren().addAll(naturalSearchBar, chatScroll, quickChips, composer);
+        container.getChildren().addAll(apiStatusBanner, naturalSearchBar, chatScroll, quickChips, composer);
         return container;
     }
 
-    /**
-     * Creates a pill-styled quick action chip.
-     *
-     * @param label button text
-     * @param action click handler
-     * @return styled {@link Button}
-     */
-    private Button makeQuickChip(String label, Runnable action) {
+    private void refreshApiStatusBanner() {
+        apiStatusBanner.getChildren().clear();
+        apiStatusBanner.getStyleClass().removeAll("ai-key-banner-ok", "ai-key-banner-warn");
+        boolean ready = assistantService.isCloudAiReady();
+        if (ready) {
+            apiStatusBanner.getStyleClass().add("ai-key-banner-ok");
+            Label icon = new Label();
+            icon.setGraphic(AppIcons.of(Feather.CHECK_CIRCLE, 16, "#10B981"));
+            Label lbl = new Label("Groq Cloud AI Connected • Model: " + assistantService.getActiveModel());
+            lbl.setStyle("-fx-font-weight: bold;");
+            Region sp = new Region();
+            HBox.setHgrow(sp, Priority.ALWAYS);
+            Button cfgBtn = new Button("API Settings");
+            cfgBtn.setGraphic(AppIcons.of(Feather.SETTINGS, 13));
+            cfgBtn.getStyleClass().add("btn-secondary");
+            cfgBtn.setOnAction(e -> {
+                if (onOpenAiSettings != null) {
+                    onOpenAiSettings.run();
+                }
+            });
+            apiStatusBanner.getChildren().addAll(icon, lbl, sp, cfgBtn);
+        } else {
+            apiStatusBanner.getStyleClass().add("ai-key-banner-warn");
+            Label icon = new Label();
+            icon.setGraphic(AppIcons.of(Feather.KEY, 16, "#F59E0B"));
+            Label lbl = new Label("No Groq API key saved yet — add your free key in Settings to use live Cloud AI.");
+            lbl.setWrapText(true);
+            lbl.setStyle("-fx-font-weight: 600;");
+            HBox.setHgrow(lbl, Priority.ALWAYS);
+            Button addKeyBtn = new Button("Add API Key in Settings");
+            addKeyBtn.setGraphic(AppIcons.of(Feather.ARROW_RIGHT, 13));
+            addKeyBtn.setContentDisplay(javafx.scene.control.ContentDisplay.RIGHT);
+            addKeyBtn.getStyleClass().add("btn-primary");
+            addKeyBtn.setOnAction(e -> {
+                if (onOpenAiSettings != null) {
+                    onOpenAiSettings.run();
+                }
+            });
+            apiStatusBanner.getChildren().addAll(icon, lbl, addKeyBtn);
+        }
+    }
+
+    private Button makeQuickChip(String label, Feather feather, Runnable action) {
         Button b = new Button(label);
+        b.setGraphic(AppIcons.of(feather, 13));
         b.getStyleClass().add("filter-chip");
         b.setOnAction(e -> action.run());
         return b;
     }
 
-    /**
-     * Submits a chat prompt asynchronously and appends both user bubble and grounded assistant response.
-     *
-     * @param rawPrompt user message text
-     */
     private void sendUserPrompt(String rawPrompt) {
         if (rawPrompt == null || rawPrompt.isBlank()) {
             return;
@@ -187,55 +285,120 @@ public class AiAssistantView {
         String question = rawPrompt.trim();
         chatInput.clear();
         appendUserBubble(question);
-
-        AppExecutor.runAsync(
-                () -> assistantService.answerQuestion(question),
-                reply -> appendAssistantMessage(reply.message(), reply.usedCloud(), reply.chartSpec()),
-                ex -> appendAssistantMessage("Unable to process question: " + ex.getMessage(), false, null)
-        );
+        executeCloudOrPromptSetup(() -> assistantService.answerQuestion(question));
     }
 
-    /**
-     * Generates a ready-to-send restock email for the first available supplier.
-     */
     private void runSupplierEmailDraft() {
-        appendUserBubble("Write a restock email for our supplier.");
-        AppExecutor.runAsync(() -> {
-            List<Supplier> sups = services.getSupplierOrderService().getAllSuppliers();
-            Supplier target = sups.isEmpty() ? null : sups.get(0);
-            return assistantService.draftSupplierEmail(target);
-        }, email -> appendAssistantMessage(email, false, null), ex -> {});
+        appendUserBubble("Draft a restock purchase inquiry email for our supplier.");
+        executeCloudOrPromptSetup(() -> {
+            List<com.stockpro.domain.Supplier> sups = services.getSupplierOrderService().getAllSuppliers();
+            com.stockpro.domain.Supplier target = sups.isEmpty() ? null : sups.get(0);
+            return assistantService.draftSupplierEmailReply(target);
+        });
     }
 
-    /**
-     * Runs Explain-It-To-Me plain-English breakdown for store alerts.
-     */
     private void runExplainWarning() {
         appendUserBubble("Explain our current ML alerts and inventory warnings simply.");
+        executeCloudOrPromptSetup(
+                () -> assistantService.explainInPlainEnglishReply("current ML warnings and anomalies"));
+    }
+
+    private void runAgentAuditFromChat() {
+        appendUserBubble("Run all 3 AI Agents (Auto-Buyer, Nightly Auditor, Expiry Rescue) now.");
+        HBox thinkingRow = appendThinkingBubble("Running all 3 store agents...");
         AppExecutor.runAsync(
-                () -> assistantService.explainInPlainEnglish("current ML warnings and anomalies"),
-                text -> appendAssistantMessage(text, false, null),
-                ex -> {}
-        );
+                () -> services.getAgenticOrchestratorService().runAllAgents(),
+                created -> {
+                    chatMessagesBox.getChildren().remove(thinkingRow);
+                    Button openInboxBtn = new Button("Review in Approval Inbox (" + created.size() + " new)");
+                    openInboxBtn.getStyleClass().add("btn-primary");
+                    openInboxBtn.setOnAction(ev -> {
+                        if (tabs != null && approvalTab != null) {
+                            tabs.getSelectionModel().select(approvalTab);
+                            approvalInboxView.refreshAsync();
+                        }
+                    });
+                    appendAssistantCard(
+                            "Agent scan finished: queued " + created.size()
+                                    + " proposal(s) awaiting human confirmation. Zero records changed silently.",
+                            "Agentic Orchestrator",
+                            true,
+                            null,
+                            null,
+                            openInboxBtn);
+                },
+                ex -> {
+                    chatMessagesBox.getChildren().remove(thinkingRow);
+                    toastManager.showInfo("Agent audit failed: " + ex.getMessage());
+                });
     }
 
     /**
-     * Generates the Morning Business Briefing in the chat window.
+     * Checks cleanly whether the user has configured their Groq API key before
+     * calling Cloud AI.
+     * If unconfigured, surfaces a helpful key-setup prompt with an optional
+     * explicit "Run Local Preview" button
+     * rather than silently pretending offline text came from Cloud AI.
      */
-    private void runMorningBriefing() {
-        appendUserBubble("Give me today's morning business briefing.");
-        AppExecutor.runAsync(
-                assistantService::generateMorningBriefing,
-                text -> appendAssistantMessage(text, false, null),
-                ex -> {}
-        );
+    private void executeCloudOrPromptSetup(
+            java.util.function.Supplier<AiAssistantService.AssistantReply> taskSupplier) {
+        if (!assistantService.isCloudAiReady()) {
+            Button previewBtn = new Button("Run Local Offline Preview");
+            previewBtn.getStyleClass().add("btn-secondary");
+            previewBtn.setOnAction(ev -> runTaskAsync(taskSupplier));
+
+            appendAssistantCard(
+                    "No Groq API key is configured yet. Add your own free key (console.groq.com) in Settings -> AI & Groq API to power cloud AI responses, or preview local deterministic results below.",
+                    "Groq API Key Required",
+                    false,
+                    null,
+                    "Add Key in Settings",
+                    previewBtn);
+            return;
+        }
+        runTaskAsync(taskSupplier);
     }
 
-    /**
-     * Translates a casual search phrase into active filter criteria and lists matching products inline.
-     *
-     * @param phrase casual filter phrase
-     */
+    private void runTaskAsync(java.util.function.Supplier<AiAssistantService.AssistantReply> taskSupplier) {
+        HBox thinkingRow = appendThinkingBubble(
+                assistantService.isCloudAiReady()
+                        ? "Thinking with Groq (" + assistantService.getActiveModel() + ")..."
+                        : "Computing offline store response...");
+        AppExecutor.runAsync(
+                taskSupplier::get,
+                reply -> {
+                    chatMessagesBox.getChildren().remove(thinkingRow);
+                    if (reply.usedCloud()) {
+                        refreshApiStatusBanner();
+                    }
+                    String badge = reply.usedCloud()
+                            ? "Groq Cloud • " + reply.modelUsed()
+                            : "Offline Local Engine";
+                    String text = reply.message();
+                    if (!reply.usedCloud() && reply.errorNote() != null && !reply.errorNote().isBlank()
+                            && assistantService.isCloudAiReady()) {
+                        text += "\n\n[Cloud Note: " + reply.errorNote() + "]";
+                    }
+                    appendAssistantCard(
+                            text,
+                            badge,
+                            reply.usedCloud(),
+                            reply.chartSpec(),
+                            (!reply.usedCloud() && assistantService.isCloudAiReady()) ? "Check Key in Settings" : null,
+                            null);
+                },
+                ex -> {
+                    chatMessagesBox.getChildren().remove(thinkingRow);
+                    appendAssistantCard(
+                            "Unable to process request: " + ex.getMessage(),
+                            "Error",
+                            false,
+                            null,
+                            null,
+                            null);
+                });
+    }
+
     private void runNaturalFilterPreview(String phrase) {
         if (phrase == null || phrase.isBlank()) {
             return;
@@ -244,7 +407,7 @@ public class AiAssistantView {
         AppExecutor.runAsync(() -> {
             InventoryFilterCriteria criteria = assistantService.parseNaturalSearch(phrase);
             List<Product> hits = services.getInventoryService().filterProducts(criteria);
-            return new Object[]{criteria, hits};
+            return new Object[] { criteria, hits };
         }, data -> {
             InventoryFilterCriteria criteria = (InventoryFilterCriteria) data[0];
             @SuppressWarnings("unchecked")
@@ -252,59 +415,93 @@ public class AiAssistantView {
             String summary = hits.isEmpty()
                     ? "No items matched filter (" + criteria.getCategory() + " / " + criteria.getStatusChip() + ")."
                     : hits.stream().map(p -> "• " + p.getName() + " (" + p.getSku() + " — Qty: " + p.getQuantity()
-                    + ", Price: " + com.stockpro.service.AppSession.getInstance().formatMoney(p.getSellPrice()) + ")")
-                    .collect(Collectors.joining("\n"));
-            appendAssistantMessage("Matched " + hits.size() + " item(s) [Category: "
-                    + criteria.getCategory() + ", Status: " + criteria.getStatusChip() + "]:\n" + summary, false, null);
+                            + ", Price: " + AppSession.getInstance().formatMoney(p.getSellPrice()) + ")")
+                            .collect(Collectors.joining("\n"));
+
+            Button jumpInvBtn = null;
+            if (onOpenFilteredInventory != null && !hits.isEmpty()) {
+                jumpInvBtn = new Button("Open in Inventory");
+                jumpInvBtn.setGraphic(AppIcons.of(Feather.ARROW_RIGHT, 13));
+                jumpInvBtn.setContentDisplay(javafx.scene.control.ContentDisplay.RIGHT);
+                jumpInvBtn.getStyleClass().add("btn-primary");
+                jumpInvBtn.setOnAction(ev -> onOpenFilteredInventory.accept(criteria));
+            }
+            appendAssistantCard(
+                    "Matched " + hits.size() + " item(s) [Category: " + criteria.getCategory()
+                            + ", Status: " + criteria.getStatusChip() + "]:\n" + summary,
+                    "Smart Natural Search",
+                    false,
+                    null,
+                    null,
+                    jumpInvBtn);
             toastManager.showInfo("Natural filter matched " + hits.size() + " item(s).");
-        }, ex -> {});
+        }, ex -> toastManager.showInfo("Natural search failed: " + ex.getMessage()));
     }
 
-    /**
-     * Appends a right-aligned Royal Indigo user message bubble.
-     *
-     * @param text user message
-     */
     private void appendUserBubble(String text) {
         HBox row = new HBox();
         row.setAlignment(Pos.CENTER_RIGHT);
         Label bubble = new Label(text);
         bubble.setWrapText(true);
         bubble.setMaxWidth(480);
-        bubble.setStyle("-fx-background-color: #4F46E5; -fx-text-fill: #FFFFFF; -fx-padding: 10 14 10 14; -fx-background-radius: 14 14 2 14; -fx-font-weight: 600;");
+        bubble.getStyleClass().add("chat-bubble-user");
         row.getChildren().add(bubble);
         chatMessagesBox.getChildren().add(row);
         chatScroll.setVvalue(1.0);
     }
 
-    /**
-     * Appends a left-aligned assistant card with bot badge and optional live JavaFX chart.
-     *
-     * @param text assistant message
-     * @param usedCloud whether Groq API generated the text
-     * @param spec optional {@link ChartSpec} to render live
-     */
-    private void appendAssistantMessage(String text, boolean usedCloud, ChartSpec spec) {
+    private HBox appendThinkingBubble(String labelText) {
         HBox row = new HBox(10);
         row.setAlignment(Pos.TOP_LEFT);
+        StackPane botAvatar = makeBotAvatar();
+        VBox card = new VBox(4);
+        card.getStyleClass().add("chat-bubble-ai");
+        Label lbl = new Label(labelText);
+        lbl.getStyleClass().add("muted-text");
+        card.getChildren().add(lbl);
+        row.getChildren().addAll(botAvatar, card);
+        chatMessagesBox.getChildren().add(row);
+        chatScroll.setVvalue(1.0);
+        return row;
+    }
 
-        Label botAvatar = new Label("🤖");
-        botAvatar.setMinSize(32, 32);
-        botAvatar.setAlignment(Pos.CENTER);
-        botAvatar.setStyle("-fx-background-color: #EEF2FF; -fx-background-radius: 999; -fx-font-size: 16px;");
+    private void appendAssistantCard(
+            String text,
+            String sourceBadge,
+            boolean isCloud,
+            ChartSpec spec,
+            String settingsBtnLabel,
+            Button extraActionBtn) {
+        HBox row = new HBox(10);
+        row.setAlignment(Pos.TOP_LEFT);
+        StackPane botAvatar = makeBotAvatar();
 
         VBox card = new VBox(8);
-        card.setMaxWidth(580);
-        card.setStyle("-fx-background-color: #F1F5F9; -fx-padding: 12 14 12 14; -fx-background-radius: 14 14 14 2;");
+        card.setMaxWidth(620);
+        card.getStyleClass().add("chat-bubble-ai");
 
         Label msgLbl = new Label(text);
         msgLbl.setWrapText(true);
-        msgLbl.setStyle("-fx-text-fill: #0F172A;");
 
-        Label modeTag = new Label(usedCloud ? "Groq Cloud" : "Offline Local Grounded");
-        modeTag.setStyle("-fx-font-size: 10.5px; -fx-text-fill: #64748B;");
+        HBox metaRow = new HBox(8);
+        metaRow.setAlignment(Pos.CENTER_LEFT);
+        Label modeTag = new Label(sourceBadge);
+        modeTag.getStyleClass().addAll("status-pill", isCloud ? "status-in-stock" : "status-info-pill");
+        metaRow.getChildren().add(modeTag);
 
-        card.getChildren().addAll(msgLbl, modeTag);
+        if (settingsBtnLabel != null && onOpenAiSettings != null) {
+            Button cfgBtn = new Button(settingsBtnLabel);
+            cfgBtn.setGraphic(AppIcons.of(Feather.KEY, 12));
+            cfgBtn.getStyleClass().add("btn-primary");
+            cfgBtn.setStyle("-fx-padding: 5 11 5 11;");
+            cfgBtn.setOnAction(e -> onOpenAiSettings.run());
+            metaRow.getChildren().add(cfgBtn);
+        }
+        if (extraActionBtn != null) {
+            metaRow.getChildren().add(extraActionBtn);
+        }
+
+        card.getChildren().addAll(msgLbl, metaRow);
         if (spec != null) {
             card.getChildren().add(renderChart(spec));
         }
@@ -316,47 +513,55 @@ public class AiAssistantView {
         chatScroll.setVvalue(1.0);
     }
 
+    private StackPane makeBotAvatar() {
+        StackPane botAvatar = new StackPane(AppIcons.of(Feather.CPU, 16, "#4F46E5"));
+        botAvatar.setMinSize(32, 32);
+        botAvatar.setPrefSize(32, 32);
+        botAvatar.setMaxSize(32, 32);
+        botAvatar.setStyle("-fx-background-color: #EEF2FF; -fx-background-radius: 999;");
+        return botAvatar;
+    }
+
     /**
-     * Converts a {@link ChartSpec} into an interactive JavaFX BarChart, LineChart, or PieChart.
+     * Converts a {@link ChartSpec} into our modern responsive Canvas charts
+     * ({@link ModernBarChart},
+     * {@link ModernTrendChart}, or {@link StockDonutChart}).
      *
      * @param spec structured chart specification
-     * @return rendered JavaFX chart node
+     * @return rendered modern JavaFX chart node
      */
     private Node renderChart(ChartSpec spec) {
         if ("PIE".equalsIgnoreCase(spec.chartType())) {
-            PieChart pie = new PieChart();
-            pie.setTitle(spec.title());
-            pie.setPrefHeight(220);
-            for (ChartSpec.ChartPoint pt : spec.points()) {
-                pie.getData().add(new PieChart.Data(pt.label(), Math.max(0.0, pt.value())));
+            StockDonutChart donut = new StockDonutChart();
+            double total = spec.points().stream().mapToDouble(p -> Math.max(0.0, p.value())).sum();
+            String[] palette = { "#4F46E5", "#10B981", "#F59E0B", "#0EA5E9", "#8B5CF6" };
+            StockDonutChart.Slice[] slices = new StockDonutChart.Slice[Math.min(5, spec.points().size())];
+            for (int i = 0; i < slices.length; i++) {
+                ChartSpec.ChartPoint pt = spec.points().get(i);
+                double frac = total > 0 ? Math.max(0.0, pt.value()) / total : 0.0;
+                slices[i] = new StockDonutChart.Slice(pt.label(), String.format("%.0f%%", frac * 100), frac,
+                        palette[i % palette.length]);
             }
-            return pie;
+            donut.setData(slices.length > 0 ? slices[0].valueDisplay() : "0%", spec.title(), slices);
+            themeRefreshers.add(donut::redraw);
+            return donut;
         }
         if ("LINE".equalsIgnoreCase(spec.chartType())) {
-            CategoryAxis x = new CategoryAxis();
-            NumberAxis y = new NumberAxis();
-            LineChart<String, Number> line = new LineChart<>(x, y);
-            line.setTitle(spec.title());
-            line.setPrefHeight(220);
-            line.setLegendVisible(false);
-            XYChart.Series<String, Number> series = new XYChart.Series<>();
-            for (ChartSpec.ChartPoint pt : spec.points()) {
-                series.getData().add(new XYChart.Data<>(pt.label(), pt.value()));
-            }
-            line.getData().add(series);
-            return line;
+            ModernTrendChart trend = new ModernTrendChart(220);
+            trend.setPrefWidth(540);
+            trend.setCurrencyFormat(false);
+            List<String> x = spec.points().stream().map(ChartSpec.ChartPoint::label).toList();
+            List<Double> y = spec.points().stream().map(ChartSpec.ChartPoint::value).toList();
+            trend.setSeries(x, List.of(new ModernTrendChart.SeriesData(spec.title(), "#4F46E5", y)));
+            themeRefreshers.add(trend::redraw);
+            return trend;
         }
-        CategoryAxis x = new CategoryAxis();
-        NumberAxis y = new NumberAxis();
-        BarChart<String, Number> bar = new BarChart<>(x, y);
-        bar.setTitle(spec.title());
-        bar.setPrefHeight(220);
-        bar.setLegendVisible(false);
-        XYChart.Series<String, Number> series = new XYChart.Series<>();
-        for (ChartSpec.ChartPoint pt : spec.points()) {
-            series.getData().add(new XYChart.Data<>(pt.label(), pt.value()));
-        }
-        bar.getData().add(series);
+        ModernBarChart bar = new ModernBarChart(230);
+        bar.setPrefWidth(540);
+        bar.setData(spec.title(), spec.points().stream()
+                .map(pt -> new ModernBarChart.BarPoint(pt.label(), pt.value()))
+                .toList());
+        themeRefreshers.add(bar::redraw);
         return bar;
     }
 }

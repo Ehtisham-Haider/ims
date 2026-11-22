@@ -13,7 +13,7 @@ import java.util.List;
 /**
  * JDBC repository storing and querying tamper-evident SHA-256 {@link AuditLogEntry} rows.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class AuditLogRepository {
     private final DatabaseManager dbManager;

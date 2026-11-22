@@ -5,6 +5,7 @@ import com.stockpro.dsa.CatalogSearchEngine;
 import com.stockpro.ml.OfflineMlEngine;
 import com.stockpro.service.InventoryEventBus;
 import com.stockpro.service.ServiceContext;
+import com.stockpro.ui.components.AppIcons;
 import com.stockpro.util.AppExecutor;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -22,18 +23,21 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import org.kordamp.ikonli.feather.Feather;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Offline Machine Learning Radar &amp; DS&amp;A Search Sandbox UI displaying Days-Until-Empty bars,
- * Smart Restock Plan, Auto-Tuned Thresholds, ABC grades, and Theft/Typo anomaly alerts.
+ * Smart Restock Plan, Auto-Tuned Thresholds, ABC grades, and Theft/Typo anomaly alerts with Light/Dark fidelity.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class MlRadarView {
     private final CatalogSearchEngine searchEngine;
     private final OfflineMlEngine mlEngine;
+    private final Consumer<String> eventListener = topic -> refreshAsync();
 
     private final ObservableList<OfflineMlEngine.ProductForecast> forecastRows = FXCollections.observableArrayList();
     private VBox anomalyCardsBox;
@@ -47,7 +51,14 @@ public class MlRadarView {
     public MlRadarView(ServiceContext services) {
         this.searchEngine = services.getCatalogSearchEngine();
         this.mlEngine = services.getOfflineMlEngine();
-        InventoryEventBus.getInstance().subscribe(t -> refreshAsync());
+        InventoryEventBus.getInstance().subscribe(eventListener);
+    }
+
+    /**
+     * Unsubscribes from {@link InventoryEventBus} when navigating away.
+     */
+    public void dispose() {
+        InventoryEventBus.getInstance().unsubscribe(eventListener);
     }
 
     /**
@@ -62,8 +73,11 @@ public class MlRadarView {
         // DS&A Live Trie / BK-Tree Search Sandbox Card
         VBox searchCard = new VBox(8);
         searchCard.getStyleClass().add("card");
-        Label sTitle = new Label("⚡ DS&A Instant Search Sandbox (HashMap + Compressed Trie + BK-Tree Typo Tolerance)");
+        HBox sHdr = new HBox(8, AppIcons.of(Feather.ZAP, 16, "#6366F1"));
+        sHdr.setAlignment(Pos.CENTER_LEFT);
+        Label sTitle = new Label("DS&A Instant Search Sandbox (HashMap + Compressed Trie + BK-Tree Typo Tolerance)");
         sTitle.getStyleClass().add("section-title");
+        sHdr.getChildren().add(sTitle);
 
         TextField queryBox = new TextField();
         queryBox.setPromptText("Try exact SKU (PRD-1001), prefix (wir), or typo (keybord / wirless)...");
@@ -76,13 +90,16 @@ public class MlRadarView {
             searchStatsLabel.setText(String.format("Strategy: %s | Latency: %.3f ms | Matches (%d): %s",
                     res.strategyUsed(), res.latencyMs(), res.results().size(), names));
         });
-        searchCard.getChildren().addAll(sTitle, queryBox, searchStatsLabel);
+        searchCard.getChildren().addAll(sHdr, queryBox, searchStatsLabel);
 
         // Forecast + Smart Restock + Days-Until-Empty + ABC Table
         VBox tableCard = new VBox(10);
         tableCard.getStyleClass().add("card");
-        Label fTitle = new Label("📡 Offline ML Radar — Stockout Countdown, Smart Restock Plan & ABC Velocity Grades");
+        HBox fHdr = new HBox(8, AppIcons.of(Feather.ACTIVITY, 16, "#10B981"));
+        fHdr.setAlignment(Pos.CENTER_LEFT);
+        Label fTitle = new Label("Offline ML Radar — Stockout Countdown, Smart Restock Plan & ABC Velocity Grades");
         fTitle.getStyleClass().add("section-title");
+        fHdr.getChildren().add(fTitle);
 
         TableView<OfflineMlEngine.ProductForecast> table = new TableView<>(forecastRows);
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
@@ -95,7 +112,7 @@ public class MlRadarView {
         nameCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().product().getName()));
 
         TableColumn<OfflineMlEngine.ProductForecast, String> abcCol = new TableColumn<>("ABC");
-        abcCol.setMaxWidth(68);
+        abcCol.setMaxWidth(76);
         abcCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().abcGrade()));
         abcCol.setCellFactory(col -> new TableCell<>() {
             @Override
@@ -116,7 +133,7 @@ public class MlRadarView {
         });
 
         TableColumn<OfflineMlEngine.ProductForecast, String> countdownCol = new TableColumn<>("Days Until Empty");
-        countdownCol.setMinWidth(155);
+        countdownCol.setMinWidth(160);
         countdownCol.setCellValueFactory(c -> new SimpleStringProperty(
                 c.getValue().daysUntilEmpty() >= 999.0 ? "90+ days" : String.format("%.1f days", c.getValue().daysUntilEmpty())));
         countdownCol.setCellFactory(col -> new TableCell<>() {
@@ -132,7 +149,11 @@ public class MlRadarView {
                 ProgressBar bar = new ProgressBar(Math.min(1.0, days / 30.0));
                 bar.setPrefWidth(72);
                 Label lbl = new Label(text);
-                lbl.setStyle(days <= 7.0 ? "-fx-text-fill: #DC2626; -fx-font-weight: bold;" : "-fx-font-weight: bold;");
+                if (days <= 7.0) {
+                    lbl.getStyleClass().add("kpi-delta-danger");
+                } else {
+                    lbl.setStyle("-fx-font-weight: bold;");
+                }
                 HBox box = new HBox(8, bar, lbl);
                 box.setAlignment(Pos.CENTER_LEFT);
                 setGraphic(box);
@@ -154,15 +175,18 @@ public class MlRadarView {
                 c.getValue().tunedLowStockThreshold() + " (now " + c.getValue().product().getLowStockThreshold() + ")"));
 
         table.getColumns().addAll(List.of(skuCol, nameCol, abcCol, countdownCol, f7Col, restockCol, tunedCol));
-        tableCard.getChildren().addAll(fTitle, table);
+        tableCard.getChildren().addAll(fHdr, table);
 
         // Theft, Anomaly & Typo Guard Cards
         VBox anomalyCard = new VBox(10);
         anomalyCard.getStyleClass().add("card");
-        Label aTitle = new Label("🛡 Theft, Shrinkage & Fat-Finger Typo Guard (Z-Score / IQR)");
+        HBox aHdr = new HBox(8, AppIcons.of(Feather.SHIELD, 16, "#F59E0B"));
+        aHdr.setAlignment(Pos.CENTER_LEFT);
+        Label aTitle = new Label("Theft, Shrinkage & Fat-Finger Typo Guard (Z-Score / IQR)");
         aTitle.getStyleClass().add("section-title");
+        aHdr.getChildren().add(aTitle);
         anomalyCardsBox = new VBox(8);
-        anomalyCard.getChildren().addAll(aTitle, anomalyCardsBox);
+        anomalyCard.getChildren().addAll(aHdr, anomalyCardsBox);
 
         page.getChildren().addAll(searchCard, tableCard, anomalyCard);
 
@@ -170,7 +194,6 @@ public class MlRadarView {
 
         ScrollPane scroll = new ScrollPane(page);
         scroll.setFitToWidth(true);
-        scroll.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
         return scroll;
     }
 
@@ -207,7 +230,6 @@ public class MlRadarView {
                     anomalyCardsBox.getChildren().add(row);
                 }
             }
-        }, ex -> {
-        });
+        }, ex -> {});
     }
 }

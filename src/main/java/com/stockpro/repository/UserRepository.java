@@ -16,7 +16,7 @@ import java.util.Optional;
 /**
  * JDBC repository managing staff user accounts and role assignments in SQLite.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class UserRepository {
     private final DatabaseManager dbManager;

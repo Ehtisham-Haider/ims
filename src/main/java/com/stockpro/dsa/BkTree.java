@@ -15,7 +15,7 @@ import java.util.Map;
  * Burkhard-Keller Tree (BK-Tree) using Levenshtein edit distance for typo-tolerant product lookup
  * (for example, resolving {@code "keybord"} to {@code "Keyboard"}).
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class BkTree {
 

@@ -16,7 +16,7 @@ import java.util.List;
  * Executes all 8 mandatory {@code 30B.docx} Open-Ended Lab verification checks live against
  * an isolated sandbox SQLite database for Settings viva demonstrations.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class BuiltInLabTestRunner {
 
@@ -28,7 +28,7 @@ public class BuiltInLabTestRunner {
      * @param expectedResult expected outcome specification
      * @param actualResult observed actual outcome
      * @param passed {@code true} if the case passed
-     * @author Ehtisham Haider, Syed Ahmed
+     * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
      */
     public record LabCaseResult(
             int caseNumber,

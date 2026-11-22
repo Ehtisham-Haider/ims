@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
  * Translates natural-language filter queries into {@link InventoryFilterCriteria}
  * and builds or parses structured {@link ChartSpec} JSON payloads for live JavaFX chart rendering.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public final class NaturalQueryEngine {
     private static final Gson GSON = new Gson();

@@ -3,7 +3,7 @@ package com.stockpro.domain;
 /**
  * Defines staff access levels within StockPro.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public enum UserRole {
     /** Full administrative control including settings, staff management, and approvals. */

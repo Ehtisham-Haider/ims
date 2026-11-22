@@ -11,7 +11,9 @@ import com.stockpro.service.InventoryOperationResult;
 import com.stockpro.service.ProductValidator;
 import com.stockpro.service.ServiceContext;
 import com.stockpro.service.SupplierOrderService;
+import com.stockpro.ui.components.AppIcons;
 import com.stockpro.ui.components.KpiStatCard;
+import com.stockpro.ui.components.KpiStatCard.DeltaTone;
 import com.stockpro.ui.components.ToastNotificationManager;
 import com.stockpro.util.AppExecutor;
 import javafx.beans.property.SimpleStringProperty;
@@ -24,11 +26,13 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -36,22 +40,26 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import org.kordamp.ikonli.feather.Feather;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Suppliers, Purchase Orders, and Financial Engine workspace matching
- * {@code Screens and popups/Suppliers and Orders.png}.
+ * {@code Screens and popups/Suppliers and Orders.png}, with Feather vector icons,
+ * editable PO draft line removal, supplier delete confirmation, status pills, and OpenPDF export.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class SuppliersOrdersView {
     private final ServiceContext services;
     private final SupplierOrderService supplierService;
     private final FinanceService financeService;
     private final ToastNotificationManager toastManager;
+    private final Consumer<String> eventListener = topic -> refreshAsync();
 
     private final ObservableList<Supplier> supplierRows = FXCollections.observableArrayList();
     private final ObservableList<PurchaseOrder> poRows = FXCollections.observableArrayList();
@@ -82,7 +90,14 @@ public class SuppliersOrdersView {
         this.supplierService = services.getSupplierOrderService();
         this.financeService = services.getFinanceService();
         this.toastManager = toastManager;
-        InventoryEventBus.getInstance().subscribe(t -> refreshAsync());
+        InventoryEventBus.getInstance().subscribe(eventListener);
+    }
+
+    /**
+     * Unsubscribes from {@link InventoryEventBus} when navigating away.
+     */
+    public void dispose() {
+        InventoryEventBus.getInstance().unsubscribe(eventListener);
     }
 
     /**
@@ -91,7 +106,7 @@ public class SuppliersOrdersView {
      * @return scrollable JavaFX {@link Node}
      */
     public Node build() {
-        VBox page = new VBox(18);
+        VBox page = new VBox(16);
         page.setPadding(new Insets(0, 4, 16, 0));
 
         Label title = new Label("Suppliers & Orders");
@@ -99,12 +114,12 @@ public class SuppliersOrdersView {
         Label subtitle = new Label("Manage vendor contacts, build purchase orders, export PDFs, and analyze store valuation & dead stock");
         subtitle.getStyleClass().add("page-subtitle");
 
-        // Top Financial Engine KPI Strip
-        storeValueCard = new KpiStatCard("🏦", "#4F46E5", "kpi-card-blue", "Total Store Value", "$0.00", "Cost valuation");
-        storeProfitCard = new KpiStatCard("💹", "#10B981", "kpi-card-green", "Est. Total Profit", "$0.00", "0% avg margin");
-        taxEstimateCard = new KpiStatCard("🧾", "#8B5CF6", "kpi-card-purple", "Tax / GST Estimate", "$0.00", "15% store rate");
-        deadMoneyCard = new KpiStatCard("🐢", "#F59E0B", "kpi-card-amber", "Dead Money Stock", "$0.00", "0 stagnant SKUs");
-        HBox financeKpiRow = new HBox(14, storeValueCard, storeProfitCard, taxEstimateCard, deadMoneyCard);
+        // Top Financial Engine KPI Strip with Feather vector icons
+        storeValueCard = new KpiStatCard(Feather.DOLLAR_SIGN, "#4F46E5", "kpi-card-blue", "Total Store Value", "$0.00", "Cost valuation");
+        storeProfitCard = new KpiStatCard(Feather.TRENDING_UP, "#10B981", "kpi-card-green", "Est. Total Profit", "$0.00", "0% avg margin");
+        taxEstimateCard = new KpiStatCard(Feather.PERCENT, "#8B5CF6", "kpi-card-purple", "Tax / GST Estimate", "$0.00", "15% store rate");
+        deadMoneyCard = new KpiStatCard(Feather.CLOCK, "#F59E0B", "kpi-card-amber", "Dead Money Stock", "$0.00", "0 stagnant SKUs");
+        HBox financeKpiRow = new HBox(12, storeValueCard, storeProfitCard, taxEstimateCard, deadMoneyCard);
 
         // Two-Column Suppliers + PO Builder
         VBox suppliersCard = buildSuppliersCard();
@@ -124,22 +139,16 @@ public class SuppliersOrdersView {
 
         ScrollPane scroll = new ScrollPane(page);
         scroll.setFitToWidth(true);
-        scroll.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
         this.rootNode = scroll;
 
         AppExecutor.runAsync(() -> {
             supplierService.ensureSampleSuppliersIfEmpty();
             return true;
-        }, ok -> refreshAsync(), ex -> {});
+        }, ok -> refreshAsync(), ex -> toastManager.showInfo("Failed to load suppliers: " + ex.getMessage()));
 
         return scroll;
     }
 
-    /**
-     * Builds the Supplier Address Book card with Add/Edit/Delete actions.
-     *
-     * @return styled supplier directory card
-     */
     private VBox buildSuppliersCard() {
         VBox card = new VBox(12);
         card.getStyleClass().add("card");
@@ -150,7 +159,8 @@ public class SuppliersOrdersView {
         heading.getStyleClass().add("section-title");
         Region sp = new Region();
         HBox.setHgrow(sp, Priority.ALWAYS);
-        Button addBtn = new Button("+ Add Supplier");
+        Button addBtn = new Button("Add Supplier");
+        addBtn.setGraphic(AppIcons.of(Feather.PLUS, 13));
         addBtn.getStyleClass().add("btn-secondary");
         addBtn.setOnAction(e -> openSupplierDialog(null));
         hdr.getChildren().addAll(heading, sp, addBtn);
@@ -167,6 +177,7 @@ public class SuppliersOrdersView {
         leadCol.setCellValueFactory(c -> new SimpleStringProperty(
                 c.getValue().getDeliveryDays() + "d • " + String.format("%.0f%%", c.getValue().getReliabilityScore())));
         TableColumn<Supplier, Void> actCol = new TableColumn<>("Actions");
+        actCol.setMinWidth(82);
         actCol.setCellFactory(col -> new TableCell<>() {
             @Override
             protected void updateItem(Void v, boolean empty) {
@@ -176,17 +187,19 @@ public class SuppliersOrdersView {
                     return;
                 }
                 Supplier s = getTableRow().getItem();
-                Button edit = new Button("✎");
-                edit.setStyle("-fx-background-color: transparent; -fx-cursor: hand;");
+                Button edit = new Button();
+                edit.setGraphic(AppIcons.of(Feather.EDIT_2, 13));
+                edit.getStyleClass().add("icon-btn");
+                edit.setTooltip(new Tooltip("Edit Supplier"));
                 edit.setOnAction(e -> openSupplierDialog(s));
-                Button del = new Button("🗑");
-                del.setStyle("-fx-background-color: transparent; -fx-text-fill: #EF4444; -fx-cursor: hand;");
-                del.setOnAction(e -> {
-                    InventoryOperationResult<Boolean> res = supplierService.deleteSupplier(s.getId());
-                    toastManager.showInfo(res.getMessage());
-                    refreshAsync();
-                });
-                setGraphic(new HBox(4, edit, del));
+
+                Button del = new Button();
+                del.setGraphic(AppIcons.of(Feather.TRASH_2, 13));
+                del.getStyleClass().add("icon-btn-danger");
+                del.setTooltip(new Tooltip("Remove Supplier"));
+                del.setOnAction(e -> confirmDeleteSupplier(s));
+
+                setGraphic(new HBox(2, edit, del));
             }
         });
         table.getColumns().addAll(List.of(nameCol, phoneCol, leadCol, actCol));
@@ -195,33 +208,53 @@ public class SuppliersOrdersView {
         return card;
     }
 
-    /**
-     * Builds the Quick multi-item Purchase Order Builder card.
-     *
-     * @return styled PO builder card
-     */
     private VBox buildPurchaseOrderCard() {
         VBox card = new VBox(12);
         card.getStyleClass().add("card");
 
+        HBox topRow = new HBox(8);
+        topRow.setAlignment(Pos.CENTER_LEFT);
         Label heading = new Label("Quick Purchase Order Builder");
         heading.getStyleClass().add("section-title");
+        Region sp = new Region();
+        HBox.setHgrow(sp, Priority.ALWAYS);
+        Button clearDraftBtn = new Button("Clear Draft");
+        clearDraftBtn.getStyleClass().add("icon-btn");
+        clearDraftBtn.setOnAction(e -> {
+            draftItems.clear();
+            updateDraftPoTotal();
+        });
+        topRow.getChildren().addAll(heading, sp, clearDraftBtn);
 
         poSupplierCombo = new ComboBox<>();
         poSupplierCombo.setMaxWidth(Double.MAX_VALUE);
         poSupplierCombo.setPromptText("Select Supplier");
+        poSupplierCombo.setCellFactory(lv -> new ListCell<>() {
+            @Override
+            protected void updateItem(Supplier item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getName() + " (" + item.getDeliveryDays() + "d delivery)");
+            }
+        });
+        poSupplierCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(Supplier item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "Select Supplier" : item.getName());
+            }
+        });
 
         poProductCombo = new ComboBox<>();
-        poProductCombo.setPrefWidth(230);
+        poProductCombo.setPrefWidth(220);
         poProductCombo.setPromptText("Select Product");
-        poProductCombo.setCellFactory(lv -> new javafx.scene.control.ListCell<>() {
+        poProductCombo.setCellFactory(lv -> new ListCell<>() {
             @Override
             protected void updateItem(Product item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : item.getName() + " (" + AppSession.getInstance().formatMoney(item.getBuyPrice()) + ")");
             }
         });
-        poProductCombo.setButtonCell(new javafx.scene.control.ListCell<>() {
+        poProductCombo.setButtonCell(new ListCell<>() {
             @Override
             protected void updateItem(Product item, boolean empty) {
                 super.updateItem(item, empty);
@@ -230,10 +263,11 @@ public class SuppliersOrdersView {
         });
 
         poQtyField = new TextField("25");
-        poQtyField.setPrefWidth(80);
+        poQtyField.setPrefWidth(76);
         poQtyField.setPromptText("Qty");
 
-        Button addLineBtn = new Button("+ Add Line");
+        Button addLineBtn = new Button("Add Line");
+        addLineBtn.setGraphic(AppIcons.of(Feather.PLUS, 13));
         addLineBtn.getStyleClass().add("btn-secondary");
         addLineBtn.setOnAction(e -> addDraftLineItem());
 
@@ -246,29 +280,47 @@ public class SuppliersOrdersView {
         TableColumn<PurchaseOrderItem, String> pName = new TableColumn<>("Product");
         pName.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getProductName()));
         TableColumn<PurchaseOrderItem, String> pQty = new TableColumn<>("Qty");
+        pQty.setMaxWidth(64);
         pQty.setCellValueFactory(c -> new SimpleStringProperty(String.valueOf(c.getValue().getQuantity())));
         TableColumn<PurchaseOrderItem, String> pTotal = new TableColumn<>("Est. Cost");
         pTotal.setCellValueFactory(c -> new SimpleStringProperty(
                 AppSession.getInstance().formatMoney(c.getValue().getLineTotal())));
-        draftTable.getColumns().addAll(List.of(pName, pQty, pTotal));
+        TableColumn<PurchaseOrderItem, Void> removeCol = new TableColumn<>("");
+        removeCol.setMaxWidth(44);
+        removeCol.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(Void v, boolean empty) {
+                super.updateItem(v, empty);
+                if (empty || getTableRow() == null || getTableRow().getItem() == null) {
+                    setGraphic(null);
+                    return;
+                }
+                Button rmBtn = new Button();
+                rmBtn.setGraphic(AppIcons.of(Feather.X, 13));
+                rmBtn.getStyleClass().add("icon-btn-danger");
+                rmBtn.setTooltip(new Tooltip("Remove line"));
+                rmBtn.setOnAction(e -> {
+                    draftItems.remove(getTableRow().getItem());
+                    updateDraftPoTotal();
+                });
+                setGraphic(rmBtn);
+            }
+        });
+        draftTable.getColumns().addAll(List.of(pName, pQty, pTotal, removeCol));
 
         poTotalLabel = new Label("Estimated Total (incl. Tax): $0.00");
         poTotalLabel.setStyle("-fx-font-weight: bold;");
 
         Button generatePoBtn = new Button("Generate PO");
+        generatePoBtn.setGraphic(AppIcons.of(Feather.FILE_TEXT, 14));
         generatePoBtn.getStyleClass().add("btn-primary");
         generatePoBtn.setMaxWidth(Double.MAX_VALUE);
         generatePoBtn.setOnAction(e -> createPurchaseOrder());
 
-        card.getChildren().addAll(heading, poSupplierCombo, addLineRow, draftTable, poTotalLabel, generatePoBtn);
+        card.getChildren().addAll(topRow, poSupplierCombo, addLineRow, draftTable, poTotalLabel, generatePoBtn);
         return card;
     }
 
-    /**
-     * Builds the Purchase Order History table with lifecycle transitions and OpenPDF export button.
-     *
-     * @return styled PO history card
-     */
     private VBox buildOrderHistoryCard() {
         VBox card = new VBox(12);
         card.getStyleClass().add("card");
@@ -289,6 +341,23 @@ public class SuppliersOrdersView {
                 AppSession.getInstance().formatMoney(c.getValue().getTotalCost())));
         TableColumn<PurchaseOrder, String> statusCol = new TableColumn<>("Status");
         statusCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getStatus()));
+        statusCol.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String status, boolean empty) {
+                super.updateItem(status, empty);
+                if (empty || status == null) {
+                    setGraphic(null);
+                    return;
+                }
+                Label pill = new Label(status);
+                pill.getStyleClass().addAll("status-pill", switch (status.toUpperCase()) {
+                    case "DELIVERED" -> "status-in-stock";
+                    case "SENT" -> "status-info-pill";
+                    default -> "status-low-stock";
+                });
+                setGraphic(pill);
+            }
+        });
         TableColumn<PurchaseOrder, Void> actCol = new TableColumn<>("Actions");
         actCol.setMinWidth(210);
         actCol.setCellFactory(col -> new TableCell<>() {
@@ -329,11 +398,6 @@ public class SuppliersOrdersView {
         return card;
     }
 
-    /**
-     * Builds the Dead Money Finder card displaying slow/zero-sale items over a configurable lookback window.
-     *
-     * @return styled dead money card
-     */
     private VBox buildDeadMoneyCard() {
         VBox card = new VBox(12);
         card.getStyleClass().add("card");
@@ -369,9 +433,6 @@ public class SuppliersOrdersView {
         return card;
     }
 
-    /**
-     * Adds a selected product and validated quantity to the draft Purchase Order list.
-     */
     private void addDraftLineItem() {
         Product p = poProductCombo.getValue();
         if (p == null) {
@@ -391,9 +452,6 @@ public class SuppliersOrdersView {
         }
     }
 
-    /**
-     * Updates the draft Purchase Order subtotal and tax-inclusive total label.
-     */
     private void updateDraftPoTotal() {
         double subtotal = draftItems.stream().mapToDouble(PurchaseOrderItem::getLineTotal).sum();
         double taxRate = AppSession.getInstance().getTaxRatePercent();
@@ -404,9 +462,6 @@ public class SuppliersOrdersView {
                 AppSession.getInstance().formatMoney(withTax)));
     }
 
-    /**
-     * Persists the drafted Purchase Order asynchronously.
-     */
     private void createPurchaseOrder() {
         Supplier sup = poSupplierCombo.getValue();
         if (sup == null) {
@@ -428,12 +483,6 @@ public class SuppliersOrdersView {
         );
     }
 
-    /**
-     * Transitions a Purchase Order status in a background task.
-     *
-     * @param poId order id
-     * @param nextStatus target status
-     */
     private void transitionPo(long poId, String nextStatus) {
         String actor = AppSession.getInstance().getActorName();
         AppExecutor.runAsync(
@@ -446,11 +495,6 @@ public class SuppliersOrdersView {
         );
     }
 
-    /**
-     * Prompts for a file path and exports the selected Purchase Order as an OpenPDF sheet.
-     *
-     * @param po purchase order to export
-     */
     private void exportPoPdf(PurchaseOrder po) {
         FileChooser chooser = new FileChooser();
         chooser.setInitialFileName(po.getPoNumber() + ".pdf");
@@ -466,11 +510,47 @@ public class SuppliersOrdersView {
         );
     }
 
-    /**
-     * Opens a clean modal dialog to add or edit a supplier contact.
-     *
-     * @param existing optional supplier to edit, or {@code null} for new supplier
-     */
+    private void confirmDeleteSupplier(Supplier supplier) {
+        Stage dialog = new Stage();
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        if (rootNode != null && rootNode.getScene() != null) {
+            dialog.initOwner(rootNode.getScene().getWindow());
+        }
+        dialog.setTitle("Remove Supplier");
+
+        VBox card = new VBox(14);
+        card.getStyleClass().add("card");
+        card.setPadding(new Insets(22));
+        Label heading = new Label("Remove '" + supplier.getName() + "'?");
+        heading.getStyleClass().add("section-title");
+        Label hint = new Label("Suppliers linked to existing purchase orders are safely preserved.");
+        hint.setWrapText(true);
+        hint.getStyleClass().add("muted-text");
+
+        Button cancelBtn = new Button("Cancel");
+        cancelBtn.getStyleClass().add("btn-secondary");
+        cancelBtn.setOnAction(e -> dialog.close());
+        Button delBtn = new Button("Remove Supplier");
+        delBtn.getStyleClass().add("btn-danger-outline");
+        delBtn.setOnAction(e -> {
+            dialog.close();
+            InventoryOperationResult<Boolean> res = supplierService.deleteSupplier(supplier.getId());
+            toastManager.showInfo(res.getMessage());
+            refreshAsync();
+        });
+        HBox actions = new HBox(10, cancelBtn, delBtn);
+        actions.setAlignment(Pos.CENTER_RIGHT);
+        card.getChildren().addAll(heading, hint, actions);
+
+        Scene sc = new Scene(card, 400, 175);
+        var css = getClass().getResource(AppSession.getInstance().isDarkMode() ? "/css/dark-theme.css" : "/css/light-theme.css");
+        if (css != null) {
+            sc.getStylesheets().add(css.toExternalForm());
+        }
+        dialog.setScene(sc);
+        dialog.showAndWait();
+    }
+
     private void openSupplierDialog(Supplier existing) {
         Stage dialog = new Stage();
         dialog.initModality(Modality.APPLICATION_MODAL);
@@ -495,6 +575,7 @@ public class SuppliersOrdersView {
         catsF.setPromptText("Linked Categories (comma-separated)");
 
         Button saveBtn = new Button("Save Supplier");
+        saveBtn.setGraphic(AppIcons.of(Feather.SAVE, 14));
         saveBtn.getStyleClass().add("btn-primary");
         saveBtn.setOnAction(e -> {
             try {
@@ -526,7 +607,7 @@ public class SuppliersOrdersView {
                 saveBtn
         );
 
-        Scene sc = new Scene(box, 380, 440);
+        Scene sc = new Scene(box, 390, 460);
         var css = getClass().getResource(AppSession.getInstance().isDarkMode() ? "/css/dark-theme.css" : "/css/light-theme.css");
         if (css != null) {
             sc.getStylesheets().add(css.toExternalForm());
@@ -569,16 +650,16 @@ public class SuppliersOrdersView {
 
             AppSession session = AppSession.getInstance();
             storeValueCard.updateMetric(session.formatMoney(summary.totalCostValue()),
-                    "Retail: " + session.formatMoney(summary.totalRetailValue()), "#4F46E5");
+                    "Retail: " + session.formatMoney(summary.totalRetailValue()), DeltaTone.ACCENT);
             storeProfitCard.updateMetric(session.formatMoney(summary.totalPotentialProfit()),
-                    String.format("%.1f%% avg margin", summary.averageMarginPercent()), "#15803D");
+                    String.format("%.1f%% avg margin", summary.averageMarginPercent()), DeltaTone.POSITIVE);
             taxEstimateCard.updateMetric(session.formatMoney(summary.estimatedTaxAmount()),
                     String.format("%.1f%% GST • Incl: %s", summary.taxRatePercent(),
-                            session.formatMoney(summary.retailValueWithTax())), "#6D28D9");
+                            session.formatMoney(summary.retailValueWithTax())), DeltaTone.ACCENT);
             deadMoneyCard.updateMetric(session.formatMoney(summary.deadMoneyValue()),
-                    summary.deadMoneyItems().size() + " stagnant SKU(s)", "#B45309");
+                    summary.deadMoneyItems().size() + " stagnant SKU(s)",
+                    summary.deadMoneyItems().isEmpty() ? DeltaTone.POSITIVE : DeltaTone.WARNING);
             deadMoneyRows.setAll(summary.deadMoneyItems());
-        }, ex -> {
-        });
+        }, ex -> toastManager.showInfo("Failed to refresh supplier finances: " + ex.getMessage()));
     }
 }

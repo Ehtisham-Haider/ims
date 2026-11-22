@@ -1,6 +1,7 @@
 package com.stockpro.ui.views;
 
 import com.stockpro.domain.Product;
+import com.stockpro.ui.components.AppIcons;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -12,18 +13,19 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import org.kordamp.ikonli.feather.Feather;
 
 /**
  * Confirmation dialog for deleting or archiving an inventory product safely.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class DeleteConfirmDialog {
 
     /**
      * Outcome chosen by the user in the confirmation popup.
      *
-     * @author Ehtisham Haider, Syed Ahmed
+     * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
      */
     public enum Choice {
         /** User cancelled without making any changes. */
@@ -81,6 +83,7 @@ public class DeleteConfirmDialog {
         });
 
         Button archiveBtn = new Button("Archive Instead");
+        archiveBtn.setGraphic(AppIcons.of(Feather.ARCHIVE, 14));
         archiveBtn.getStyleClass().add("btn-secondary");
         archiveBtn.setOnAction(e -> {
             choice = Choice.ARCHIVE_INSTEAD;
@@ -88,6 +91,7 @@ public class DeleteConfirmDialog {
         });
 
         Button deleteBtn = new Button("Delete Item");
+        deleteBtn.setGraphic(AppIcons.of(Feather.TRASH_2, 14));
         deleteBtn.getStyleClass().add("btn-danger-outline");
         deleteBtn.setOnAction(e -> {
             choice = Choice.DELETE;

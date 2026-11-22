@@ -5,7 +5,7 @@ import org.mindrot.jbcrypt.BCrypt;
 /**
  * Password hashing and verification helper powered by jBCrypt.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public final class PasswordUtil {
 

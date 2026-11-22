@@ -3,7 +3,7 @@ package com.stockpro.domain;
 /**
  * Single line item inside a supplier purchase order.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class PurchaseOrderItem {
     private long productId;

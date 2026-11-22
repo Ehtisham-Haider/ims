@@ -6,7 +6,7 @@ import com.stockpro.repository.ProductRepository;
 /**
  * Reversible command that updates an existing product while retaining a before-snapshot for Undo.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class UpdateProductCommand implements InventoryCommand {
     private final ProductRepository repository;

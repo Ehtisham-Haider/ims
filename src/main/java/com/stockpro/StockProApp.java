@@ -9,21 +9,37 @@ import com.stockpro.util.AppExecutor;
 import com.stockpro.util.AppLogger;
 import com.stockpro.util.GlobalExceptionHandler;
 import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.embed.swing.SwingFXUtils;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import org.slf4j.Logger;
 
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.GradientPaint;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.geom.Path2D;
+import java.awt.image.BufferedImage;
+
 /**
- * Primary JavaFX application entrypoint launching the split-screen login and main StockPro shell.
+ * Primary JavaFX application entrypoint launching the split-screen login and main StockPro shell
+ * with bounded desktop window sizing, native OS title-bar chrome, taskbar branding, and clean shutdown.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class StockProApp extends Application {
     private static final Logger LOG = AppLogger.get(StockProApp.class);
     private Scene mainScene;
+    private Stage primaryStage;
 
     /**
      * Creates the StockPro JavaFX application instance.
@@ -32,7 +48,8 @@ public class StockProApp extends Application {
     }
 
     /**
-     * Initializes exception handling, builds the stage, boots services asynchronously, and displays the Login view.
+     * Initializes exception handling, builds the stage inside the primary display's usable bounds,
+     * boots services asynchronously, and displays the Login view.
      *
      * @param stage primary JavaFX window stage
      */
@@ -40,17 +57,28 @@ public class StockProApp extends Application {
     public void start(Stage stage) {
         GlobalExceptionHandler.install();
         LOG.info("Starting StockPro desktop application...");
+        this.primaryStage = stage;
+
+        Rectangle2D bounds = Screen.getPrimary().getVisualBounds();
+        double width = Math.min(1360, Math.max(980, bounds.getWidth() - 36));
+        double height = Math.min(820, Math.max(600, bounds.getHeight() - 52));
 
         StackPane loadingRoot = new StackPane(new Label("Starting StockPro..."));
         loadingRoot.getStyleClass().add("app-canvas");
-        mainScene = new Scene(loadingRoot, 1280, 800);
+        mainScene = new Scene(loadingRoot, width, height);
         applyActiveTheme();
 
+        stage.initStyle(StageStyle.DECORATED);
         stage.setTitle("StockPro — Inventory Management System");
-        stage.setMinWidth(1040);
-        stage.setMinHeight(680);
+        stage.getIcons().add(createAppIcon());
+        stage.setMinWidth(Math.min(960, bounds.getWidth() - 40));
+        stage.setMinHeight(Math.min(580, bounds.getHeight() - 60));
         stage.setScene(mainScene);
+        stage.setOnCloseRequest(e -> shutdownAndExit());
         stage.show();
+
+        stage.setX(bounds.getMinX() + Math.max(0, (bounds.getWidth() - stage.getWidth()) / 2.0));
+        stage.setY(bounds.getMinY() + Math.max(4, (bounds.getHeight() - stage.getHeight()) / 2.0));
 
         AppExecutor.runAsync(
                 ServiceContext::getInstance,
@@ -68,7 +96,8 @@ public class StockProApp extends Application {
         applyActiveTheme();
         LoginView loginView = new LoginView(
                 services.getAuthService(),
-                user -> showMainShell(services)
+                user -> showMainShell(services),
+                this::shutdownAndExit
         );
         Parent root = loginView.build();
         mainScene.setRoot(root);
@@ -83,7 +112,8 @@ public class StockProApp extends Application {
         MainShellView shell = new MainShellView(
                 services,
                 () -> showLoginScreen(services),
-                this::applyActiveTheme
+                this::applyActiveTheme,
+                this::shutdownAndExit
         );
         Parent root = shell.build();
         mainScene.setRoot(root);
@@ -109,11 +139,58 @@ public class StockProApp extends Application {
     }
 
     /**
+     * Generates a crisp 64×64 vector-rendered isometric StockPro cube icon for taskbar and title bar display.
+     *
+     * @return FX {@link Image}
+     */
+    private Image createAppIcon() {
+        BufferedImage img = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = img.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        g.setPaint(new GradientPaint(0, 0, new Color(79, 70, 229), 64, 64, new Color(124, 58, 237)));
+        g.fillRoundRect(4, 4, 56, 56, 16, 16);
+
+        Path2D hex = new Path2D.Double();
+        hex.moveTo(32, 12);
+        hex.lineTo(50, 22);
+        hex.lineTo(50, 42);
+        hex.lineTo(32, 52);
+        hex.lineTo(14, 42);
+        hex.lineTo(14, 22);
+        hex.closePath();
+        g.setColor(new Color(255, 255, 255, 42));
+        g.fill(hex);
+        g.setColor(Color.WHITE);
+        g.setStroke(new BasicStroke(2.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.draw(hex);
+        g.drawLine(32, 32, 32, 52);
+        g.drawLine(32, 32, 50, 22);
+        g.drawLine(32, 32, 14, 22);
+        g.dispose();
+        return SwingFXUtils.toFXImage(img, null);
+    }
+
+    /**
+     * Gracefully releases pools, closes the window, and terminates the desktop process.
+     */
+    public void shutdownAndExit() {
+        DatabaseManager.getInstance().close();
+        AppExecutor.shutdown();
+        if (primaryStage != null) {
+            primaryStage.hide();
+        }
+        Platform.exit();
+        System.exit(0);
+    }
+
+    /**
      * Closes database connection pools gracefully on shutdown.
      */
     @Override
     public void stop() {
         DatabaseManager.getInstance().close();
+        AppExecutor.shutdown();
     }
 
     /**

@@ -16,7 +16,7 @@ import java.util.Optional;
 /**
  * JDBC repository persisting and retrieving autonomous worker recommendations in {@code agent_proposals}.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class AgentProposalRepository {
     private final DatabaseManager dbManager;

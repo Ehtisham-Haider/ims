@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 /**
  * Core inventory product entity representing a single SKU in the store catalog.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class Product {
     private long id;

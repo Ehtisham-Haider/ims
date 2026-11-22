@@ -6,7 +6,7 @@ import com.stockpro.repository.ProductRepository;
 /**
  * Reversible command that adds a product to the inventory repository.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class AddProductCommand implements InventoryCommand {
     private final ProductRepository repository;

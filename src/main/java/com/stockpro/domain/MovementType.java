@@ -3,7 +3,7 @@ package com.stockpro.domain;
 /**
  * Classifies inventory quantity changes recorded in the stock movement ledger.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public enum MovementType {
     /** Incoming shipment or supplier restock increasing sellable inventory. */

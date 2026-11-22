@@ -20,12 +20,13 @@ import java.util.Optional;
  * Primary inventory service orchestrating validation, CRUD persistence, automatic/manual stock status rules,
  * empty-inventory handling, missing-item guards, and Command Pattern Undo/Redo.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class InventoryService {
     private final ProductRepository productRepository;
     private final CommandHistoryManager historyManager;
     private final InventoryEventBus eventBus;
+    private ProductImageService productImageService;
 
     /**
      * Creates an inventory service wired to the default repository and shared event bus.
@@ -48,6 +49,15 @@ public class InventoryService {
         this.productRepository = productRepository;
         this.historyManager = historyManager;
         this.eventBus = eventBus;
+    }
+
+    /**
+     * Attaches an optional {@link ProductImageService} so newly added items receive local or Pexels images automatically.
+     *
+     * @param productImageService product image resolver service
+     */
+    public void setProductImageService(ProductImageService productImageService) {
+        this.productImageService = productImageService;
     }
 
     /**
@@ -110,6 +120,10 @@ public class InventoryService {
         Product sanitized = Product.copyOf(product);
         sanitized.setName(sanitized.getName().trim());
         sanitized.refreshStatusIfAutomatic();
+        if ((sanitized.getPhotoPath() == null || sanitized.getPhotoPath().isBlank()) && productImageService != null) {
+            sanitized.setPhotoPath(productImageService.resolveImagePath(
+                    sanitized.getName(), sanitized.getCategory(), false));
+        }
 
         AddProductCommand command = new AddProductCommand(productRepository, sanitized);
         historyManager.execute(command);

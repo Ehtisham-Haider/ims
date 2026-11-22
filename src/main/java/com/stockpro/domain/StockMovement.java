@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 /**
  * Immutable ledger record capturing a single stock quantity mutation.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class StockMovement {
     private long id;

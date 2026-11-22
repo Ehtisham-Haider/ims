@@ -17,7 +17,7 @@ import java.util.Optional;
 /**
  * Parameterized JDBC repository managing CRUD operations and SKU generation for {@link Product} records in SQLite.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class ProductRepository {
     private final DatabaseManager dbManager;
@@ -275,6 +275,29 @@ public class ProductRepository {
             return ps.executeUpdate() > 0;
         } catch (SQLException ex) {
             throw new IllegalStateException("Failed to update product id " + product.getId(), ex);
+        }
+    }
+
+    /**
+     * Updates only the persisted {@code photo_path} for a product without touching stock counts.
+     *
+     * @param productId target product database ID
+     * @param photoPath resolved local image file path
+     * @return {@code true} if the product row existed and was updated
+     */
+    public boolean updatePhotoPath(long productId, String photoPath) {
+        if (productId <= 0) {
+            return false;
+        }
+        String sql = "UPDATE products SET photo_path = ?, updated_at = ? WHERE id = ?";
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, photoPath);
+            ps.setString(2, LocalDateTime.now().toString());
+            ps.setLong(3, productId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException ex) {
+            throw new IllegalStateException("Failed to update photo path for product id " + productId, ex);
         }
     }
 

@@ -10,6 +10,8 @@ import com.stockpro.service.InventoryOperationResult;
 import com.stockpro.service.InventoryService;
 import com.stockpro.service.ProductValidator;
 import com.stockpro.service.ServiceContext;
+import com.stockpro.service.UsbBarcodeScannerListener;
+import com.stockpro.ui.components.AppIcons;
 import com.stockpro.ui.components.ToastNotificationManager;
 import com.stockpro.util.AppExecutor;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -19,14 +21,17 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -37,7 +42,11 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.Rectangle;
 import javafx.stage.FileChooser;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import org.kordamp.ikonli.feather.Feather;
 
 import java.io.File;
 import java.io.IOException;
@@ -46,15 +55,19 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /**
  * High-speed Inventory Catalog screen matching {@code Screens and popups/Inventory.png},
- * including status filter chips, category filter, empty-state welcome view, double-click inline quantity edits,
- * bulk multi-select actions, and animated slide-out Product Details drawer.
+ * with Feather vector action icons, guarded category filtering (zero infinite refresh loops),
+ * double-click inline quantity edits, clean bulk selection without drawer collision,
+ * custom Barcode Scanner Lookup/Restock/Sale dialog, and live Product Details drawer.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class InventoryView {
     private final ServiceContext services;
@@ -64,6 +77,15 @@ public class InventoryView {
 
     private final ObservableList<Product> tableRows = FXCollections.observableArrayList();
     private final Set<Long> selectedIds = new HashSet<>();
+    private final Map<String, Image> thumbnailCache = new ConcurrentHashMap<>();
+    private final Set<Long> pendingImageFetches = ConcurrentHashMap.newKeySet();
+    private final Consumer<String> eventListener = topic -> {
+        if ("CATALOG_IMAGES_UPDATED".equals(topic) || "DEMO_DATA_LOADED".equals(topic) || "STORE_CLEARED".equals(topic)) {
+            pendingImageFetches.clear();
+            thumbnailCache.clear();
+        }
+        refreshAsync();
+    };
     private final InventoryFilterCriteria criteria = new InventoryFilterCriteria();
 
     private BorderPane rootPane;
@@ -81,6 +103,8 @@ public class InventoryView {
     private Button chipOut;
     private Button chipExpiring;
     private ProductDetailsDrawer detailsDrawer;
+    private boolean updatingFilters = false;
+    private Product pendingInspectProduct;
 
     /**
      * Constructs an Inventory Catalog view controller.
@@ -94,7 +118,23 @@ public class InventoryView {
         this.inventoryService = services.getInventoryService();
         this.toastManager = toastManager;
         this.onCatalogChanged = onCatalogChanged;
-        InventoryEventBus.getInstance().subscribe(topic -> refreshAsync());
+        InventoryEventBus.getInstance().subscribe(eventListener);
+    }
+
+    /**
+     * Unsubscribes from {@link InventoryEventBus} when leaving Inventory.
+     */
+    public void dispose() {
+        InventoryEventBus.getInstance().unsubscribe(eventListener);
+    }
+
+    /**
+     * Updates embedded drawer forecast bars when Light/Dark theme toggles.
+     */
+    public void onThemeChanged() {
+        if (detailsDrawer != null) {
+            detailsDrawer.onThemeChanged();
+        }
     }
 
     /**
@@ -105,7 +145,7 @@ public class InventoryView {
     public Node build() {
         rootPane = new BorderPane();
 
-        VBox mainCol = new VBox(16);
+        VBox mainCol = new VBox(14);
         mainCol.setPadding(new Insets(0, 0, 8, 0));
 
         // Header Row
@@ -114,27 +154,27 @@ public class InventoryView {
         VBox titleCol = new VBox(2);
         Label title = new Label("Inventory");
         title.getStyleClass().add("page-title");
-        Label subtitle = new Label("Manage your products and stock");
+        Label subtitle = new Label("Manage your products, inline stock levels, barcodes, and details");
         subtitle.getStyleClass().add("page-subtitle");
         titleCol.getChildren().addAll(title, subtitle);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Button scanBtn = new Button("📷 Scan Barcode");
+        Button scanBtn = new Button("Scan Barcode");
+        scanBtn.setGraphic(AppIcons.of(Feather.CAMERA, 14));
         scanBtn.getStyleClass().add("btn-secondary");
         scanBtn.setOnAction(e -> promptQuickBarcodeLookup());
 
-        Button addBtn = new Button("+ Add Product");
+        Button addBtn = new Button("Add Product");
+        addBtn.setGraphic(AppIcons.of(Feather.PLUS, 14));
         addBtn.getStyleClass().add("btn-primary");
         addBtn.setOnAction(e -> openAddProductDialog());
 
         header.getChildren().addAll(titleCol, spacer, scanBtn, addBtn);
 
-        // Filter Chips + Search + Category Dropdown
         HBox filterBar = buildFilterBar();
 
-        // Main Table Card & Empty State Stack
         tableCard = buildTableCard();
         emptyStateBox = buildEmptyStateBox();
         VBox.setVgrow(tableCard, Priority.ALWAYS);
@@ -147,6 +187,7 @@ public class InventoryView {
         rootPane.setCenter(mainCol);
 
         detailsDrawer = new ProductDetailsDrawer(
+                services,
                 this::openEditProductDialog,
                 this::confirmDeleteProduct,
                 this::closeDetailsDrawer,
@@ -164,10 +205,53 @@ public class InventoryView {
     }
 
     /**
-     * Builds the filter chip strip, search field, and category dropdown.
+     * Selects a product in the catalog table and opens its Details Drawer immediately.
      *
-     * @return horizontal filter bar
+     * @param product target product to inspect
      */
+    public void selectAndInspectProduct(Product product) {
+        if (product == null) {
+            return;
+        }
+        this.pendingInspectProduct = product;
+        if (detailsDrawer != null) {
+            openDetailsDrawer(product);
+        }
+    }
+
+    /**
+     * Applies pre-configured {@link InventoryFilterCriteria} (from Smart Natural Search or Dashboard links)
+     * and refreshes the table cleanly.
+     *
+     * @param external filter criteria to mirror
+     */
+    public void applyExternalCriteria(InventoryFilterCriteria external) {
+        if (external == null) {
+            return;
+        }
+        criteria.setStatusChip(external.getStatusChip());
+        criteria.setCategory(external.getCategory());
+        criteria.setSearchQuery(external.getSearchQuery());
+        criteria.setMaxSellPrice(external.getMaxSellPrice());
+
+        updatingFilters = true;
+        try {
+            if (searchField != null) {
+                searchField.setText(external.getSearchQuery());
+            }
+            if (categoryFilter != null && external.getCategory() != null) {
+                if (!categoryFilter.getItems().contains(external.getCategory())) {
+                    categoryFilter.getItems().add(external.getCategory());
+                }
+                categoryFilter.setValue(external.getCategory());
+            }
+            updateActiveChipStyles(external.getStatusChip());
+        } finally {
+            updatingFilters = false;
+        }
+        refreshAsync();
+    }
+
     private HBox buildFilterBar() {
         chipAll = makeChip("All (0)", StatusFilterChip.ALL, true);
         chipIn = makeChip("In Stock", StatusFilterChip.IN_STOCK, false);
@@ -179,8 +263,10 @@ public class InventoryView {
         searchField.setPromptText("Search products by name, SKU, or tags...");
         searchField.setPrefWidth(250);
         searchField.textProperty().addListener((obs, oldVal, newVal) -> {
-            criteria.setSearchQuery(newVal);
-            refreshAsync();
+            if (!updatingFilters) {
+                criteria.setSearchQuery(newVal);
+                refreshAsync();
+            }
         });
 
         Region spacer = new Region();
@@ -190,8 +276,10 @@ public class InventoryView {
         categoryFilter.getItems().add("All Categories");
         categoryFilter.setValue("All Categories");
         categoryFilter.setOnAction(e -> {
-            criteria.setCategory(categoryFilter.getValue());
-            refreshAsync();
+            if (!updatingFilters) {
+                criteria.setCategory(categoryFilter.getValue());
+                refreshAsync();
+            }
         });
 
         HBox row = new HBox(8, chipAll, chipIn, chipLow, chipOut, chipExpiring, spacer, searchField, categoryFilter);
@@ -199,14 +287,6 @@ public class InventoryView {
         return row;
     }
 
-    /**
-     * Creates a single filter chip button wired to update active {@link StatusFilterChip}.
-     *
-     * @param text chip label
-     * @param target chip filter mode
-     * @param active initial active styling
-     * @return styled {@link Button}
-     */
     private Button makeChip(String text, StatusFilterChip target, boolean active) {
         Button btn = new Button(text);
         btn.getStyleClass().add("filter-chip");
@@ -215,20 +295,31 @@ public class InventoryView {
         }
         btn.setOnAction(e -> {
             criteria.setStatusChip(target);
-            for (Button c : List.of(chipAll, chipIn, chipLow, chipOut, chipExpiring)) {
-                c.getStyleClass().remove("filter-chip-active");
-            }
-            btn.getStyleClass().add("filter-chip-active");
+            criteria.setMaxSellPrice(null);
+            updateActiveChipStyles(target);
             refreshAsync();
         });
         return btn;
     }
 
-    /**
-     * Builds the virtualized {@link TableView} card with inline quantity edit and bulk selection footer.
-     *
-     * @return styled table container
-     */
+    private void updateActiveChipStyles(StatusFilterChip activeChip) {
+        for (Button c : List.of(chipAll, chipIn, chipLow, chipOut, chipExpiring)) {
+            if (c != null) {
+                c.getStyleClass().remove("filter-chip-active");
+            }
+        }
+        Button targetBtn = switch (activeChip) {
+            case ALL -> chipAll;
+            case IN_STOCK -> chipIn;
+            case LOW_STOCK -> chipLow;
+            case OUT_OF_STOCK -> chipOut;
+            case EXPIRING -> chipExpiring;
+        };
+        if (targetBtn != null) {
+            targetBtn.getStyleClass().add("filter-chip-active");
+        }
+    }
+
     private VBox buildTableCard() {
         VBox card = new VBox(12);
         card.getStyleClass().add("card");
@@ -260,25 +351,51 @@ public class InventoryView {
 
         // 2. Thumbnail Column
         TableColumn<Product, String> imgCol = new TableColumn<>("Image");
-        imgCol.setMaxWidth(64);
-        imgCol.setMinWidth(58);
+        imgCol.setMaxWidth(58);
+        imgCol.setMinWidth(52);
         imgCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getPhotoPath()));
         imgCol.setCellFactory(col -> new TableCell<>() {
             @Override
             protected void updateItem(String photoPath, boolean empty) {
                 super.updateItem(photoPath, empty);
-                if (empty) {
+                if (empty || getTableRow() == null || getTableRow().getItem() == null) {
                     setGraphic(null);
-                } else if (photoPath != null && new File(photoPath).exists()) {
-                    ImageView iv = new ImageView(new Image(new File(photoPath).toURI().toString()));
-                    iv.setFitWidth(30);
-                    iv.setFitHeight(30);
+                    return;
+                }
+                Product rowProduct = getTableRow().getItem();
+                String currentPath = rowProduct.getPhotoPath();
+                if (currentPath != null && new File(currentPath).exists()) {
+                    Image img = thumbnailCache.computeIfAbsent(
+                            currentPath,
+                            path -> new Image(new File(path).toURI().toString(), 68, 68, true, true, true));
+                    ImageView iv = new ImageView(img);
+                    iv.setFitWidth(34);
+                    iv.setFitHeight(34);
                     iv.setPreserveRatio(true);
+                    Rectangle clip = new Rectangle(34, 34);
+                    clip.setArcWidth(8);
+                    clip.setArcHeight(8);
+                    iv.setClip(clip);
                     setGraphic(iv);
                 } else {
-                    Label icon = new Label("📦");
-                    icon.setStyle("-fx-font-size: 16px;");
-                    setGraphic(icon);
+                    setGraphic(AppIcons.of(Feather.PACKAGE, 18, "#6366F1"));
+                }
+
+                var imgService = services.getProductImageService();
+                if (imgService.needsImageResolution(currentPath) && pendingImageFetches.add(rowProduct.getId())) {
+                    AppExecutor.runAsync(
+                            () -> imgService.ensureProductImageAndPersist(rowProduct),
+                            resolvedPath -> {
+                                if (resolvedPath != null && !resolvedPath.equals(currentPath)) {
+                                    thumbnailCache.remove(resolvedPath);
+                                    rowProduct.setPhotoPath(resolvedPath);
+                                    if (tableView != null) {
+                                        tableView.refresh();
+                                    }
+                                }
+                            },
+                            ex -> {
+                            });
                 }
             }
         });
@@ -295,11 +412,11 @@ public class InventoryView {
 
         // 5. Category Column
         TableColumn<Product, String> catCol = new TableColumn<>("Category");
-        catCol.setMinWidth(95);
+        catCol.setMinWidth(90);
         catCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getCategory()));
 
-        // 6. Quantity + Mini Stock Progress Bar (Supports double-click inline editing!)
-        TableColumn<Product, String> qtyCol = new TableColumn<>("Qty");
+        // 6. Quantity + Mini Stock Progress Bar (double-click to edit inline)
+        TableColumn<Product, String> qtyCol = new TableColumn<>("Qty (2× Click)");
         qtyCol.setMinWidth(115);
         qtyCol.setEditable(true);
         qtyCol.setCellValueFactory(c -> new SimpleStringProperty(String.valueOf(c.getValue().getQuantity())));
@@ -307,25 +424,25 @@ public class InventoryView {
 
         // 7. Buy Price Column
         TableColumn<Product, String> buyCol = new TableColumn<>("Buy Price");
-        buyCol.setMinWidth(85);
+        buyCol.setMinWidth(80);
         buyCol.setCellValueFactory(c -> new SimpleStringProperty(
                 AppSession.getInstance().formatMoney(c.getValue().getBuyPrice())));
 
         // 8. Sell Price Column
         TableColumn<Product, String> sellCol = new TableColumn<>("Sell Price");
-        sellCol.setMinWidth(85);
+        sellCol.setMinWidth(80);
         sellCol.setCellValueFactory(c -> new SimpleStringProperty(
                 AppSession.getInstance().formatMoney(c.getValue().getSellPrice())));
 
         // 9. Expiry Date Column
         TableColumn<Product, String> expCol = new TableColumn<>("Expiry Date");
-        expCol.setMinWidth(95);
+        expCol.setMinWidth(92);
         expCol.setCellValueFactory(c -> new SimpleStringProperty(
                 c.getValue().getExpiryDate() != null ? c.getValue().getExpiryDate().toString() : "—"));
 
         // 10. Status Pill Column
         TableColumn<Product, String> statusCol = new TableColumn<>("Status");
-        statusCol.setMinWidth(115);
+        statusCol.setMinWidth(108);
         statusCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getStatus().getDisplayName()));
         statusCol.setCellFactory(col -> new TableCell<>() {
             @Override
@@ -346,7 +463,7 @@ public class InventoryView {
             }
         });
 
-        // 11. Action Buttons Column
+        // 11. Feather Action Buttons Column
         TableColumn<Product, Void> actionCol = new TableColumn<>("Actions");
         actionCol.setMinWidth(115);
         actionCol.setCellFactory(col -> new TableCell<>() {
@@ -358,19 +475,26 @@ public class InventoryView {
                     return;
                 }
                 Product product = getTableRow().getItem();
-                Button editBtn = new Button("✎");
-                editBtn.setStyle("-fx-background-color: transparent; -fx-cursor: hand;");
+
+                Button editBtn = new Button();
+                editBtn.setGraphic(AppIcons.of(Feather.EDIT_2, 14));
+                editBtn.getStyleClass().add("icon-btn");
+                editBtn.setTooltip(new Tooltip("Edit Product"));
                 editBtn.setOnAction(e -> openEditProductDialog(product));
 
-                Button delBtn = new Button("🗑");
-                delBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #EF4444; -fx-cursor: hand;");
+                Button delBtn = new Button();
+                delBtn.setGraphic(AppIcons.of(Feather.TRASH_2, 14));
+                delBtn.getStyleClass().add("icon-btn-danger");
+                delBtn.setTooltip(new Tooltip("Delete or Archive"));
                 delBtn.setOnAction(e -> confirmDeleteProduct(product));
 
-                Button infoBtn = new Button("⋯");
-                infoBtn.setStyle("-fx-background-color: transparent; -fx-cursor: hand;");
+                Button infoBtn = new Button();
+                infoBtn.setGraphic(AppIcons.of(Feather.EYE, 14));
+                infoBtn.getStyleClass().add("icon-btn");
+                infoBtn.setTooltip(new Tooltip("Open Product Details"));
                 infoBtn.setOnAction(e -> openDetailsDrawer(product));
 
-                HBox box = new HBox(4, editBtn, delBtn, infoBtn);
+                HBox box = new HBox(2, editBtn, delBtn, infoBtn);
                 box.setAlignment(Pos.CENTER);
                 setGraphic(box);
             }
@@ -380,35 +504,56 @@ public class InventoryView {
                 selectCol, imgCol, skuCol, nameCol, catCol, qtyCol, buyCol, sellCol, expCol, statusCol, actionCol
         ));
 
-        tableView.setOnMouseClicked(e -> {
-            if (e.getClickCount() == 1 && tableView.getSelectionModel().getSelectedItem() != null) {
-                openDetailsDrawer(tableView.getSelectionModel().getSelectedItem());
-            }
+        // Open details drawer ONLY when clicking non-interactive row content (never stealing checkbox or action clicks)
+        tableView.setRowFactory(tv -> {
+            TableRow<Product> row = new TableRow<>();
+            row.setOnMouseClicked(e -> {
+                if (row.isEmpty() || row.getItem() == null) {
+                    return;
+                }
+                Node target = e.getTarget() instanceof Node n ? n : null;
+                while (target != null && target != row) {
+                    if (target instanceof Button || target instanceof javafx.scene.control.CheckBox || target instanceof TextField) {
+                        return;
+                    }
+                    target = target.getParent();
+                }
+                if (e.getClickCount() == 1) {
+                    openDetailsDrawer(row.getItem());
+                }
+            });
+            return row;
         });
 
         // Footer Summary + Bulk Selection Bar
         countSummaryLabel = new Label("Showing 0 items");
         countSummaryLabel.getStyleClass().add("muted-text");
 
-        bulkCountLabel = new Label("0 items selected:");
+        bulkCountLabel = new Label("0 item(s) selected:");
         bulkCountLabel.setStyle("-fx-font-weight: bold;");
 
         ComboBox<StockStatus> bulkStatusBox = new ComboBox<>();
         bulkStatusBox.getItems().addAll(StockStatus.IN_STOCK, StockStatus.LOW_STOCK, StockStatus.OUT_OF_STOCK);
         bulkStatusBox.setPromptText("Update Status");
         bulkStatusBox.setOnAction(e -> {
+            if (updatingFilters) {
+                return;
+            }
             StockStatus target = bulkStatusBox.getValue();
             if (target != null && !selectedIds.isEmpty()) {
                 InventoryOperationResult<Integer> res = inventoryService.bulkUpdateStatus(
                         new ArrayList<>(selectedIds), target, AppSession.getInstance().canManageInventory());
                 toastManager.showInfo(res.getMessage());
                 selectedIds.clear();
+                updatingFilters = true;
                 bulkStatusBox.setValue(null);
+                updatingFilters = false;
                 refreshAsync();
             }
         });
 
         Button bulkDeleteBtn = new Button("Delete Selected");
+        bulkDeleteBtn.setGraphic(AppIcons.of(Feather.TRASH_2, 13));
         bulkDeleteBtn.getStyleClass().add("btn-danger-outline");
         bulkDeleteBtn.setOnAction(e -> {
             InventoryOperationResult<Integer> res = inventoryService.bulkDelete(
@@ -419,6 +564,7 @@ public class InventoryView {
         });
 
         Button bulkExportBtn = new Button("Export CSV");
+        bulkExportBtn.setGraphic(AppIcons.of(Feather.DOWNLOAD, 13));
         bulkExportBtn.getStyleClass().add("btn-secondary");
         bulkExportBtn.setOnAction(e -> exportSelectedToCsv());
 
@@ -435,34 +581,42 @@ public class InventoryView {
         return card;
     }
 
-    /**
-     * Builds the friendly Empty Store Welcome view displayed when inventory contains zero items.
-     *
-     * @return styled empty-state {@link VBox}
-     */
     private VBox buildEmptyStateBox() {
         VBox box = new VBox(14);
         box.getStyleClass().add("card");
         box.setAlignment(Pos.CENTER);
         box.setPadding(new Insets(48));
 
-        Label icon = new Label("📦");
-        icon.setStyle("-fx-font-size: 54px;");
+        StackPane iconWrap = new StackPane(AppIcons.of(Feather.PACKAGE, 46, "#6366F1"));
+        iconWrap.setMinSize(84, 84);
+        iconWrap.setPrefSize(84, 84);
+        iconWrap.setMaxSize(84, 84);
+        iconWrap.getStyleClass().add("surface-subtle");
+
         Label heading = new Label("Your Inventory is Empty");
         heading.getStyleClass().add("page-title");
         Label hint = new Label("Add your first item manually or load starter store items to explore StockPro right away.");
         hint.getStyleClass().add("page-subtitle");
 
-        Button addFirst = new Button("+ Add Your First Item");
+        Button addFirst = new Button("Add Your First Item");
+        addFirst.setGraphic(AppIcons.of(Feather.PLUS, 14));
         addFirst.getStyleClass().add("btn-primary");
         addFirst.setOnAction(e -> openAddProductDialog());
 
         Button loadDemo = new Button("Load Demo Items");
+        loadDemo.setGraphic(AppIcons.of(Feather.PLAY, 14));
         loadDemo.getStyleClass().add("btn-secondary");
         loadDemo.setOnAction(e -> AppExecutor.runAsync(
-                inventoryService::loadStarterDemoItems,
+                () -> {
+                    int loaded = inventoryService.loadStarterDemoItems();
+                    if (services.getProductImageService().isApiKeyConfigured()) {
+                        services.getProductImageService().enrichMissingCatalogImages();
+                    }
+                    return loaded;
+                },
                 count -> {
                     toastManager.showInfo("Loaded " + count + " starter items into SQLite.");
+                    pendingImageFetches.clear();
                     refreshAsync();
                 },
                 ex -> toastManager.showInfo("Failed to load starter items: " + ex.getMessage())
@@ -471,7 +625,7 @@ public class InventoryView {
         HBox buttons = new HBox(12, addFirst, loadDemo);
         buttons.setAlignment(Pos.CENTER);
 
-        box.getChildren().addAll(icon, heading, hint, buttons);
+        box.getChildren().addAll(iconWrap, heading, hint, buttons);
         box.setVisible(false);
         box.setManaged(false);
         return box;
@@ -506,17 +660,29 @@ public class InventoryView {
                 }
             }
             String prevCat = categoryFilter.getValue();
-            categoryFilter.setItems(FXCollections.observableArrayList(cats));
-            categoryFilter.setValue(cats.contains(prevCat) ? prevCat : "All Categories");
+            updatingFilters = true;
+            try {
+                categoryFilter.setItems(FXCollections.observableArrayList(cats));
+                categoryFilter.setValue(cats.contains(prevCat) ? prevCat : "All Categories");
+            } finally {
+                updatingFilters = false;
+            }
 
             tableRows.setAll(filtered);
             countSummaryLabel.setText("Showing " + filtered.size() + " of " + all.size() + " product(s)");
             updateBulkBarVisibility();
+            if (pendingInspectProduct != null) {
+                Product match = filtered.stream()
+                        .filter(p -> p.getId() == pendingInspectProduct.getId())
+                        .findFirst().orElse(pendingInspectProduct);
+                tableView.getSelectionModel().select(match);
+                openDetailsDrawer(match);
+                pendingInspectProduct = null;
+            }
             if (onCatalogChanged != null) {
                 onCatalogChanged.run();
             }
-        }, ex -> {
-        });
+        }, ex -> toastManager.showInfo("Failed to refresh inventory: " + ex.getMessage()));
     }
 
     /**
@@ -527,15 +693,24 @@ public class InventoryView {
         Optional<Product> created = dialog.showAndWait(
                 rootPane.getScene() != null ? rootPane.getScene().getWindow() : null,
                 null,
-                AppSession.getInstance().isDarkMode()
+                AppSession.getInstance().isDarkMode(),
+                services.getProductImageService()
         );
         created.ifPresent(product -> {
             InventoryOperationResult<Product> res = inventoryService.addProduct(product);
             if (res.isSuccess()) {
+                Product saved = res.getData();
                 toastManager.showToast(res.getMessage(), "Undo", () -> {
                     inventoryService.undoLastAction();
                     refreshAsync();
                 });
+                if (saved != null && services.getProductImageService().needsImageResolution(saved.getPhotoPath())) {
+                    AppExecutor.runAsync(
+                            () -> services.getProductImageService().ensureProductImageAndPersist(saved),
+                            p -> refreshAsync(),
+                            ex -> {
+                            });
+                }
                 refreshAsync();
             } else {
                 toastManager.showInfo(res.getMessage());
@@ -543,11 +718,6 @@ public class InventoryView {
         });
     }
 
-    /**
-     * Opens the Edit Product dialog for an existing product.
-     *
-     * @param product target product
-     */
     private void openEditProductDialog(Product product) {
         if (product == null) {
             return;
@@ -556,11 +726,14 @@ public class InventoryView {
         Optional<Product> edited = dialog.showAndWait(
                 rootPane.getScene() != null ? rootPane.getScene().getWindow() : null,
                 product,
-                AppSession.getInstance().isDarkMode()
+                AppSession.getInstance().isDarkMode(),
+                services.getProductImageService()
         );
         edited.ifPresent(updated -> {
             InventoryOperationResult<Product> res = inventoryService.updateProduct(updated);
             if (res.isSuccess()) {
+                thumbnailCache.clear();
+                pendingImageFetches.remove(updated.getId());
                 toastManager.showToast(res.getMessage(), "Undo", () -> {
                     inventoryService.undoLastAction();
                     refreshAsync();
@@ -573,11 +746,6 @@ public class InventoryView {
         });
     }
 
-    /**
-     * Opens the Delete/Archive confirmation popup for a product.
-     *
-     * @param product target product
-     */
     private void confirmDeleteProduct(Product product) {
         if (product == null) {
             return;
@@ -612,20 +780,12 @@ public class InventoryView {
         }
     }
 
-    /**
-     * Opens the animated slide-out Product Details drawer for the chosen item.
-     *
-     * @param product target product
-     */
     private void openDetailsDrawer(Product product) {
         detailsDrawer.setVisible(true);
         detailsDrawer.setManaged(true);
         detailsDrawer.showProduct(product);
     }
 
-    /**
-     * Closes the slide-out Product Details drawer.
-     */
     private void closeDetailsDrawer() {
         detailsDrawer.setVisible(false);
         detailsDrawer.setManaged(false);
@@ -649,9 +809,6 @@ public class InventoryView {
         }
     }
 
-    /**
-     * Updates the visibility and item counter of the Bulk Multi-Select toolbar.
-     */
     private void updateBulkBarVisibility() {
         int count = selectedIds.size();
         bulkCountLabel.setText(count + " item(s) selected:");
@@ -660,26 +817,85 @@ public class InventoryView {
     }
 
     /**
-     * Prompts for quick SKU or barcode input to jump straight to a matching item.
+     * Custom Light/Dark themed Barcode Scanner dialog allowing SKU lookup, +1 Restock, or -1 Sale.
      */
     private void promptQuickBarcodeLookup() {
-        javafx.scene.control.TextInputDialog dlg = new javafx.scene.control.TextInputDialog();
-        dlg.setTitle("Scan Barcode / SKU");
-        dlg.setHeaderText("Enter or scan a product barcode or SKU (e.g. PRD-1001)");
-        dlg.showAndWait().ifPresent(code -> {
-            Optional<Product> found = inventoryService.getProductRepository().findByBarcode(code);
-            if (found.isPresent()) {
-                openDetailsDrawer(found.get());
-                toastManager.showInfo("Found: " + found.get().getName());
-            } else {
-                toastManager.showInfo("No item matched barcode '" + code + "'.");
+        Stage dialog = new Stage();
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        if (rootPane != null && rootPane.getScene() != null) {
+            dialog.initOwner(rootPane.getScene().getWindow());
+        }
+        dialog.setTitle("Scan Barcode / SKU");
+
+        VBox card = new VBox(12);
+        card.getStyleClass().add("card");
+        card.setPadding(new Insets(22));
+
+        HBox hdr = new HBox(10, AppIcons.of(Feather.CAMERA, 18, "#6366F1"));
+        hdr.setAlignment(Pos.CENTER_LEFT);
+        Label heading = new Label("Barcode / SKU Scanner");
+        heading.getStyleClass().add("section-title");
+        hdr.getChildren().add(heading);
+
+        TextField codeField = new TextField();
+        codeField.setPromptText("Enter or scan barcode / SKU (e.g. PRD-1001)...");
+
+        ComboBox<UsbBarcodeScannerListener.ScanMode> modeCombo = new ComboBox<>();
+        modeCombo.getItems().addAll(
+                UsbBarcodeScannerListener.ScanMode.LOOKUP,
+                UsbBarcodeScannerListener.ScanMode.STOCK_IN,
+                UsbBarcodeScannerListener.ScanMode.SALE_DEDUCT);
+        modeCombo.setValue(services.getUsbBarcodeScannerListener().getActiveMode());
+        modeCombo.setMaxWidth(Double.MAX_VALUE);
+
+        Runnable submitScan = () -> {
+            String code = codeField.getText() != null ? codeField.getText().trim() : "";
+            if (code.isBlank()) {
+                toastManager.showInfo("Enter a barcode or SKU first.");
+                return;
             }
-        });
+            var mode = modeCombo.getValue();
+            services.getUsbBarcodeScannerListener().setActiveMode(mode);
+            var outcome = services.getUsbBarcodeScannerListener().handleScannedCode(
+                    code, mode, AppSession.getInstance().getActorName());
+            toastManager.showInfo(outcome.message());
+            if (outcome.matched() && outcome.product() != null) {
+                dialog.close();
+                openDetailsDrawer(outcome.product());
+                refreshAsync();
+            }
+        };
+
+        codeField.setOnAction(e -> submitScan.run());
+
+        Button cancelBtn = new Button("Cancel");
+        cancelBtn.getStyleClass().add("btn-secondary");
+        cancelBtn.setOnAction(e -> dialog.close());
+
+        Button goBtn = new Button("Scan / Apply");
+        goBtn.getStyleClass().add("btn-primary");
+        goBtn.setOnAction(e -> submitScan.run());
+
+        HBox footer = new HBox(10, cancelBtn, goBtn);
+        footer.setAlignment(Pos.CENTER_RIGHT);
+
+        card.getChildren().addAll(
+                hdr,
+                new Label("Barcode / SKU"), codeField,
+                new Label("Scanner Action Mode"), modeCombo,
+                footer
+        );
+
+        Scene sc = new Scene(card, 400, 240);
+        String cssPath = AppSession.getInstance().isDarkMode() ? "/css/dark-theme.css" : "/css/light-theme.css";
+        var cssUrl = getClass().getResource(cssPath);
+        if (cssUrl != null) {
+            sc.getStylesheets().add(cssUrl.toExternalForm());
+        }
+        dialog.setScene(sc);
+        dialog.showAndWait();
     }
 
-    /**
-     * Exports selected products (or entire filtered list) to a CSV file.
-     */
     private void exportSelectedToCsv() {
         List<Product> targets = tableRows.stream()
                 .filter(p -> selectedIds.isEmpty() || selectedIds.contains(p.getId()))
@@ -718,7 +934,7 @@ public class InventoryView {
     /**
      * Custom TableCell showing quantity alongside a mini level bar and supporting double-click inline editing.
      *
-     * @author Ehtisham Haider, Syed Ahmed
+     * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
      */
     private final class InlineQtyTableCell extends TableCell<Product, String> {
         private TextField editor;
@@ -760,11 +976,6 @@ public class InventoryView {
             }
         }
 
-        /**
-         * Renders the quantity number and miniature progress indicator bar.
-         *
-         * @param product row product
-         */
         private void renderReadView(Product product) {
             if (product == null) {
                 setGraphic(null);
@@ -773,7 +984,7 @@ public class InventoryView {
             Label qtyLbl = new Label(String.valueOf(product.getQuantity()));
             qtyLbl.setMinWidth(32);
             if (product.getQuantity() <= product.getLowStockThreshold()) {
-                qtyLbl.setStyle("-fx-text-fill: #DC2626; -fx-font-weight: bold;");
+                qtyLbl.getStyleClass().add("kpi-delta-danger");
             } else {
                 qtyLbl.setStyle("-fx-font-weight: bold;");
             }
@@ -787,12 +998,6 @@ public class InventoryView {
             setText(null);
         }
 
-        /**
-         * Validates and persists an inline quantity edit via {@link InventoryService}.
-         *
-         * @param product target product
-         * @param rawQty new raw quantity string
-         */
         private void commitQtyEdit(Product product, String rawQty) {
             try {
                 int newQty = ProductValidator.parseQuantity(rawQty);

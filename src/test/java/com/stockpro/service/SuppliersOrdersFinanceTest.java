@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Verifies supplier CRUD, multi-item purchase order lifecycle and PDF generation,
  * store valuation, dead-money detection, and tax calculations.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 class SuppliersOrdersFinanceTest {
 
@@ -84,8 +84,8 @@ class SuppliersOrdersFinanceTest {
         assertEquals(480.0, po.getTotalCost(), 0.01);
         assertEquals("Draft", po.getStatus());
 
-        assertTrue(supplierService.updateOrderStatus(po.getId(), "Sent", "Syed Ahmed").isSuccess());
-        assertTrue(supplierService.updateOrderStatus(po.getId(), "Delivered", "Syed Ahmed").isSuccess());
+        assertTrue(supplierService.updateOrderStatus(po.getId(), "Sent", "Syed Ehtisham Haider Bukhari").isSuccess());
+        assertTrue(supplierService.updateOrderStatus(po.getId(), "Delivered", "Syed Ehtisham Haider Bukhari").isSuccess());
 
         // Delivery should have restocked +40 units (10 -> 50)
         assertEquals(50, inventoryService.findById(mouse.getId()).orElseThrow().getQuantity());

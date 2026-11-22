@@ -9,7 +9,7 @@ import javafx.scene.shape.SVGPath;
 /**
  * Renders the crisp isometric 3D cube logo mark matching the StockPro brand identity.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public final class StockProLogo {
 

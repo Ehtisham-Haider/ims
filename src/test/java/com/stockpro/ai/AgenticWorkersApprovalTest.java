@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Verifies Auto-Buyer, Nightly Auditor, and Expiry Rescue background workers plus the
  * Human Approval Safety Inbox workflow ensuring zero silent database mutations.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 class AgenticWorkersApprovalTest {
 
@@ -106,7 +106,7 @@ class AgenticWorkersApprovalTest {
                 .filter(p -> "CREATE_PO".equals(p.getProposalType()))
                 .findFirst().orElseThrow();
         InventoryOperationResult<AgentProposal> approvedPo = orchestrator.approveProposal(
-                poProposal.getId(), "Syed Ahmed", true);
+                poProposal.getId(), "Syed Ehtisham Haider Bukhari", true);
         assertTrue(approvedPo.isSuccess());
         assertEquals(ProposalStatus.APPROVED, approvedPo.getData().getStatus());
         assertEquals(1, supplierService.getAllOrders().size());
@@ -115,7 +115,8 @@ class AgenticWorkersApprovalTest {
         AgentProposal expiryProp = created.stream()
                 .filter(p -> "EXPIRY_DISCOUNT".equals(p.getProposalType()))
                 .findFirst().orElseThrow();
-        InventoryOperationResult<AgentProposal> rejected = orchestrator.rejectProposal(expiryProp.getId(), "Syed Ahmed");
+        InventoryOperationResult<AgentProposal> rejected = orchestrator.rejectProposal(
+                expiryProp.getId(), "Syed Ehtisham Haider Bukhari");
         assertTrue(rejected.isSuccess());
         assertEquals(ProposalStatus.REJECTED, rejected.getData().getStatus());
         assertEquals(4.00, inventoryService.findById(savedYogurt.getId()).orElseThrow().getSellPrice(), 0.01);

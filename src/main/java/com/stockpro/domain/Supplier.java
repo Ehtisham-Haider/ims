@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 /**
  * Vendor record stored in the supplier directory.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class Supplier {
     private long id;

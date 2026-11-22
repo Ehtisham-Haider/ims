@@ -33,7 +33,7 @@ import java.util.Optional;
  * and {@code Expiry Rescue}) and enforces the Human Approval Safety Switch so zero store records change
  * without explicit user confirmation.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class AgenticOrchestratorService {
     private final AgentProposalRepository proposalRepo;

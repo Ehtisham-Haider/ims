@@ -12,7 +12,7 @@ import java.util.List;
 /**
  * Maintains a tamper-evident SHA-256 hash chain over every recorded inventory and security event.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class AuditService {
     private final AuditLogRepository repository;
@@ -24,7 +24,7 @@ public class AuditService {
      * @param totalEntries number of audit entries checked
      * @param tamperedEntryId ID of the first corrupted row, or {@code -1} when intact
      * @param message summary message suitable for UI badges and audit reports
-     * @author Ehtisham Haider, Syed Ahmed
+     * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
      */
     public record SealVerificationResult(
             boolean intact,

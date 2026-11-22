@@ -3,13 +3,13 @@ package com.stockpro.domain;
 /**
  * Filter criteria applied to the Inventory catalog table and Smart Natural Search.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class InventoryFilterCriteria {
     /**
      * Quick status chip options displayed above the inventory table.
      *
-     * @author Ehtisham Haider, Syed Ahmed
+     * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
      */
     public enum StatusFilterChip {
         /** Display all non-archived items. */

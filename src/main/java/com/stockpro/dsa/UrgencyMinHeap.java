@@ -13,7 +13,7 @@ import java.util.PriorityQueue;
  * Min-Heap ({@link PriorityQueue}) tracking and surfacing the most urgent low-stock and soonest-expiring
  * inventory items in O(log n) heap extraction time.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class UrgencyMinHeap {
 
@@ -23,7 +23,7 @@ public class UrgencyMinHeap {
      * @param product target inventory item
      * @param urgencyScore computed urgency priority score (lower is more urgent)
      * @param reason concise explanation of why the item is flagged
-     * @author Ehtisham Haider, Syed Ahmed
+     * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
      */
     public record UrgencyEntry(Product product, double urgencyScore, String reason)
             implements Comparable<UrgencyEntry> {

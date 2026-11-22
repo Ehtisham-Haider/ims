@@ -7,8 +7,10 @@ import com.stockpro.domain.StockMovement;
 import com.stockpro.service.AppSession;
 import com.stockpro.service.AuditService;
 import com.stockpro.service.InventoryEventBus;
+import com.stockpro.service.ProductValidator;
 import com.stockpro.service.ServiceContext;
 import com.stockpro.service.StockOperationService;
+import com.stockpro.ui.components.AppIcons;
 import com.stockpro.ui.components.ToastNotificationManager;
 import com.stockpro.util.AppExecutor;
 import javafx.beans.property.SimpleStringProperty;
@@ -20,6 +22,7 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -32,6 +35,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import org.kordamp.ikonli.feather.Feather;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -39,26 +43,30 @@ import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
- * Stock Operations screen matching {@code Screens and popups/Stock.png}, featuring 6 operation tabs,
- * live stock change preview, mandatory reason codes, damaged stock quarantine, FEFO expiry tracking,
- * and SHA-256 tamper-proof audit verification.
+ * Stock Operations screen matching {@code Screens and popups/Stock.png}, featuring Feather icon tabs,
+ * live stock change preview using theme-safe CSS badges, mandatory reason codes, colored movement type pills,
+ * damaged stock quarantine, FEFO expiry tracking, and SHA-256 tamper-proof audit verification.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class StockOperationsView {
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("MMM dd, hh:mm a");
+    private static final List<String> PREVIEW_CLASSES = List.of("preview-banner-info", "preview-banner-ok", "preview-banner-err");
 
     private final ServiceContext services;
     private final StockOperationService stockService;
     private final AuditService auditService;
     private final ToastNotificationManager toastManager;
+    private final Consumer<String> eventListener = topic -> refreshAsync();
 
     private final Map<MovementType, Button> modeTabs = new LinkedHashMap<>();
     private MovementType activeMode = MovementType.RESTOCK;
 
     private ComboBox<Product> productPicker;
+    private boolean updatingUi = false;
     private TextField qtyField;
     private Label qtyCaption;
     private Label previewLabel;
@@ -84,7 +92,14 @@ public class StockOperationsView {
         this.stockService = services.getStockOperationService();
         this.auditService = services.getAuditService();
         this.toastManager = toastManager;
-        InventoryEventBus.getInstance().subscribe(topic -> refreshAsync());
+        InventoryEventBus.getInstance().subscribe(eventListener);
+    }
+
+    /**
+     * Unsubscribes from {@link InventoryEventBus} when navigating away from Stock Operations.
+     */
+    public void dispose() {
+        InventoryEventBus.getInstance().unsubscribe(eventListener);
     }
 
     /**
@@ -96,13 +111,12 @@ public class StockOperationsView {
         VBox page = new VBox(16);
         page.setPadding(new Insets(0, 4, 16, 0));
 
-        // Header
         Label title = new Label("Stock Operations");
         title.getStyleClass().add("page-title");
         Label subtitle = new Label("Manage stock movements, damaged quarantine, physical shelf counts, FEFO expiry, and SHA-256 audit seal");
         subtitle.getStyleClass().add("page-subtitle");
 
-        // 6 Operation Tabs
+        // 6 Operation Tabs with Feather vector icons
         HBox tabStrip = new HBox(10);
         tabStrip.setAlignment(Pos.CENTER_LEFT);
         MovementType[] modes = {
@@ -114,17 +128,18 @@ public class StockOperationsView {
                 MovementType.PHYSICAL_COUNT
         };
         for (MovementType m : modes) {
-            Button tabBtn = new Button(iconFor(m) + " " + (m == MovementType.SALE ? "Record Sale" : m.getDisplayName()));
+            Button tabBtn = new Button(m == MovementType.SALE ? "Record Sale" : m.getDisplayName());
+            tabBtn.setGraphic(AppIcons.of(featherFor(m), 14));
+            tabBtn.setGraphicTextGap(7);
             tabBtn.getStyleClass().add("filter-chip");
             tabBtn.setOnAction(e -> switchMode(m));
             modeTabs.put(m, tabBtn);
             tabStrip.getChildren().add(tabBtn);
         }
 
-        // Two-Column Body
         VBox formCard = buildOperationFormCard();
         formCard.setPrefWidth(390);
-        formCard.setMinWidth(350);
+        formCard.setMinWidth(345);
 
         VBox rightCol = buildRightLedgerPanel();
         HBox.setHgrow(rightCol, Priority.ALWAYS);
@@ -139,15 +154,9 @@ public class StockOperationsView {
 
         ScrollPane scroll = new ScrollPane(page);
         scroll.setFitToWidth(true);
-        scroll.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
         return scroll;
     }
 
-    /**
-     * Builds the left operation form card with live stock change preview and mandatory reason selector.
-     *
-     * @return styled form card
-     */
     private VBox buildOperationFormCard() {
         VBox card = new VBox(12);
         card.getStyleClass().add("card");
@@ -160,14 +169,14 @@ public class StockOperationsView {
         prodLbl.setStyle("-fx-font-weight: bold;");
         productPicker = new ComboBox<>();
         productPicker.setMaxWidth(Double.MAX_VALUE);
-        productPicker.setCellFactory(lv -> new javafx.scene.control.ListCell<>() {
+        productPicker.setCellFactory(lv -> new ListCell<>() {
             @Override
             protected void updateItem(Product item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : item.getName() + " (" + item.getSku() + " • Qty: " + item.getQuantity() + ")");
             }
         });
-        productPicker.setButtonCell(new javafx.scene.control.ListCell<>() {
+        productPicker.setButtonCell(new ListCell<>() {
             @Override
             protected void updateItem(Product item, boolean empty) {
                 super.updateItem(item, empty);
@@ -181,7 +190,7 @@ public class StockOperationsView {
 
         previewLabel = new Label("Select a product to preview change");
         previewLabel.setWrapText(true);
-        previewLabel.setStyle("-fx-background-color: #EEF2FF; -fx-text-fill: #3730A3; -fx-font-weight: bold; -fx-padding: 8 10 8 10; -fx-background-radius: 8;");
+        previewLabel.getStyleClass().add("preview-banner-info");
 
         Label reasonLbl = new Label("Reason * (Mandatory)");
         reasonLbl.setStyle("-fx-font-weight: bold;");
@@ -200,7 +209,11 @@ public class StockOperationsView {
         submitBtn.setMaxWidth(Double.MAX_VALUE);
         submitBtn.setOnAction(e -> submitOperation());
 
-        productPicker.setOnAction(e -> updateLivePreview());
+        productPicker.setOnAction(e -> {
+            if (!updatingUi) {
+                updateLivePreview();
+            }
+        });
         qtyField.textProperty().addListener((o, a, b) -> updateLivePreview());
 
         card.getChildren().addAll(
@@ -215,34 +228,29 @@ public class StockOperationsView {
         return card;
     }
 
-    /**
-     * Builds the right column containing Recent Movements, FEFO Expiry Tracker, Damaged Stock Quarantine,
-     * and the SHA-256 Tamper-Proof Security Seal verification panel.
-     *
-     * @return styled right ledger panel
-     */
     private VBox buildRightLedgerPanel() {
         VBox wrapper = new VBox(14);
 
-        // SHA-256 Security Seal Bar
         HBox sealBar = new HBox(12);
         sealBar.getStyleClass().add("card");
         sealBar.setAlignment(Pos.CENTER_LEFT);
-        sealStatusBadge = new Label("🔒 SHA-256 Audit Seal Ready");
-        sealStatusBadge.setStyle("-fx-font-weight: bold; -fx-text-fill: #15803D;");
+        sealStatusBadge = new Label("SHA-256 Audit Seal Ready");
+        sealStatusBadge.setGraphic(AppIcons.of(Feather.SHIELD, 16, "#10B981"));
+        sealStatusBadge.setGraphicTextGap(8);
+        sealStatusBadge.getStyleClass().add("kpi-delta-positive");
         Region sp = new Region();
         HBox.setHgrow(sp, Priority.ALWAYS);
         Button verifyBtn = new Button("Verify Seal");
+        verifyBtn.setGraphic(AppIcons.of(Feather.CHECK_CIRCLE, 14));
         verifyBtn.getStyleClass().add("btn-primary");
         verifyBtn.setOnAction(e -> runSealVerification());
         sealBar.getChildren().addAll(sealStatusBadge, sp, verifyBtn);
 
-        // Tabbed Sub-Views
         TabPane tabs = new TabPane();
         tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
         VBox.setVgrow(tabs, Priority.ALWAYS);
 
-        // Tab 1: Recent Stock Movements
+        // Tab 1: Recent Stock Movements with colored action pills matching Stock.png
         TableView<StockMovement> moveTable = new TableView<>(recentMovements);
         moveTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         moveTable.setPrefHeight(340);
@@ -253,7 +261,27 @@ public class StockOperationsView {
         TableColumn<StockMovement, String> prodCol = new TableColumn<>("Product");
         prodCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getProductName()));
         TableColumn<StockMovement, String> typeCol = new TableColumn<>("Type");
+        typeCol.setMinWidth(105);
         typeCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getMovementType().getDisplayName()));
+        typeCol.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String text, boolean empty) {
+                super.updateItem(text, empty);
+                if (empty || text == null || getTableRow() == null || getTableRow().getItem() == null) {
+                    setGraphic(null);
+                    return;
+                }
+                MovementType mt = getTableRow().getItem().getMovementType();
+                Label pill = new Label(text);
+                pill.getStyleClass().addAll("status-pill", switch (mt) {
+                    case RESTOCK -> "status-in-stock";
+                    case SALE -> "status-info-pill";
+                    case RETURNED, PHYSICAL_COUNT -> "status-low-stock";
+                    default -> "status-out-of-stock";
+                });
+                setGraphic(pill);
+            }
+        });
         TableColumn<StockMovement, String> deltaCol = new TableColumn<>("Qty");
         deltaCol.setCellValueFactory(c -> new SimpleStringProperty(
                 (c.getValue().getQuantityDelta() >= 0 ? "+" : "") + c.getValue().getQuantityDelta()));
@@ -351,11 +379,6 @@ public class StockOperationsView {
         return wrapper;
     }
 
-    /**
-     * Switches the active operation tab and updates form labels and preset reasons.
-     *
-     * @param mode selected {@link MovementType}
-     */
     private void switchMode(MovementType mode) {
         this.activeMode = mode;
         modeTabs.forEach((m, btn) -> {
@@ -390,34 +413,25 @@ public class StockOperationsView {
         updateLivePreview();
     }
 
-    /**
-     * Recomputes the live preview pill ({@code Current -> New (Status)}) without touching SQLite.
-     */
     private void updateLivePreview() {
         Product selected = productPicker.getValue();
+        previewLabel.getStyleClass().removeAll(PREVIEW_CLASSES);
         if (selected == null) {
             previewLabel.setText("Select a product to preview stock change.");
-            previewLabel.setStyle("-fx-background-color: #EEF2FF; -fx-text-fill: #3730A3; -fx-font-weight: bold; -fx-padding: 8 10 8 10; -fx-background-radius: 8;");
+            previewLabel.getStyleClass().add("preview-banner-info");
             return;
         }
         try {
-            int qty = com.stockpro.service.ProductValidator.parseQuantity(qtyField.getText());
+            int qty = ProductValidator.parseQuantity(qtyField.getText());
             StockOperationService.StockPreview preview = stockService.previewOperation(selected, activeMode, qty);
             previewLabel.setText(preview.note());
-            if (preview.valid()) {
-                previewLabel.setStyle("-fx-background-color: #DCFCE7; -fx-text-fill: #15803D; -fx-font-weight: bold; -fx-padding: 8 10 8 10; -fx-background-radius: 8;");
-            } else {
-                previewLabel.setStyle("-fx-background-color: #FEE2E2; -fx-text-fill: #B91C1C; -fx-font-weight: bold; -fx-padding: 8 10 8 10; -fx-background-radius: 8;");
-            }
+            previewLabel.getStyleClass().add(preview.valid() ? "preview-banner-ok" : "preview-banner-err");
         } catch (IllegalArgumentException ex) {
             previewLabel.setText(ex.getMessage());
-            previewLabel.setStyle("-fx-background-color: #FEE2E2; -fx-text-fill: #B91C1C; -fx-font-weight: bold; -fx-padding: 8 10 8 10; -fx-background-radius: 8;");
+            previewLabel.getStyleClass().add("preview-banner-err");
         }
     }
 
-    /**
-     * Persists the selected stock operation on a background thread and updates all views.
-     */
     private void submitOperation() {
         Product selected = productPicker.getValue();
         if (selected == null) {
@@ -442,16 +456,17 @@ public class StockOperationsView {
         );
     }
 
-    /**
-     * Runs SHA-256 ledger integrity verification in the background and updates the status badge.
-     */
     private void runSealVerification() {
         AppExecutor.runAsync(
                 auditService::verifyIntegrity,
                 result -> {
-                    sealStatusBadge.setText((result.intact() ? "🔒 " : "⚠ ") + result.message());
-                    sealStatusBadge.setStyle("-fx-font-weight: bold; -fx-text-fill: "
-                            + (result.intact() ? "#15803D;" : "#DC2626;"));
+                    sealStatusBadge.setText(result.message());
+                    sealStatusBadge.setGraphic(AppIcons.of(
+                            result.intact() ? Feather.SHIELD : Feather.ALERT_TRIANGLE,
+                            16,
+                            result.intact() ? "#10B981" : "#EF4444"));
+                    sealStatusBadge.getStyleClass().removeAll("kpi-delta-positive", "kpi-delta-danger");
+                    sealStatusBadge.getStyleClass().add(result.intact() ? "kpi-delta-positive" : "kpi-delta-danger");
                     toastManager.showInfo(result.message());
                 },
                 ex -> toastManager.showInfo("Audit verification error: " + ex.getMessage())
@@ -483,11 +498,16 @@ public class StockOperationsView {
             AuditService.SealVerificationResult seal = (AuditService.SealVerificationResult) data[5];
 
             Product prev = productPicker.getValue();
-            productPicker.setItems(FXCollections.observableArrayList(catalog));
-            if (prev != null) {
-                catalog.stream().filter(p -> p.getId() == prev.getId()).findFirst().ifPresent(productPicker::setValue);
-            } else if (!catalog.isEmpty()) {
-                productPicker.getSelectionModel().selectFirst();
+            updatingUi = true;
+            try {
+                productPicker.setItems(FXCollections.observableArrayList(catalog));
+                if (prev != null) {
+                    catalog.stream().filter(p -> p.getId() == prev.getId()).findFirst().ifPresent(productPicker::setValue);
+                } else if (!catalog.isEmpty()) {
+                    productPicker.getSelectionModel().selectFirst();
+                }
+            } finally {
+                updatingUi = false;
             }
 
             recentMovements.setAll(movements);
@@ -495,29 +515,26 @@ public class StockOperationsView {
             damagedProducts.setAll(damaged);
             auditEntries.setAll(audits);
 
-            sealStatusBadge.setText((seal.intact() ? "🔒 " : "⚠ ") + seal.message());
-            sealStatusBadge.setStyle("-fx-font-weight: bold; -fx-text-fill: "
-                    + (seal.intact() ? "#15803D;" : "#DC2626;"));
+            sealStatusBadge.setText(seal.message());
+            sealStatusBadge.setGraphic(AppIcons.of(
+                    seal.intact() ? Feather.SHIELD : Feather.ALERT_TRIANGLE,
+                    16,
+                    seal.intact() ? "#10B981" : "#EF4444"));
+            sealStatusBadge.getStyleClass().removeAll("kpi-delta-positive", "kpi-delta-danger");
+            sealStatusBadge.getStyleClass().add(seal.intact() ? "kpi-delta-positive" : "kpi-delta-danger");
             updateLivePreview();
-        }, ex -> {
-        });
+        }, ex -> toastManager.showInfo("Unable to load stock operations data: " + ex.getMessage()));
     }
 
-    /**
-     * Maps a movement mode to its icon glyph.
-     *
-     * @param type movement type
-     * @return icon text
-     */
-    private String iconFor(MovementType type) {
+    private Feather featherFor(MovementType type) {
         return switch (type) {
-            case RESTOCK -> "📥";
-            case SALE -> "🛒";
-            case DAMAGED -> "⚠";
-            case RETURNED -> "↩";
-            case LOST -> "❓";
-            case PHYSICAL_COUNT -> "✔";
-            default -> "⚙";
+            case RESTOCK -> Feather.DOWNLOAD;
+            case SALE -> Feather.SHOPPING_CART;
+            case DAMAGED -> Feather.ALERT_TRIANGLE;
+            case RETURNED -> Feather.CORNER_UP_LEFT;
+            case LOST -> Feather.HELP_CIRCLE;
+            case PHYSICAL_COUNT -> Feather.CHECK_CIRCLE;
+            default -> Feather.SLIDERS;
         };
     }
 }

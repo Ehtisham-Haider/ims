@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 /**
  * Authenticated staff account with role-based permissions.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class User {
     private long id;

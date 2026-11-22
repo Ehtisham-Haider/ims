@@ -19,7 +19,7 @@ import java.util.Optional;
 /**
  * JDBC repository storing and hydrating {@link PurchaseOrder} headers and JSON line items in SQLite.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class PurchaseOrderRepository {
     private static final Type ITEMS_LIST_TYPE = new TypeToken<List<PurchaseOrderItem>>() {}.getType();

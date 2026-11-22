@@ -24,7 +24,7 @@ import java.util.Map;
  * dynamic safety-stock &amp; reorder recommendations, low-stock threshold tuning, days-until-empty countdowns,
  * Z-score/IQR theft &amp; typo anomaly detection, and ABC Pareto velocity grading.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class OfflineMlEngine {
     private static final double EXP_SMOOTHING_ALPHA = 0.35;
@@ -47,7 +47,7 @@ public class OfflineMlEngine {
      * @param tunedLowStockThreshold ML-suggested low-stock alert threshold
      * @param revenue30Days projected 30-day revenue contribution
      * @param abcGrade Pareto classification ({@code "A"}, {@code "B"}, or {@code "C"})
-     * @author Ehtisham Haider, Syed Ahmed
+     * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
      */
     public record ProductForecast(
             Product product,
@@ -71,7 +71,7 @@ public class OfflineMlEngine {
      * @param category anomaly category ({@code QUANTITY_TYPO}, {@code SHRINKAGE_SPIKE})
      * @param description plain-English warning explanation
      * @param zScore computed statistical Z-score
-     * @author Ehtisham Haider, Syed Ahmed
+     * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
      */
     public record AnomalyAlert(
             Product product,

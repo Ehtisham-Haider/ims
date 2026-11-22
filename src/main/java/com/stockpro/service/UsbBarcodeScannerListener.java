@@ -14,14 +14,14 @@ import java.util.function.Consumer;
  * Keyboard-wedge USB barcode scanner listener capturing rapid character bursts ending in {@code Enter}
  * to perform instant item lookup, stock-in restock, or sale deduction.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class UsbBarcodeScannerListener {
 
     /**
      * Defines how a completed hardware barcode scan is handled.
      *
-     * @author Ehtisham Haider, Syed Ahmed
+     * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
      */
     public enum ScanMode {
         /** Locate and highlight product details without modifying quantity. */
@@ -38,7 +38,7 @@ public class UsbBarcodeScannerListener {
      * @param matched {@code true} if a product matched the scanned barcode or SKU
      * @param product matched product, or {@code null}
      * @param message concise result message for toast display
-     * @author Ehtisham Haider, Syed Ahmed
+     * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
      */
     public record ScanOutcome(boolean matched, Product product, String message) {
     }

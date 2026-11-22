@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Central SLF4J logger factory for StockPro modules.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public final class AppLogger {
 

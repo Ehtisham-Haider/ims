@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Verifies real-time SQLite executive dashboard aggregation, status percentages, and expiring alerts.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 class DashboardMetricsTest {
 
@@ -73,5 +73,8 @@ class DashboardMetricsTest {
         assertEquals(102.5, snap.estimatedProfit(), 0.01);
         assertEquals(7, snap.trendPoints().size());
         assertFalse(snap.briefingLines().isEmpty());
+
+        assertEquals(6, metricsService.loadSnapshot(30).trendPoints().size());
+        assertEquals(6, metricsService.loadSnapshot(0).trendPoints().size());
     }
 }

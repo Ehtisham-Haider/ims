@@ -7,6 +7,7 @@ import com.stockpro.service.AppSession;
 import com.stockpro.service.InventoryEventBus;
 import com.stockpro.service.InventoryOperationResult;
 import com.stockpro.service.ServiceContext;
+import com.stockpro.ui.components.AppIcons;
 import com.stockpro.ui.components.ToastNotificationManager;
 import com.stockpro.util.AppExecutor;
 import javafx.geometry.Insets;
@@ -19,19 +20,24 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import org.kordamp.ikonli.feather.Feather;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Human Approval Safety Inbox matching {@code Screens and popups/Approvals.png}, displaying every
- * autonomous Auto-Buyer, Nightly Auditor, and Expiry Rescue recommendation with {@code Approve / Reject} buttons.
+ * autonomous Auto-Buyer, Nightly Auditor, and Expiry Rescue recommendation with Feather icons,
+ * loading guard on scan trigger, and {@code Approve / Reject} buttons.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class ApprovalInboxView {
     private final AgenticOrchestratorService orchestrator;
     private final ToastNotificationManager toastManager;
+    private final Consumer<String> eventListener = topic -> refreshAsync();
 
     private VBox cardsContainer;
     private CheckBox pendingOnlyCheck;
@@ -45,7 +51,14 @@ public class ApprovalInboxView {
     public ApprovalInboxView(ServiceContext services, ToastNotificationManager toastManager) {
         this.orchestrator = services.getAgenticOrchestratorService();
         this.toastManager = toastManager;
-        InventoryEventBus.getInstance().subscribe(t -> refreshAsync());
+        InventoryEventBus.getInstance().subscribe(eventListener);
+    }
+
+    /**
+     * Unsubscribes from {@link InventoryEventBus} when navigating away.
+     */
+    public void dispose() {
+        InventoryEventBus.getInstance().unsubscribe(eventListener);
     }
 
     /**
@@ -74,16 +87,27 @@ public class ApprovalInboxView {
         pendingOnlyCheck.setSelected(true);
         pendingOnlyCheck.setOnAction(e -> refreshAsync());
 
-        Button runAgentsBtn = new Button("🤖 Run All 3 AI Agents");
+        Button runAgentsBtn = new Button("Run All 3 AI Agents");
+        runAgentsBtn.setGraphic(AppIcons.of(Feather.PLAY, 14));
         runAgentsBtn.getStyleClass().add("btn-primary");
-        runAgentsBtn.setOnAction(e -> AppExecutor.runAsync(
-                orchestrator::runAllAgents,
-                created -> {
-                    toastManager.showInfo("Agents finished scan: " + created.size() + " new proposal(s) queued.");
-                    refreshAsync();
-                },
-                ex -> toastManager.showInfo("Agent scan error: " + ex.getMessage())
-        ));
+        runAgentsBtn.setOnAction(e -> {
+            runAgentsBtn.setDisable(true);
+            runAgentsBtn.setText("Scanning store...");
+            AppExecutor.runAsync(
+                    orchestrator::runAllAgents,
+                    created -> {
+                        runAgentsBtn.setDisable(false);
+                        runAgentsBtn.setText("Run All 3 AI Agents");
+                        toastManager.showInfo("Agents finished scan: " + created.size() + " new proposal(s) queued.");
+                        refreshAsync();
+                    },
+                    ex -> {
+                        runAgentsBtn.setDisable(false);
+                        runAgentsBtn.setText("Run All 3 AI Agents");
+                        toastManager.showInfo("Agent scan error: " + ex.getMessage());
+                    }
+            );
+        });
 
         header.getChildren().addAll(titleCol, sp, pendingOnlyCheck, runAgentsBtn);
 
@@ -92,7 +116,6 @@ public class ApprovalInboxView {
 
         ScrollPane scroll = new ScrollPane(cardsContainer);
         scroll.setFitToWidth(true);
-        scroll.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
         VBox.setVgrow(scroll, Priority.ALWAYS);
 
         page.getChildren().addAll(header, scroll);
@@ -107,15 +130,10 @@ public class ApprovalInboxView {
         AppExecutor.runAsync(
                 () -> orchestrator.listProposals(pendingOnly),
                 this::renderCards,
-                ex -> {}
+                ex -> toastManager.showInfo("Failed to load proposals: " + ex.getMessage())
         );
     }
 
-    /**
-     * Renders individual proposal cards matching {@code Approvals.png}.
-     *
-     * @param proposals list of proposals to display
-     */
     private void renderCards(List<AgentProposal> proposals) {
         if (cardsContainer == null) {
             return;
@@ -140,21 +158,15 @@ public class ApprovalInboxView {
         }
     }
 
-    /**
-     * Creates a styled approval card matching {@code Screens and popups/Approvals.png}.
-     *
-     * @param proposal proposal record
-     * @return styled JavaFX card
-     */
     private Node buildProposalCard(AgentProposal proposal) {
         HBox card = new HBox(16);
         card.getStyleClass().add("card");
         card.setAlignment(Pos.CENTER_LEFT);
 
-        Label botIcon = new Label("🤖");
-        botIcon.setMinSize(54, 54);
-        botIcon.setAlignment(Pos.CENTER);
-        botIcon.setStyle("-fx-background-color: #EEF2FF; -fx-background-radius: 999; -fx-font-size: 26px;");
+        StackPane botIcon = new StackPane(AppIcons.of(Feather.CPU, 24, "#4F46E5"));
+        botIcon.setMinSize(52, 52);
+        botIcon.setPrefSize(52, 52);
+        botIcon.setStyle("-fx-background-color: #EEF2FF; -fx-background-radius: 999;");
 
         VBox content = new VBox(6);
         HBox.setHgrow(content, Priority.ALWAYS);
@@ -184,6 +196,7 @@ public class ApprovalInboxView {
 
         if (proposal.getStatus() == ProposalStatus.PENDING) {
             Button approveBtn = new Button("Approve");
+            approveBtn.setGraphic(AppIcons.of(Feather.CHECK, 13));
             approveBtn.getStyleClass().add("btn-success");
             approveBtn.setOnAction(e -> {
                 String actor = AppSession.getInstance().getActorName();
@@ -199,6 +212,7 @@ public class ApprovalInboxView {
             });
 
             Button rejectBtn = new Button("Reject");
+            rejectBtn.setGraphic(AppIcons.of(Feather.X, 13));
             rejectBtn.getStyleClass().add("btn-danger-outline");
             rejectBtn.setOnAction(e -> {
                 String actor = AppSession.getInstance().getActorName();

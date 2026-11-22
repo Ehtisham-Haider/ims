@@ -3,7 +3,7 @@ package com.stockpro.service.command;
 /**
  * Command Pattern contract representing a reversible inventory mutation for Undo/Redo history.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public interface InventoryCommand {
 

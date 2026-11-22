@@ -1,15 +1,18 @@
 package com.stockpro.ui.views;
 
+import com.stockpro.domain.InventoryFilterCriteria;
 import com.stockpro.domain.Product;
 import com.stockpro.domain.StockStatus;
 import com.stockpro.domain.User;
 import com.stockpro.service.AppSession;
 import com.stockpro.service.InventoryOperationResult;
 import com.stockpro.service.ServiceContext;
+import com.stockpro.ui.components.AppIcons;
 import com.stockpro.ui.components.CommandBarPopup;
 import com.stockpro.ui.components.StockProLogo;
 import com.stockpro.ui.components.ToastNotificationManager;
 import com.stockpro.ui.controllers.NavigationSection;
+import com.stockpro.util.AppExecutor;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.geometry.Insets;
@@ -19,6 +22,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -28,8 +32,11 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.util.Duration;
+import org.kordamp.ikonli.feather.Feather;
 
+import java.io.File;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.EnumMap;
@@ -38,10 +45,11 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * Primary desktop shell featuring the collapsible Midnight Navy sidebar, white header bar,
- * Light/Dark theme switch, {@code Ctrl+K} Spotlight Command Bar, toast notifications, and keyboard shortcuts.
+ * Primary desktop shell featuring the collapsible Midnight Navy sidebar with Feather vector icons,
+ * modern white/dark top header bar, Sun/Moon pill toggle, {@code Ctrl+K} Spotlight Command Bar,
+ * urgent alert bell badge, exit button, keyboard shortcuts, and automatic EventBus listener cleanup.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class MainShellView {
     private static final DateTimeFormatter CLOCK_FORMAT = DateTimeFormatter.ofPattern("hh:mm a");
@@ -49,6 +57,7 @@ public class MainShellView {
     private final ServiceContext services;
     private final Runnable onLogout;
     private final Runnable onApplyTheme;
+    private final Runnable onExitApp;
 
     private final Map<NavigationSection, Button> navButtons = new EnumMap<>(NavigationSection.class);
     private final Map<NavigationSection, Supplier<Node>> viewFactories = new EnumMap<>(NavigationSection.class);
@@ -57,14 +66,17 @@ public class MainShellView {
     private StackPane contentViewport;
     private VBox sidebar;
     private Label sidebarTitle;
+    private Label sidebarTagline;
     private VBox profileTextBox;
     private Button collapseBtn;
-    private Button themeToggleBtn;
+    private Button lightModePillBtn;
+    private Button darkModePillBtn;
     private Button bellButton;
     private Label clockLabel;
 
     private ToastNotificationManager toastManager;
     private CommandBarPopup commandBarPopup;
+    private Timeline clockTimeline;
     private NavigationSection currentSection = NavigationSection.DASHBOARD;
     private boolean sidebarCollapsed = false;
 
@@ -72,6 +84,8 @@ public class MainShellView {
     private Runnable activeSearchShortcutHandler;
     private Runnable activeDeleteShortcutHandler;
     private Runnable activeExportPdfHandler;
+    private Runnable activeViewDispose;
+    private Runnable activeViewThemeRefresh;
 
     /**
      * Constructs the main shell view around shared application services.
@@ -81,67 +95,98 @@ public class MainShellView {
      * @param onApplyTheme callback invoked when Light/Dark theme is toggled
      */
     public MainShellView(ServiceContext services, Runnable onLogout, Runnable onApplyTheme) {
-        this.services = services;
-        this.onLogout = onLogout;
-        this.onApplyTheme = onApplyTheme;
-        registerDefaultPlaceholders();
+        this(services, onLogout, onApplyTheme, () -> {});
     }
 
     /**
-     * Registers default placeholder panels for upcoming feature branches until replaced by full views.
+     * Constructs the main shell view around shared application services including window exit support.
+     *
+     * @param services initialized service registry
+     * @param onLogout callback triggered when the user logs out
+     * @param onApplyTheme callback invoked when Light/Dark theme is toggled
+     * @param onExitApp callback invoked when the user clicks Exit App
      */
-    private void registerDefaultPlaceholders() {
-        for (NavigationSection section : NavigationSection.values()) {
-            viewFactories.put(section, () -> createSectionPlaceholder(section));
-        }
+    public MainShellView(ServiceContext services, Runnable onLogout, Runnable onApplyTheme, Runnable onExitApp) {
+        this.services = services;
+        this.onLogout = onLogout;
+        this.onApplyTheme = onApplyTheme;
+        this.onExitApp = onExitApp != null ? onExitApp : () -> {};
+        registerDefaultViews();
+    }
+
+    /**
+     * Registers view factories wired with dispose hooks, theme repaint callbacks, and cross-screen navigation.
+     */
+    private void registerDefaultViews() {
         viewFactories.put(NavigationSection.DASHBOARD, () -> {
-            setActiveAddShortcutHandler(null);
-            setActiveSearchShortcutHandler(null);
-            setActiveDeleteShortcutHandler(null);
-            return new DashboardView(services, this::navigateTo).build();
+            clearShortcutHooks();
+            DashboardView dash = new DashboardView(
+                    services,
+                    this::navigateTo,
+                    this::navigateToInventoryWithProduct,
+                    this::navigateToInventoryWithFilter,
+                    () -> navigateToSettingsTab(1)
+            );
+            activeViewDispose = dash::dispose;
+            activeViewThemeRefresh = dash::onThemeChanged;
+            return dash.build();
         });
         viewFactories.put(NavigationSection.INVENTORY, () -> {
             InventoryView inv = new InventoryView(services, toastManager, this::refreshAlertBadge);
             setActiveAddShortcutHandler(inv::openAddProductDialog);
             setActiveSearchShortcutHandler(inv::focusSearch);
             setActiveDeleteShortcutHandler(inv::deleteSelectedRow);
+            activeViewDispose = inv::dispose;
+            activeViewThemeRefresh = inv::onThemeChanged;
             return inv.build();
         });
         viewFactories.put(NavigationSection.STOCK_OPERATIONS, () -> {
-            setActiveAddShortcutHandler(null);
-            setActiveSearchShortcutHandler(null);
-            setActiveDeleteShortcutHandler(null);
-            return new StockOperationsView(services, toastManager).build();
+            clearShortcutHooks();
+            StockOperationsView stockView = new StockOperationsView(services, toastManager);
+            activeViewDispose = stockView::dispose;
+            return stockView.build();
         });
         viewFactories.put(NavigationSection.SUPPLIERS_ORDERS, () -> {
-            setActiveAddShortcutHandler(null);
-            setActiveSearchShortcutHandler(null);
-            setActiveDeleteShortcutHandler(null);
-            return new SuppliersOrdersView(services, toastManager).build();
+            clearShortcutHooks();
+            SuppliersOrdersView supView = new SuppliersOrdersView(services, toastManager);
+            activeViewDispose = supView::dispose;
+            return supView.build();
         });
         viewFactories.put(NavigationSection.ANALYTICS_REPORTS, () -> {
-            setActiveAddShortcutHandler(null);
-            setActiveSearchShortcutHandler(null);
-            setActiveDeleteShortcutHandler(null);
+            clearShortcutHooks();
             AnalyticsReportsView view = new AnalyticsReportsView(services, toastManager, this::navigateTo);
             setActiveExportPdfHandler(view::exportExecutiveReportPdf);
+            activeViewDispose = view::dispose;
+            activeViewThemeRefresh = view::onThemeChanged;
             return view.build();
         });
         viewFactories.put(NavigationSection.AI_ASSISTANT, () -> {
-            setActiveAddShortcutHandler(null);
-            setActiveSearchShortcutHandler(null);
-            setActiveDeleteShortcutHandler(null);
-            return new AiAssistantView(services, toastManager).build();
+            clearShortcutHooks();
+            AiAssistantView aiView = new AiAssistantView(
+                    services,
+                    toastManager,
+                    () -> navigateToSettingsTab(1),
+                    this::navigateToInventoryWithFilter
+            );
+            activeViewDispose = aiView::dispose;
+            activeViewThemeRefresh = aiView::onThemeChanged;
+            return aiView.build();
         });
         viewFactories.put(NavigationSection.SETTINGS, () -> {
-            setActiveAddShortcutHandler(null);
-            setActiveSearchShortcutHandler(null);
-            setActiveDeleteShortcutHandler(null);
-            return new SettingsView(services, toastManager, () -> {
-                updateThemeToggleLabel();
+            clearShortcutHooks();
+            SettingsView settingsView = new SettingsView(services, toastManager, () -> {
+                updateThemeTogglePills();
                 onApplyTheme.run();
-            }).build();
+            });
+            return settingsView.build();
         });
+    }
+
+    private void clearShortcutHooks() {
+        setActiveAddShortcutHandler(null);
+        setActiveSearchShortcutHandler(null);
+        setActiveDeleteShortcutHandler(null);
+        setActiveExportPdfHandler(null);
     }
 
     /**
@@ -173,7 +218,7 @@ public class MainShellView {
         rightColumn.setFillWidth(true);
         HBox topBar = buildTopBar();
         contentViewport = new StackPane();
-        contentViewport.setPadding(new Insets(22, 26, 22, 26));
+        contentViewport.setPadding(new Insets(18, 24, 18, 24));
         VBox.setVgrow(contentViewport, Priority.ALWAYS);
 
         rightColumn.getChildren().addAll(topBar, contentViewport);
@@ -188,7 +233,7 @@ public class MainShellView {
                 this::navigateTo,
                 this::toggleTheme,
                 this::triggerExportPdf,
-                this::inspectProductFromSearch,
+                this::navigateToInventoryWithProduct,
                 toastManager
         );
 
@@ -216,7 +261,9 @@ public class MainShellView {
                 activeAddShortcutHandler.run();
             } else {
                 navigateTo(NavigationSection.INVENTORY);
-                toastManager.showInfo("Shortcut Ctrl+N: Switched to Inventory to add a product.");
+                if (activeAddShortcutHandler != null) {
+                    activeAddShortcutHandler.run();
+                }
             }
         });
         scene.getAccelerators().put(new KeyCodeCombination(KeyCode.F, KeyCombination.CONTROL_DOWN), () -> {
@@ -242,37 +289,46 @@ public class MainShellView {
     }
 
     /**
-     * Builds the Deep Midnight Navy collapsible sidebar matching the reference design.
+     * Builds the Deep Midnight Navy collapsible sidebar matching the reference mockups.
      *
      * @return configured sidebar {@link VBox}
      */
     private VBox buildSidebar() {
-        VBox box = new VBox(8);
+        VBox box = new VBox(6);
         box.getStyleClass().add("sidebar");
-        box.setPrefWidth(240);
+        box.setPrefWidth(232);
         box.setMinWidth(74);
 
         HBox brandRow = new HBox(10);
         brandRow.setAlignment(Pos.CENTER_LEFT);
-        brandRow.setPadding(new Insets(4, 4, 18, 4));
+        brandRow.setPadding(new Insets(2, 4, 14, 4));
 
+        VBox brandTexts = new VBox(1);
         sidebarTitle = new Label("StockPro");
         sidebarTitle.getStyleClass().add("sidebar-brand-title");
+        sidebarTagline = new Label("Smart Inventory");
+        sidebarTagline.getStyleClass().add("sidebar-brand-sub");
+        brandTexts.getChildren().addAll(sidebarTitle, sidebarTagline);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        collapseBtn = new Button("☰");
-        collapseBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #94A3B8; -fx-cursor: hand; -fx-font-size: 15px;");
+        collapseBtn = new Button();
+        collapseBtn.setGraphic(AppIcons.of(Feather.MENU, 16, "#94A3B8"));
+        collapseBtn.setTooltip(new Tooltip("Collapse / Expand Sidebar"));
+        collapseBtn.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-padding: 5;");
         collapseBtn.setOnAction(e -> toggleSidebarCollapse());
 
-        brandRow.getChildren().addAll(StockProLogo.create(28), sidebarTitle, spacer, collapseBtn);
+        brandRow.getChildren().addAll(StockProLogo.create(30), brandTexts, spacer, collapseBtn);
         box.getChildren().add(brandRow);
 
         for (NavigationSection section : NavigationSection.values()) {
-            Button btn = new Button(iconFor(section) + "  " + section.getLabel());
+            Button btn = new Button(section.getLabel());
+            btn.setGraphic(AppIcons.of(featherFor(section), 16));
+            btn.setGraphicTextGap(12);
             btn.getStyleClass().add("nav-button");
             btn.setMaxWidth(Double.MAX_VALUE);
+            btn.setTooltip(new Tooltip(section.getLabel()));
             btn.setOnAction(e -> navigateTo(section));
             navButtons.put(section, btn);
             box.getChildren().add(btn);
@@ -289,7 +345,7 @@ public class MainShellView {
 
         HBox userRow = new HBox(10);
         userRow.setAlignment(Pos.CENTER_LEFT);
-        userRow.setPadding(new Insets(10, 6, 8, 6));
+        userRow.setPadding(new Insets(10, 6, 6, 6));
 
         Label avatar = new Label(initials);
         avatar.setMinSize(34, 34);
@@ -298,16 +354,19 @@ public class MainShellView {
 
         profileTextBox = new VBox(1);
         Label nameLbl = new Label(fullName);
-        nameLbl.setStyle("-fx-text-fill: #FFFFFF; -fx-font-weight: bold; -fx-font-size: 13px;");
+        nameLbl.getStyleClass().add("sidebar-profile-name");
         Label roleLbl = new Label(role);
-        roleLbl.setStyle("-fx-text-fill: #94A3B8; -fx-font-size: 11px;");
+        roleLbl.getStyleClass().add("sidebar-profile-role");
         profileTextBox.getChildren().addAll(nameLbl, roleLbl);
         userRow.getChildren().addAll(avatar, profileTextBox);
 
-        Button logoutBtn = new Button("↪  Logout");
+        Button logoutBtn = new Button("Logout");
+        logoutBtn.setGraphic(AppIcons.of(Feather.LOG_OUT, 15));
+        logoutBtn.setGraphicTextGap(12);
         logoutBtn.getStyleClass().add("nav-button");
         logoutBtn.setMaxWidth(Double.MAX_VALUE);
         logoutBtn.setOnAction(e -> {
+            cleanupBeforeLeave();
             services.getAuthService().logout();
             onLogout.run();
         });
@@ -317,16 +376,19 @@ public class MainShellView {
     }
 
     /**
-     * Builds the white top header bar containing Spotlight search trigger, notification bell, theme switch, and clock.
+     * Builds the modern top header bar containing Spotlight search, alerts bell, Sun/Moon pill switch,
+     * live clock badge, and quick Exit App action.
      *
      * @return configured header {@link HBox}
      */
     private HBox buildTopBar() {
-        HBox bar = new HBox(14);
+        HBox bar = new HBox(12);
         bar.getStyleClass().add("topbar");
         bar.setAlignment(Pos.CENTER_LEFT);
 
-        Button searchTrigger = new Button("🔍  Search anything...          Ctrl+K");
+        Button searchTrigger = new Button("Search products, reports, or press Ctrl+K...");
+        searchTrigger.setGraphic(AppIcons.of(Feather.SEARCH, 15));
+        searchTrigger.setGraphicTextGap(10);
         searchTrigger.getStyleClass().add("search-box");
         searchTrigger.setPrefWidth(360);
         searchTrigger.setAlignment(Pos.CENTER_LEFT);
@@ -336,27 +398,51 @@ public class MainShellView {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        bellButton = new Button("🔔 0");
+        clockLabel = new Label("Live • " + LocalTime.now().format(CLOCK_FORMAT));
+        clockLabel.getStyleClass().add("clock-pill");
+
+        bellButton = new Button("0");
+        bellButton.setGraphic(AppIcons.of(Feather.BELL, 15));
+        bellButton.setGraphicTextGap(6);
         bellButton.getStyleClass().add("btn-secondary");
+        bellButton.setTooltip(new Tooltip("View urgent Low/Out-of-Stock alerts"));
         bellButton.setOnAction(e -> {
             List<Product> urgent = getUrgentProducts();
-            toastManager.showAlertsBannerList(urgent, this::inspectProductFromSearch);
+            toastManager.showAlertsBannerList(urgent, this::navigateToInventoryWithProduct);
         });
 
-        themeToggleBtn = new Button();
-        themeToggleBtn.getStyleClass().add("btn-secondary");
-        updateThemeToggleLabel();
-        themeToggleBtn.setOnAction(e -> toggleTheme());
+        lightModePillBtn = new Button();
+        lightModePillBtn.setGraphic(AppIcons.of(Feather.SUN, 14));
+        lightModePillBtn.getStyleClass().add("theme-switch-btn");
+        lightModePillBtn.setTooltip(new Tooltip("Light Mode"));
+        lightModePillBtn.setOnAction(e -> setDarkTheme(false));
 
-        clockLabel = new Label("● Live • " + LocalTime.now().format(CLOCK_FORMAT));
-        clockLabel.setStyle("-fx-background-color: #EEF2FF; -fx-text-fill: #4F46E5; -fx-font-weight: bold; -fx-padding: 6 12 6 12; -fx-background-radius: 999;");
+        darkModePillBtn = new Button();
+        darkModePillBtn.setGraphic(AppIcons.of(Feather.MOON, 14));
+        darkModePillBtn.getStyleClass().add("theme-switch-btn");
+        darkModePillBtn.setTooltip(new Tooltip("Dark Mode"));
+        darkModePillBtn.setOnAction(e -> setDarkTheme(true));
 
-        bar.getChildren().addAll(searchTrigger, spacer, bellButton, themeToggleBtn, clockLabel);
+        HBox themePill = new HBox(2, lightModePillBtn, darkModePillBtn);
+        themePill.getStyleClass().add("theme-switch-pill");
+        themePill.setAlignment(Pos.CENTER);
+        updateThemeTogglePills();
+
+        Button exitBtn = new Button();
+        exitBtn.setGraphic(AppIcons.of(Feather.POWER, 15));
+        exitBtn.getStyleClass().add("icon-btn-danger");
+        exitBtn.setTooltip(new Tooltip("Close StockPro Application"));
+        exitBtn.setOnAction(e -> {
+            cleanupBeforeLeave();
+            onExitApp.run();
+        });
+
+        bar.getChildren().addAll(searchTrigger, spacer, clockLabel, bellButton, themePill, exitBtn);
         return bar;
     }
 
     /**
-     * Switches the active center screen to the specified navigation section.
+     * Switches the active center screen cleanly while disposing previous view EventBus listeners.
      *
      * @param section destination view section
      */
@@ -364,6 +450,7 @@ public class MainShellView {
         if (section == null) {
             return;
         }
+        disposeActiveView();
         currentSection = section;
         navButtons.forEach((sec, btn) -> {
             btn.getStyleClass().remove("nav-button-active");
@@ -379,36 +466,146 @@ public class MainShellView {
     }
 
     /**
+     * Opens the Inventory screen and immediately opens the Details Drawer for the given product.
+     *
+     * @param product product to inspect
+     */
+    public void navigateToInventoryWithProduct(Product product) {
+        disposeActiveView();
+        currentSection = NavigationSection.INVENTORY;
+        updateActiveNavButton(NavigationSection.INVENTORY);
+
+        InventoryView inv = new InventoryView(services, toastManager, this::refreshAlertBadge);
+        setActiveAddShortcutHandler(inv::openAddProductDialog);
+        setActiveSearchShortcutHandler(inv::focusSearch);
+        setActiveDeleteShortcutHandler(inv::deleteSelectedRow);
+        activeViewDispose = inv::dispose;
+        activeViewThemeRefresh = inv::onThemeChanged;
+
+        contentViewport.getChildren().setAll(inv.build());
+        if (product != null) {
+            inv.selectAndInspectProduct(product);
+        }
+        refreshAlertBadge();
+    }
+
+    /**
+     * Opens the Inventory screen pre-filtered with structured criteria (e.g. from Smart Search or Urgent Alerts).
+     *
+     * @param filterCriteria initial catalog criteria to apply
+     */
+    public void navigateToInventoryWithFilter(InventoryFilterCriteria filterCriteria) {
+        disposeActiveView();
+        currentSection = NavigationSection.INVENTORY;
+        updateActiveNavButton(NavigationSection.INVENTORY);
+
+        InventoryView inv = new InventoryView(services, toastManager, this::refreshAlertBadge);
+        setActiveAddShortcutHandler(inv::openAddProductDialog);
+        setActiveSearchShortcutHandler(inv::focusSearch);
+        setActiveDeleteShortcutHandler(inv::deleteSelectedRow);
+        activeViewDispose = inv::dispose;
+        activeViewThemeRefresh = inv::onThemeChanged;
+
+        contentViewport.getChildren().setAll(inv.build());
+        if (filterCriteria != null) {
+            inv.applyExternalCriteria(filterCriteria);
+        }
+        refreshAlertBadge();
+    }
+
+    /**
+     * Opens Settings directly on a specific tab index (e.g. index {@code 1} for AI &amp; Groq API).
+     *
+     * @param tabIndex zero-based tab index
+     */
+    public void navigateToSettingsTab(int tabIndex) {
+        disposeActiveView();
+        currentSection = NavigationSection.SETTINGS;
+        updateActiveNavButton(NavigationSection.SETTINGS);
+        clearShortcutHooks();
+        SettingsView settingsView = new SettingsView(services, toastManager, () -> {
+            updateThemeTogglePills();
+            onApplyTheme.run();
+        }, tabIndex);
+        contentViewport.getChildren().setAll(settingsView.build());
+        refreshAlertBadge();
+    }
+
+    private void updateActiveNavButton(NavigationSection target) {
+        navButtons.forEach((sec, btn) -> {
+            btn.getStyleClass().remove("nav-button-active");
+            if (sec == target) {
+                btn.getStyleClass().add("nav-button-active");
+            }
+        });
+    }
+
+    private void disposeActiveView() {
+        if (activeViewDispose != null) {
+            try {
+                activeViewDispose.run();
+            } catch (Exception ignored) {
+            }
+            activeViewDispose = null;
+        }
+        activeViewThemeRefresh = null;
+    }
+
+    private void cleanupBeforeLeave() {
+        disposeActiveView();
+        if (clockTimeline != null) {
+            clockTimeline.stop();
+        }
+    }
+
+    /**
      * Toggles between collapsed (icon-only) and expanded sidebar widths.
      */
     private void toggleSidebarCollapse() {
         sidebarCollapsed = !sidebarCollapsed;
-        sidebar.setPrefWidth(sidebarCollapsed ? 74 : 240);
+        sidebar.setPrefWidth(sidebarCollapsed ? 74 : 232);
         sidebarTitle.setVisible(!sidebarCollapsed);
         sidebarTitle.setManaged(!sidebarCollapsed);
+        sidebarTagline.setVisible(!sidebarCollapsed);
+        sidebarTagline.setManaged(!sidebarCollapsed);
         profileTextBox.setVisible(!sidebarCollapsed);
         profileTextBox.setManaged(!sidebarCollapsed);
-        navButtons.forEach((sec, btn) -> btn.setText(sidebarCollapsed ? iconFor(sec) : iconFor(sec) + "  " + sec.getLabel()));
+        navButtons.forEach((sec, btn) -> btn.setText(sidebarCollapsed ? "" : sec.getLabel()));
     }
 
     /**
      * Switches runtime Light/Dark theme immediately and persists preference in SQLite.
      */
     public void toggleTheme() {
-        boolean nextDark = !AppSession.getInstance().isDarkMode();
+        setDarkTheme(!AppSession.getInstance().isDarkMode());
+    }
+
+    private void setDarkTheme(boolean nextDark) {
         AppSession.getInstance().setDarkMode(nextDark);
         services.getSettingsRepository().set("ui.theme", nextDark ? "dark" : "light");
-        updateThemeToggleLabel();
+        updateThemeTogglePills();
         onApplyTheme.run();
+        if (activeViewThemeRefresh != null) {
+            activeViewThemeRefresh.run();
+        }
         toastManager.showInfo("Switched to " + (nextDark ? "Dark" : "Light") + " Mode.");
     }
 
     /**
-     * Updates the theme switch button icon/label to reflect current state.
+     * Updates Sun/Moon pill toggle styling to match active theme.
      */
-    private void updateThemeToggleLabel() {
+    private void updateThemeTogglePills() {
+        if (lightModePillBtn == null || darkModePillBtn == null) {
+            return;
+        }
         boolean dark = AppSession.getInstance().isDarkMode();
-        themeToggleBtn.setText(dark ? "☀ Light" : "🌙 Dark");
+        lightModePillBtn.getStyleClass().remove("theme-switch-btn-active");
+        darkModePillBtn.getStyleClass().remove("theme-switch-btn-active");
+        if (dark) {
+            darkModePillBtn.getStyleClass().add("theme-switch-btn-active");
+        } else {
+            lightModePillBtn.getStyleClass().add("theme-switch-btn-active");
+        }
     }
 
     /**
@@ -430,14 +627,17 @@ public class MainShellView {
     }
 
     /**
-     * Updates the header notification bell count with low-stock and out-of-stock items.
+     * Updates the header notification bell badge count asynchronously.
      */
     public void refreshAlertBadge() {
         if (bellButton == null) {
             return;
         }
-        int urgentCount = getUrgentProducts().size();
-        bellButton.setText("🔔 " + urgentCount);
+        AppExecutor.runAsync(
+                () -> getUrgentProducts().size(),
+                urgentCount -> bellButton.setText(String.valueOf(urgentCount)),
+                ex -> {}
+        );
     }
 
     /**
@@ -452,70 +652,50 @@ public class MainShellView {
     }
 
     /**
-     * Handles product selection from Spotlight search or alert popup.
-     *
-     * @param product chosen product
-     */
-    private void inspectProductFromSearch(Product product) {
-        navigateTo(NavigationSection.INVENTORY);
-        toastManager.showInfo("Selected " + product.getName() + " (" + product.getSku() + ")");
-    }
-
-    /**
-     * Runs PDF report export handler or navigates to Analytics & Reports.
+     * Runs PDF report export from ANY screen (or delegates to active Analytics handler).
      */
     private void triggerExportPdf() {
         if (activeExportPdfHandler != null) {
             activeExportPdfHandler.run();
-        } else {
-            navigateTo(NavigationSection.ANALYTICS_REPORTS);
-            toastManager.showInfo("Opened Analytics & Reports.");
+            return;
         }
+        FileChooser chooser = new FileChooser();
+        chooser.setInitialFileName("StockPro-Business-Report.pdf");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF Documents", "*.pdf"));
+        File out = chooser.showSaveDialog(rootOverlayHost != null && rootOverlayHost.getScene() != null
+                ? rootOverlayHost.getScene().getWindow() : null);
+        if (out == null) {
+            return;
+        }
+        AppExecutor.runAsync(
+                () -> services.getExecutivePdfReportGenerator().generateBusinessReport("Last 30 Days", out.toPath()),
+                path -> toastManager.showInfo("Exported Business Report PDF: " + path.getFileName()),
+                ex -> toastManager.showInfo("Report PDF failed: " + ex.getMessage())
+        );
     }
 
     /**
      * Starts a lightweight UI clock ticker updating the header time pill every 30 seconds.
      */
     private void startClockTicker() {
-        Timeline ticker = new Timeline(new KeyFrame(Duration.seconds(30),
-                e -> clockLabel.setText("● Live • " + LocalTime.now().format(CLOCK_FORMAT))));
-        ticker.setCycleCount(Timeline.INDEFINITE);
-        ticker.play();
+        if (clockTimeline != null) {
+            clockTimeline.stop();
+        }
+        clockTimeline = new Timeline(new KeyFrame(Duration.seconds(30),
+                e -> clockLabel.setText("Live • " + LocalTime.now().format(CLOCK_FORMAT))));
+        clockTimeline.setCycleCount(Timeline.INDEFINITE);
+        clockTimeline.play();
     }
 
-    /**
-     * Builds a clean themed view placeholder card for a navigation section.
-     *
-     * @param section navigation section
-     * @return placeholder {@link Node}
-     */
-    private Node createSectionPlaceholder(NavigationSection section) {
-        VBox box = new VBox(12);
-        box.getStyleClass().add("card");
-        Label title = new Label(section.getLabel());
-        title.getStyleClass().add("page-title");
-        Label subtitle = new Label(services.getInventoryService().viewInventorySummaryMessage()
-                + " • Signed in as " + AppSession.getInstance().getActorName());
-        subtitle.getStyleClass().add("page-subtitle");
-        box.getChildren().addAll(title, subtitle);
-        return box;
-    }
-
-    /**
-     * Returns an icon glyph for each sidebar section.
-     *
-     * @param section target section
-     * @return compact symbol icon
-     */
-    private String iconFor(NavigationSection section) {
+    private Feather featherFor(NavigationSection section) {
         return switch (section) {
-            case DASHBOARD -> "🏠";
-            case INVENTORY -> "📦";
-            case STOCK_OPERATIONS -> "🛒";
-            case SUPPLIERS_ORDERS -> "🚚";
-            case ANALYTICS_REPORTS -> "📊";
-            case AI_ASSISTANT -> "✨";
-            case SETTINGS -> "⚙";
+            case DASHBOARD -> Feather.HOME;
+            case INVENTORY -> Feather.PACKAGE;
+            case STOCK_OPERATIONS -> Feather.SHOPPING_CART;
+            case SUPPLIERS_ORDERS -> Feather.TRUCK;
+            case ANALYTICS_REPORTS -> Feather.BAR_CHART_2;
+            case AI_ASSISTANT -> Feather.CPU;
+            case SETTINGS -> Feather.SETTINGS;
         };
     }
 

@@ -7,7 +7,7 @@ import java.util.function.Consumer;
 /**
  * Lightweight Observer bus notifying UI controllers and search indices whenever inventory data changes.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public final class InventoryEventBus {
     private static final InventoryEventBus INSTANCE = new InventoryEventBus();

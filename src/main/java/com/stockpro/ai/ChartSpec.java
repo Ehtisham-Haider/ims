@@ -8,7 +8,7 @@ import java.util.List;
  * @param chartType chart style ({@code "BAR"}, {@code "LINE"}, or {@code "PIE"})
  * @param title chart display title
  * @param points labeled numeric data points
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public record ChartSpec(String chartType, String title, List<ChartPoint> points) {
 
@@ -17,7 +17,7 @@ public record ChartSpec(String chartType, String title, List<ChartPoint> points)
      *
      * @param label category, product, or day label
      * @param value numeric metric value
-     * @author Ehtisham Haider, Syed Ahmed
+     * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
      */
     public record ChartPoint(String label, double value) {
     }

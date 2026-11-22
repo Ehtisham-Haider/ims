@@ -15,7 +15,7 @@ import java.util.List;
 /**
  * JDBC repository persisting and querying immutable {@link StockMovement} ledger rows in SQLite.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class StockMovementRepository {
     private final DatabaseManager dbManager;

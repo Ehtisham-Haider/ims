@@ -6,7 +6,7 @@ import com.stockpro.repository.ProductRepository;
 /**
  * Reversible command that deletes a product and restores its snapshot on Undo.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class DeleteProductCommand implements InventoryCommand {
     private final ProductRepository repository;

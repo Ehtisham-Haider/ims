@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Automated verification of all 8 mandatory lab test cases (30B.docx), SKU auto-generation,
  * manual status overrides, and Command Pattern Undo/Redo stacks.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 class InventoryCrudOelTest {
 

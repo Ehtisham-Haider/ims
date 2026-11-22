@@ -2,6 +2,7 @@ package com.stockpro.ui.views;
 
 import com.stockpro.domain.Product;
 import com.stockpro.service.BarcodeLabelService;
+import com.stockpro.ui.components.AppIcons;
 import com.stockpro.ui.components.ToastNotificationManager;
 import com.stockpro.util.AppExecutor;
 import javafx.geometry.Insets;
@@ -18,6 +19,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import org.kordamp.ikonli.feather.Feather;
 
 import java.io.File;
 import java.util.List;
@@ -26,7 +28,7 @@ import java.util.List;
  * Barcode &amp; QR Sticker Preview dialog matching {@code Screens and popups/QR.png}
  * with live ZXing preview, native printing, and PDF sticker export.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class BarcodeLabelDialog {
     private final BarcodeLabelService labelService;
@@ -92,6 +94,7 @@ public class BarcodeLabelDialog {
         printableCard.getChildren().addAll(nameLbl, graphicsRow);
 
         Button printBtn = new Button("Print");
+        printBtn.setGraphic(AppIcons.of(Feather.PRINTER, 14));
         printBtn.getStyleClass().add("btn-secondary");
         printBtn.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(printBtn, Priority.ALWAYS);
@@ -108,6 +111,7 @@ public class BarcodeLabelDialog {
         });
 
         Button downloadBtn = new Button("Download PDF");
+        downloadBtn.setGraphic(AppIcons.of(Feather.DOWNLOAD, 14));
         downloadBtn.getStyleClass().add("btn-primary");
         downloadBtn.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(downloadBtn, Priority.ALWAYS);

@@ -12,7 +12,7 @@ import java.util.Map;
 /**
  * Compressed Radix Trie supporting O(L) prefix-based live autocomplete across product names, tokens, and SKUs.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class ProductTrie {
 

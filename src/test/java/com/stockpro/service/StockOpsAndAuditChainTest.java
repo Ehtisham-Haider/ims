@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Verifies all 6 stock operations, mandatory reason checks, damaged quarantine,
  * FEFO expiry sorting, and SHA-256 tamper detection.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 class StockOpsAndAuditChainTest {
 
@@ -63,12 +63,12 @@ class StockOpsAndAuditChainTest {
 
         // Mandatory reason enforcement
         InventoryOperationResult<StockMovement> missingReason = stockService.recordOperation(
-                item.getId(), MovementType.RESTOCK, "10", "   ", "", "Syed Ahmed");
+                item.getId(), MovementType.RESTOCK, "10", "   ", "", "Syed Ehtisham Haider Bukhari");
         assertFalse(missingReason.isSuccess());
 
         // Restock +20 -> 70
         assertTrue(stockService.recordOperation(
-                item.getId(), MovementType.RESTOCK, "20", "Supplier delivery", "", "Syed Ahmed").isSuccess());
+                item.getId(), MovementType.RESTOCK, "20", "Supplier delivery", "", "Syed Ehtisham Haider Bukhari").isSuccess());
         assertEquals(70, inventoryService.findById(item.getId()).orElseThrow().getQuantity());
 
         // Sale -15 -> 55
@@ -78,7 +78,7 @@ class StockOpsAndAuditChainTest {
 
         // Damaged 5 -> sellable 50, quarantined damaged 5
         assertTrue(stockService.recordOperation(
-                item.getId(), MovementType.DAMAGED, "5", "Torn bag", "", "Syed Ahmed").isSuccess());
+                item.getId(), MovementType.DAMAGED, "5", "Torn bag", "", "Syed Ehtisham Haider Bukhari").isSuccess());
         Product afterDmg = inventoryService.findById(item.getId()).orElseThrow();
         assertEquals(50, afterDmg.getQuantity());
         assertEquals(5, afterDmg.getDamagedQty());
@@ -91,12 +91,12 @@ class StockOpsAndAuditChainTest {
 
         // Lost -2 -> 50
         assertTrue(stockService.recordOperation(
-                item.getId(), MovementType.LOST, "2", "Shrinkage", "", "Syed Ahmed").isSuccess());
+                item.getId(), MovementType.LOST, "2", "Shrinkage", "", "Syed Ehtisham Haider Bukhari").isSuccess());
         assertEquals(50, inventoryService.findById(item.getId()).orElseThrow().getQuantity());
 
         // Physical Count 8 -> delta -42 -> Low Stock
         assertTrue(stockService.recordOperation(
-                item.getId(), MovementType.PHYSICAL_COUNT, "8", "Shelf audit", "", "Syed Ahmed").isSuccess());
+                item.getId(), MovementType.PHYSICAL_COUNT, "8", "Shelf audit", "", "Syed Ehtisham Haider Bukhari").isSuccess());
         Product counted = inventoryService.findById(item.getId()).orElseThrow();
         assertEquals(8, counted.getQuantity());
         assertEquals(StockStatus.LOW_STOCK, counted.getStatus());
@@ -120,7 +120,7 @@ class StockOpsAndAuditChainTest {
         assertEquals("Fresh Milk", fefo.get(0).getName());
 
         stockService.recordOperation(savedUrgent.getId(), MovementType.SALE, "2", "Morning sale", "", "Sara");
-        stockService.recordOperation(savedUrgent.getId(), MovementType.RESTOCK, "5", "Midday restock", "", "Ahmed");
+        stockService.recordOperation(savedUrgent.getId(), MovementType.RESTOCK, "5", "Midday restock", "", "Faheen Ahmad Khan");
         assertTrue(auditService.verifyIntegrity().intact());
 
         // Simulate direct unauthorized tampering of audit_logs row #1

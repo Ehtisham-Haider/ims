@@ -3,7 +3,10 @@ package com.stockpro.ui.views;
 import com.stockpro.domain.Product;
 import com.stockpro.domain.StockStatus;
 import com.stockpro.domain.ValidationResult;
+import com.stockpro.service.ProductImageService;
 import com.stockpro.service.ProductValidator;
+import com.stockpro.ui.components.AppIcons;
+import com.stockpro.util.AppExecutor;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -12,6 +15,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -25,6 +29,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import org.kordamp.ikonli.feather.Feather;
 
 import java.io.File;
 import java.util.Map;
@@ -32,9 +37,10 @@ import java.util.Optional;
 
 /**
  * Add/Edit Product dialog matching {@code Screens and popups/Add Product.png} with live red inline
- * field validation, photo picker, category/tag entry, shelf location, expiry date, substitute SKU, and archive toggle.
+ * field validation, photo picker, category/tag entry, shelf location, expiry date, substitute SKU,
+ * archive toggle, and compact scrolling fit on 1280×752 laptop screens.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class ProductFormDialog {
     private Product result;
@@ -55,6 +61,23 @@ public class ProductFormDialog {
      * @return {@link Optional} containing the validated {@link Product} on Save, or empty on Cancel
      */
     public Optional<Product> showAndWait(Window owner, Product existing, boolean darkMode) {
+        return showAndWait(owner, existing, darkMode, null);
+    }
+
+    /**
+     * Opens the modal Add/Edit product dialog with optional Pexels photo search fallback.
+     *
+     * @param owner parent window
+     * @param existing optional product being edited, or {@code null} when adding a new product
+     * @param darkMode whether dark CSS should be applied
+     * @param imageService optional image resolver supporting Pexels search fallback
+     * @return {@link Optional} containing the validated {@link Product} on Save, or empty on Cancel
+     */
+    public Optional<Product> showAndWait(
+            Window owner,
+            Product existing,
+            boolean darkMode,
+            ProductImageService imageService) {
         this.result = null;
         this.selectedPhotoPath = existing != null ? existing.getPhotoPath() : null;
 
@@ -65,40 +88,51 @@ public class ProductFormDialog {
         }
         dialog.setTitle(existing == null ? "Add New Product" : "Edit Product — " + existing.getSku());
 
-        VBox root = new VBox(18);
+        VBox root = new VBox(14);
         root.getStyleClass().add("card");
-        root.setPadding(new Insets(24));
+        root.setPadding(new Insets(20));
 
         Label title = new Label(existing == null ? "Add New Product" : "Edit Product");
         title.getStyleClass().add("page-title");
 
-        HBox body = new HBox(22);
+        HBox body = new HBox(20);
         body.setAlignment(Pos.TOP_LEFT);
 
         // Left Photo Card
-        VBox photoBox = new VBox(10);
+        VBox photoBox = new VBox(8);
         photoBox.setAlignment(Pos.CENTER);
-        photoBox.setPrefWidth(170);
+        photoBox.setPrefWidth(164);
 
         StackPane photoFrame = new StackPane();
-        photoFrame.setMinSize(150, 150);
-        photoFrame.setPrefSize(150, 150);
-        photoFrame.setStyle("-fx-background-color: #F1F5F9; -fx-background-radius: 14; -fx-border-color: #CBD5E1; -fx-border-radius: 14;");
+        photoFrame.setMinSize(144, 144);
+        photoFrame.setPrefSize(144, 144);
+        photoFrame.setMaxSize(144, 144);
+        photoFrame.getStyleClass().add("surface-subtle");
 
-        Label photoGlyph = new Label("📦");
-        photoGlyph.setStyle("-fx-font-size: 46px;");
+        Label photoGlyph = new Label();
+        photoGlyph.setGraphic(AppIcons.of(Feather.PACKAGE, 42, "#6366F1"));
         ImageView preview = new ImageView();
-        preview.setFitWidth(138);
-        preview.setFitHeight(138);
+        preview.setFitWidth(134);
+        preview.setFitHeight(134);
         preview.setPreserveRatio(true);
         if (selectedPhotoPath != null && new File(selectedPhotoPath).exists()) {
-            preview.setImage(new Image(new File(selectedPhotoPath).toURI().toString()));
+            preview.setImage(new Image(new File(selectedPhotoPath).toURI().toString(), 268, 268, true, true, true));
             photoGlyph.setVisible(false);
         }
         photoFrame.getChildren().addAll(photoGlyph, preview);
 
+        Label photoHint = new Label();
+        photoHint.getStyleClass().add("muted-text");
+        photoHint.setStyle("-fx-font-size: 11px;");
+        photoHint.setWrapText(true);
+        photoHint.setMaxWidth(156);
+        photoHint.setVisible(false);
+        photoHint.setManaged(false);
+
         Button changePhotoBtn = new Button("Change Photo");
+        changePhotoBtn.setGraphic(AppIcons.of(Feather.CAMERA, 14));
         changePhotoBtn.getStyleClass().add("btn-secondary");
+        changePhotoBtn.setMaxWidth(Double.MAX_VALUE);
         changePhotoBtn.setOnAction(e -> {
             FileChooser chooser = new FileChooser();
             chooser.setTitle("Select Product Image");
@@ -107,16 +141,24 @@ public class ProductFormDialog {
             File chosen = chooser.showOpenDialog(dialog);
             if (chosen != null) {
                 selectedPhotoPath = chosen.getAbsolutePath();
-                preview.setImage(new Image(chosen.toURI().toString()));
+                preview.setImage(new Image(chosen.toURI().toString(), 268, 268, true, true, true));
                 photoGlyph.setVisible(false);
+                photoHint.setVisible(false);
+                photoHint.setManaged(false);
             }
         });
-        photoBox.getChildren().addAll(photoFrame, changePhotoBtn);
+
+        Button findPhotoBtn = new Button("Find Photo (Pexels)");
+        findPhotoBtn.setGraphic(AppIcons.of(Feather.SEARCH, 13));
+        findPhotoBtn.getStyleClass().add("btn-secondary");
+        findPhotoBtn.setMaxWidth(Double.MAX_VALUE);
+
+        photoBox.getChildren().addAll(photoFrame, changePhotoBtn, findPhotoBtn, photoHint);
 
         // Right Two-Column Form Grid
         GridPane grid = new GridPane();
-        grid.setHgap(16);
-        grid.setVgap(12);
+        grid.setHgap(14);
+        grid.setVgap(10);
         HBox.setHgrow(grid, Priority.ALWAYS);
 
         TextField nameField = new TextField(existing != null ? existing.getName() : "");
@@ -131,6 +173,42 @@ public class ProductFormDialog {
         categoryBox.getItems().addAll("Groceries", "Dairy", "Bakery", "Snacks", "Drinks", "Electronics", "Accessories", "General");
         categoryBox.setValue(existing != null && existing.getCategory() != null ? existing.getCategory() : "General");
         categoryBox.setMaxWidth(Double.MAX_VALUE);
+
+        findPhotoBtn.setVisible(imageService != null);
+        findPhotoBtn.setManaged(imageService != null);
+        findPhotoBtn.setOnAction(e -> {
+            if (imageService == null) {
+                return;
+            }
+            String qName = nameField.getText();
+            String qCat = categoryBox.getEditor().getText() != null && !categoryBox.getEditor().getText().isBlank()
+                    ? categoryBox.getEditor().getText().trim()
+                    : categoryBox.getValue();
+            findPhotoBtn.setDisable(true);
+            photoHint.setText("Searching photo...");
+            photoHint.setVisible(true);
+            photoHint.setManaged(true);
+            AppExecutor.runAsync(
+                    () -> imageService.resolveImagePath(qName, qCat, true),
+                    resolved -> {
+                        findPhotoBtn.setDisable(false);
+                        if (resolved != null && new File(resolved).exists()) {
+                            selectedPhotoPath = resolved;
+                            preview.setImage(new Image(new File(resolved).toURI().toString(), 268, 268, true, true, true));
+                            photoGlyph.setVisible(false);
+                            photoHint.setText(ProductImageService.isGeneratedPlaceholder(resolved)
+                                    ? "Local category artwork ready (add Pexels key in Settings for photos)."
+                                    : "Loaded Pexels product photo!");
+                        } else {
+                            photoHint.setText("Could not find photo.");
+                        }
+                    },
+                    ex -> {
+                        findPhotoBtn.setDisable(false);
+                        photoHint.setText("Lookup failed: " + ex.getMessage());
+                    }
+            );
+        });
 
         TextField shelfField = new TextField(existing != null && existing.getShelfLocation() != null ? existing.getShelfLocation() : "");
         shelfField.setPromptText("e.g. A1-01");
@@ -180,7 +258,10 @@ public class ProductFormDialog {
 
         body.getChildren().addAll(photoBox, grid);
 
-        // Live validation feedback as user types
+        ScrollPane bodyScroll = new ScrollPane(body);
+        bodyScroll.setFitToWidth(true);
+        VBox.setVgrow(bodyScroll, Priority.ALWAYS);
+
         Runnable runLiveCheck = () -> validateAndShowErrors(
                 nameField, nameErr, qtyField, qtyErr,
                 thresholdField, thresholdErr, buyPriceField, buyErr, sellPriceField, sellErr);
@@ -190,7 +271,6 @@ public class ProductFormDialog {
         buyPriceField.textProperty().addListener((o, a, b) -> runLiveCheck.run());
         sellPriceField.textProperty().addListener((o, a, b) -> runLiveCheck.run());
 
-        // Footer Buttons
         HBox footer = new HBox(12);
         footer.setAlignment(Pos.CENTER_RIGHT);
         Region spacer = new Region();
@@ -201,6 +281,7 @@ public class ProductFormDialog {
         cancelBtn.setOnAction(e -> dialog.close());
 
         Button saveBtn = new Button("Save Product");
+        saveBtn.setGraphic(AppIcons.of(Feather.SAVE, 14));
         saveBtn.getStyleClass().add("btn-primary");
         saveBtn.setOnAction(e -> {
             ValidationResult vr = validateAndShowErrors(
@@ -232,9 +313,9 @@ public class ProductFormDialog {
         });
 
         footer.getChildren().addAll(spacer, cancelBtn, saveBtn);
-        root.getChildren().addAll(title, body, footer);
+        root.getChildren().addAll(title, bodyScroll, footer);
 
-        Scene scene = new Scene(root, 780, 560);
+        Scene scene = new Scene(root, 770, 565);
         var cssUrl = getClass().getResource(darkMode ? "/css/dark-theme.css" : "/css/light-theme.css");
         if (cssUrl != null) {
             scene.getStylesheets().add(cssUrl.toExternalForm());
@@ -244,21 +325,6 @@ public class ProductFormDialog {
         return Optional.ofNullable(result);
     }
 
-    /**
-     * Runs {@link ProductValidator} against form fields and applies red border/error styling inline.
-     *
-     * @param nameField product name text field
-     * @param nameErr product name error label
-     * @param qtyField quantity text field
-     * @param qtyErr quantity error label
-     * @param thresholdField low-stock threshold field
-     * @param thresholdErr threshold error label
-     * @param buyField buy price field
-     * @param buyErr buy price error label
-     * @param sellField sell price field
-     * @param sellErr sell price error label
-     * @return computed {@link ValidationResult}
-     */
     private ValidationResult validateAndShowErrors(
             TextField nameField, Label nameErr,
             TextField qtyField, Label qtyErr,
@@ -281,13 +347,6 @@ public class ProductFormDialog {
         return vr;
     }
 
-    /**
-     * Toggles the {@code field-error} CSS class and displays or hides the inline validation hint.
-     *
-     * @param field input control
-     * @param errorLabel feedback label
-     * @param message error string, or {@code null} when valid
-     */
     private void applyFieldError(TextField field, Label errorLabel, String message) {
         field.getStyleClass().remove("field-error");
         if (message != null && !message.isBlank()) {
@@ -301,14 +360,6 @@ public class ProductFormDialog {
         }
     }
 
-    /**
-     * Wraps a labeled field and optional inline error label into a vertical form block.
-     *
-     * @param labelText field caption
-     * @param control input widget
-     * @param errorLabel optional error label
-     * @return vertical container
-     */
     private VBox wrapField(String labelText, javafx.scene.Node control, Label errorLabel) {
         Label lbl = new Label(labelText);
         lbl.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
@@ -319,11 +370,6 @@ public class ProductFormDialog {
         return box;
     }
 
-    /**
-     * Creates a collapsed hidden inline error label.
-     *
-     * @return styled error {@link Label}
-     */
     private Label makeErrorLabel() {
         Label l = new Label();
         l.getStyleClass().add("error-label");

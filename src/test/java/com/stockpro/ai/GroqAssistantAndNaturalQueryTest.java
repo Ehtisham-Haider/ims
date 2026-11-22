@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Verifies Groq client graceful offline fallback, SQLite-grounded Q&amp;A, supplier email drafting,
  * Ask-for-Any-Chart JSON parsing, plain-English explanations, and Smart Natural Search translation.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 class GroqAssistantAndNaturalQueryTest {
 
@@ -36,6 +36,8 @@ class GroqAssistantAndNaturalQueryTest {
     Path tempDir;
 
     private DatabaseManager dbManager;
+    private SettingsRepository settingsRepo;
+    private GroqApiClient groqClient;
     private InventoryService inventoryService;
     private AiAssistantService assistantService;
 
@@ -44,13 +46,13 @@ class GroqAssistantAndNaturalQueryTest {
         dbManager = DatabaseManager.createForFile(tempDir.resolve("ai-assistant-test.db"));
         ProductRepository prodRepo = new ProductRepository(dbManager);
         SupplierRepository supRepo = new SupplierRepository(dbManager);
-        SettingsRepository settingsRepo = new SettingsRepository(dbManager);
+        settingsRepo = new SettingsRepository(dbManager);
         settingsRepo.set("groq.api_key", "");
 
         inventoryService = new InventoryService(prodRepo, new CommandHistoryManager(), InventoryEventBus.getInstance());
         OfflineMlEngine mlEngine = new OfflineMlEngine(dbManager, prodRepo);
-        GroqApiClient client = new GroqApiClient(settingsRepo);
-        assistantService = new AiAssistantService(client, prodRepo, supRepo, mlEngine);
+        groqClient = new GroqApiClient(settingsRepo);
+        assistantService = new AiAssistantService(groqClient, prodRepo, supRepo, mlEngine);
     }
 
     @AfterEach
@@ -110,5 +112,58 @@ class GroqAssistantAndNaturalQueryTest {
         assertEquals(1, filtered.size());
         assertEquals("Chips", filtered.get(0).getName());
         assertEquals(StockStatus.LOW_STOCK, filtered.get(0).getStatus());
+    }
+
+    @Test
+    @DisplayName("Persists user-supplied Groq API key & model cleanly and propagates reply metadata")
+    void groqUserConfigurationAndReplyMetadata() {
+        assertFalse(groqClient.isApiKeyConfigured());
+        assertFalse(assistantService.isCloudAiReady());
+
+        groqClient.saveConfiguration("gsk_user_sample_123", "openai/gpt-oss-20b");
+        assertTrue(groqClient.isApiKeyConfigured());
+        assertTrue(assistantService.isCloudAiReady());
+        assertEquals("openai/gpt-oss-20b", assistantService.getActiveModel());
+
+        AiAssistantService.AssistantReply offlineEmailReply = assistantService.draftSupplierEmailReply(null);
+        assertNotNull(offlineEmailReply.message());
+        assertFalse(offlineEmailReply.message().isBlank());
+
+        groqClient.clearApiKey();
+        assertFalse(groqClient.isApiKeyConfigured());
+        assertTrue(assistantService.generateMorningBriefingReply().message().contains("Morning Store Briefing"));
+    }
+
+    @Test
+    @DisplayName("Auto-migrates retired Groq models, filters non-chat models, and strips reasoning tags")
+    void autoMigratesRetiredModelsFiltersLiveCatalogAndStripsThinkTags() {
+        groqClient.saveConfiguration("gsk_user_sample_123", "llama-3.1-8b-instant");
+        assertEquals("openai/gpt-oss-20b", groqClient.resolveModel());
+        assertEquals("openai/gpt-oss-20b", settingsRepo.get("groq.model", ""));
+
+        groqClient.saveConfiguration("gsk_user_sample_123", "llama-3.3-70b-versatile");
+        assertEquals("openai/gpt-oss-20b", groqClient.resolveModel());
+
+        List<String> consoleCatalog = List.of(
+                "allam-2-7b",
+                "meta-llama/llama-prompt-guard-2-22m",
+                "meta-llama/llama-prompt-guard-2-86m",
+                "openai/gpt-oss-120b",
+                "openai/gpt-oss-20b",
+                "openai/gpt-oss-safeguard-20b",
+                "qwen/qwen3.8-27b",
+                "whisper-large-v3",
+                "whisper-large-v3-turbo",
+                "canopylabs/orpheus-arabic-saudi",
+                "canopylabs/orpheus-v1-english"
+        );
+        assertEquals(
+                List.of("openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b", "allam-2-7b"),
+                GroqApiClient.filterChatModels(consoleCatalog)
+        );
+        assertEquals(
+                "Restock Milk 1L.",
+                GroqApiClient.sanitizeModelContent("<think>checking stock</think>\nRestock Milk 1L.")
+        );
     }
 }

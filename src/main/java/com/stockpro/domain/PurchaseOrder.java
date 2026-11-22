@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * Supplier purchase order tracking requested items, estimated cost, and fulfillment status.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class PurchaseOrder {
     private long id;

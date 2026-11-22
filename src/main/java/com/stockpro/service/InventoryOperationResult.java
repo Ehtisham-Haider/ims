@@ -6,7 +6,7 @@ import com.stockpro.domain.ValidationResult;
  * Standardized outcome wrapper returned by inventory service operations.
  *
  * @param <T> payload type returned when the operation succeeds
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class InventoryOperationResult<T> {
     private final boolean success;

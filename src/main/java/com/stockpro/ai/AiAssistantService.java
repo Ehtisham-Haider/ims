@@ -9,16 +9,18 @@ import com.stockpro.repository.ProductRepository;
 import com.stockpro.repository.SupplierRepository;
 import com.stockpro.service.AppSession;
 
+import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
 /**
- * Grounded store intelligence service uniting Groq cloud completions and full offline fallbacks
- * for store Q&amp;A, morning briefings, supplier email drafts, natural chart specs, explanations,
- * and casual search translation.
+ * Grounded store intelligence service uniting user-configured Groq cloud completions
+ * and deterministic offline fallbacks for store Q&amp;A, morning briefings, supplier email drafts,
+ * natural chart specs, plain-English explanations, and casual search translation.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class AiAssistantService {
     private final GroqApiClient groqClient;
@@ -27,14 +29,32 @@ public class AiAssistantService {
     private final OfflineMlEngine mlEngine;
 
     /**
-     * Structured assistant reply optionally carrying a live chart specification.
+     * Structured assistant reply optionally carrying a live chart specification, model identifier, and error diagnostic.
      *
      * @param message formatted assistant response text
      * @param usedCloud {@code true} if response came from Groq API
      * @param chartSpec optional chart specification to render inline in JavaFX
-     * @author Ehtisham Haider, Syed Ahmed
+     * @param modelUsed Groq model identifier or {@code offline-engine}
+     * @param errorNote optional cloud diagnostic message when fallback occurred
+     * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
      */
-    public record AssistantReply(String message, boolean usedCloud, ChartSpec chartSpec) {
+    public record AssistantReply(
+            String message,
+            boolean usedCloud,
+            ChartSpec chartSpec,
+            String modelUsed,
+            String errorNote) {
+
+        /**
+         * Compatibility constructor preserving 3-argument initialization.
+         *
+         * @param message formatted assistant response text
+         * @param usedCloud {@code true} if response came from Groq API
+         * @param chartSpec optional chart specification
+         */
+        public AssistantReply(String message, boolean usedCloud, ChartSpec chartSpec) {
+            this(message, usedCloud, chartSpec, usedCloud ? "groq" : "offline-engine", null);
+        }
     }
 
     /**
@@ -54,6 +74,24 @@ public class AiAssistantService {
         this.productRepository = productRepository;
         this.supplierRepository = supplierRepository;
         this.mlEngine = mlEngine;
+    }
+
+    /**
+     * Returns whether a Groq API key is currently configured for live cloud AI.
+     *
+     * @return {@code true} when a user API key is configured
+     */
+    public boolean isCloudAiReady() {
+        return groqClient.isApiKeyConfigured();
+    }
+
+    /**
+     * Returns the currently selected Groq model identifier.
+     *
+     * @return active Groq model ID
+     */
+    public String getActiveModel() {
+        return groqClient.resolveModel();
     }
 
     /**
@@ -77,43 +115,64 @@ public class AiAssistantService {
         String context = buildStoreContext(products, forecasts);
 
         GroqApiClient.GroqResponse cloud = groqClient.complete(
-                "You are StockPro Store Assistant. Answer concisely and accurately using ONLY this live store inventory data:\n" + context,
+                "You are StockPro Store Assistant. Answer in concise plain text using ONLY this live store inventory data:\n" + context,
                 userQuestion
         );
         if (cloud.success()) {
-            return new AssistantReply(cloud.content(), true, null);
+            return new AssistantReply(cloud.content(), true, null, cloud.model(), null);
         }
 
-        return new AssistantReply(buildOfflineAnswer(userQuestion, products, forecasts), false, null);
+        return new AssistantReply(
+                buildOfflineAnswer(userQuestion, products, forecasts),
+                false,
+                null,
+                "offline-engine",
+                cloud.errorNote()
+        );
     }
 
     /**
      * Generates a crisp morning executive briefing summarizing urgent restock, expiry, and revenue insights.
      *
-     * @return plain-English briefing text
+     * @return structured {@link AssistantReply} containing briefing text and cloud metadata
      */
-    public String generateMorningBriefing() {
+    public AssistantReply generateMorningBriefingReply() {
         List<Product> products = productRepository.findAll(false);
         List<OfflineMlEngine.ProductForecast> forecasts = mlEngine.analyzeCatalog();
         String context = buildStoreContext(products, forecasts);
 
         GroqApiClient.GroqResponse cloud = groqClient.complete(
-                "Summarize the store's morning priorities in 3 short bullet points based strictly on:\n" + context,
+                "Summarize the store's morning priorities in 3 short plain-text bullet points based strictly on:\n" + context,
                 "Generate today's morning business briefing."
         );
         if (cloud.success()) {
-            return cloud.content();
+            return new AssistantReply(cloud.content(), true, null, cloud.model(), null);
         }
-        return buildOfflineBriefing(products, forecasts);
+        return new AssistantReply(
+                buildOfflineBriefing(products, forecasts),
+                false,
+                null,
+                "offline-engine",
+                cloud.errorNote()
+        );
     }
 
     /**
-     * Drafts a ready-to-send restock email for a supplier covering low-stock and urgent items.
+     * Generates a crisp morning executive briefing text summarizing urgent restock, expiry, and revenue insights.
+     *
+     * @return plain-English briefing text
+     */
+    public String generateMorningBriefing() {
+        return generateMorningBriefingReply().message();
+    }
+
+    /**
+     * Drafts a ready-to-send restock email for a supplier covering low-stock and urgent items, returning cloud status.
      *
      * @param supplier target supplier
-     * @return ready-to-send email body
+     * @return {@link AssistantReply} with email body and provider metadata
      */
-    public String draftSupplierEmail(Supplier supplier) {
+    public AssistantReply draftSupplierEmailReply(Supplier supplier) {
         Supplier targetSupplier = supplier != null
                 ? supplier
                 : supplierRepository.findAll().stream().findFirst().orElse(null);
@@ -134,14 +193,14 @@ public class AiAssistantService {
                 .collect(Collectors.joining("\n"));
 
         GroqApiClient.GroqResponse cloud = groqClient.complete(
-                "Write a polite, concise B2B restock purchase inquiry email from " + storeName + " to " + supName + ".",
+                "Write a polite, concise plain-text B2B restock purchase inquiry email from " + storeName + " to " + supName + ".",
                 "Include these requested items:\n" + itemsList
         );
         if (cloud.success()) {
-            return cloud.content();
+            return new AssistantReply(cloud.content(), true, null, cloud.model(), null);
         }
 
-        return String.format("""
+        String offlineEmail = String.format("""
                 Subject: Urgent Restock Purchase Request — %s
 
                 Dear %s Team,
@@ -164,6 +223,17 @@ public class AiAssistantService {
                 AppSession.getInstance().getActorName(),
                 storeName
         );
+        return new AssistantReply(offlineEmail, false, null, "offline-engine", cloud.errorNote());
+    }
+
+    /**
+     * Drafts a ready-to-send restock email for a supplier covering low-stock and urgent items.
+     *
+     * @param supplier target supplier
+     * @return ready-to-send email body
+     */
+    public String draftSupplierEmail(Supplier supplier) {
+        return draftSupplierEmailReply(supplier).message();
     }
 
     /**
@@ -182,10 +252,48 @@ public class AiAssistantService {
         if (cloud.success()) {
             ChartSpec parsed = NaturalQueryEngine.tryParseChartJson(cloud.content());
             if (parsed != null) {
-                return new AssistantReply("Generated chart: " + parsed.title(), true, parsed);
+                return new AssistantReply("Generated chart: " + parsed.title(), true, parsed, cloud.model(), null);
             }
         }
-        return new AssistantReply("Rendered live chart: " + offlineSpec.title(), false, offlineSpec);
+        return new AssistantReply(
+                "Rendered live chart: " + offlineSpec.title(),
+                false,
+                offlineSpec,
+                "offline-engine",
+                cloud.errorNote()
+        );
+    }
+
+    /**
+     * Produces a 2–3 bullet plain-English explanation with cloud metadata for any ML alert or chart insight.
+     *
+     * @param subject anomaly, alert, or chart insight to explain
+     * @return {@link AssistantReply} containing bulleted explanation
+     */
+    public AssistantReply explainInPlainEnglishReply(String subject) {
+        List<OfflineMlEngine.AnomalyAlert> anomalies = mlEngine.detectAnomalies();
+        String context = anomalies.isEmpty()
+                ? "Catalog metrics are balanced with no extreme Z-score outliers."
+                : anomalies.stream().map(OfflineMlEngine.AnomalyAlert::description).collect(Collectors.joining("\n"));
+
+        GroqApiClient.GroqResponse cloud = groqClient.complete(
+                "Explain clearly in 2 to 3 short plain-text bullet points for a store owner. Avoid jargon. Context:\n" + context,
+                "Explain: " + (subject != null ? subject : "current inventory alerts")
+        );
+        if (cloud.success()) {
+            return new AssistantReply(cloud.content(), true, null, cloud.model(), null);
+        }
+        String fallback;
+        if (!anomalies.isEmpty()) {
+            fallback = "• " + anomalies.get(0).description() + "\n"
+                    + "• This was flagged because it sits far outside normal store unit counts (Z=" + anomalies.get(0).zScore() + ").\n"
+                    + "• Double-check the shelf count or edit the product quantity if a typo occurred.";
+        } else {
+            fallback = "• Your current stock levels and daily sales velocity are within expected ranges.\n"
+                    + "• Items with fewer than 7 days of stock remaining are prioritized first for restock.\n"
+                    + "• Keeping safety stock buffers prevents lost sales during supplier delivery lead times.";
+        }
+        return new AssistantReply(fallback, false, null, "offline-engine", cloud.errorNote());
     }
 
     /**
@@ -195,26 +303,7 @@ public class AiAssistantService {
      * @return concise plain-English bulleted explanation
      */
     public String explainInPlainEnglish(String subject) {
-        List<OfflineMlEngine.AnomalyAlert> anomalies = mlEngine.detectAnomalies();
-        String context = anomalies.isEmpty()
-                ? "Catalog metrics are balanced with no extreme Z-score outliers."
-                : anomalies.stream().map(OfflineMlEngine.AnomalyAlert::description).collect(Collectors.joining("\n"));
-
-        GroqApiClient.GroqResponse cloud = groqClient.complete(
-                "Explain clearly in 2 to 3 short bullet points for a store owner. Avoid jargon. Context:\n" + context,
-                "Explain: " + (subject != null ? subject : "current inventory alerts")
-        );
-        if (cloud.success()) {
-            return cloud.content();
-        }
-        if (!anomalies.isEmpty()) {
-            return "• " + anomalies.get(0).description() + "\n"
-                    + "• This was flagged because it sits far outside normal store unit counts (Z=" + anomalies.get(0).zScore() + ").\n"
-                    + "• Double-check the shelf count or edit the product quantity if a typo occurred.";
-        }
-        return "• Your current stock levels and daily sales velocity are within expected ranges.\n"
-                + "• Items with fewer than 7 days of stock remaining are prioritized first for restock.\n"
-                + "• Keeping safety stock buffers prevents lost sales during supplier delivery lead times.";
+        return explainInPlainEnglishReply(subject).message();
     }
 
     /**
@@ -233,24 +322,50 @@ public class AiAssistantService {
     }
 
     /**
-     * Builds a grounded store context string summarizing catalog items, values, and stockout countdowns.
+     * Builds a comprehensive grounded store context string summarizing valuation, alert counts,
+     * supplier roster, catalog items, and stockout countdowns.
      *
      * @param products catalog items
      * @param forecasts ML forecast entries
      * @return compact textual grounding prompt
      */
     private String buildStoreContext(List<Product> products, List<OfflineMlEngine.ProductForecast> forecasts) {
+        double costTotal = products.stream().mapToDouble(Product::getCostValuation).sum();
+        double retailTotal = products.stream().mapToDouble(Product::getRetailValuation).sum();
+        long lowCount = products.stream().filter(p -> p.getStatus() == StockStatus.LOW_STOCK).count();
+        long outCount = products.stream().filter(p -> p.getQuantity() <= 0 || p.getStatus() == StockStatus.OUT_OF_STOCK).count();
+        LocalDate horizon = LocalDate.now().plusDays(7);
+        long expCount = products.stream()
+                .filter(p -> p.getExpiryDate() != null && !p.getExpiryDate().isAfter(horizon))
+                .count();
+        String supplierNames = supplierRepository.findAll().stream()
+                .map(Supplier::getName)
+                .limit(8)
+                .collect(Collectors.joining(", "));
+
+        AppSession s = AppSession.getInstance();
         StringBuilder sb = new StringBuilder();
-        sb.append("Store: ").append(AppSession.getInstance().getStoreName())
-                .append(" | Total SKUs: ").append(products.size()).append("\n");
-        for (Product p : products.stream().limit(25).toList()) {
+        sb.append(String.format(
+                "Store: %s | Currency: %s | Tax Rate: %.1f%% | Active SKUs: %d | Cost Value: %s | Retail Value: %s | Est. Profit: %s | Low Stock: %d | Out of Stock: %d | Expiring <=7d: %d\n",
+                s.getStoreName(), s.getCurrencySymbol(), s.getTaxRatePercent(),
+                products.size(), s.formatMoney(costTotal), s.formatMoney(retailTotal),
+                s.formatMoney(retailTotal - costTotal), lowCount, outCount, expCount));
+        if (!supplierNames.isBlank()) {
+            sb.append("Suppliers: ").append(supplierNames).append("\n");
+        }
+        sb.append("Priority catalog sample (urgent and top-value SKUs):\n");
+        Comparator<Product> priorityOrder = Comparator
+                .<Product>comparingInt(p -> (p.getQuantity() <= 0 || p.getStatus() == StockStatus.OUT_OF_STOCK)
+                        ? 0 : (p.getStatus() == StockStatus.LOW_STOCK ? 1 : 2))
+                .thenComparing(Comparator.comparingDouble(Product::getRetailValuation).reversed());
+        for (Product p : products.stream().sorted(priorityOrder).limit(18).toList()) {
             sb.append(String.format("- %s (%s): cat=%s, qty=%d, sell=%.2f, status=%s, exp=%s\n",
                     p.getName(), p.getSku(), p.getCategory(), p.getQuantity(),
                     p.getSellPrice(), p.getStatus().getDisplayName(), p.getExpiryDate()));
         }
         if (!forecasts.isEmpty()) {
             sb.append("Soonest stockouts:\n");
-            for (OfflineMlEngine.ProductForecast f : forecasts.stream().limit(6).toList()) {
+            for (OfflineMlEngine.ProductForecast f : forecasts.stream().limit(8).toList()) {
                 sb.append(String.format("- %s: %.1f days left, recommended restock=%d, ABC=%s\n",
                         f.product().getName(), f.daysUntilEmpty(), f.recommendedReorderQty(), f.abcGrade()));
             }

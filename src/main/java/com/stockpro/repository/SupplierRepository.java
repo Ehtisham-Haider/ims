@@ -15,7 +15,7 @@ import java.util.Optional;
 /**
  * JDBC repository managing CRUD persistence for {@link Supplier} records in SQLite.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class SupplierRepository {
     private final DatabaseManager dbManager;

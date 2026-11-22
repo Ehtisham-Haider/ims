@@ -12,7 +12,7 @@ import java.util.Map;
 /**
  * Persists and retrieves key-value store preferences from the {@code app_settings} SQLite table.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class SettingsRepository {
     private final DatabaseManager dbManager;

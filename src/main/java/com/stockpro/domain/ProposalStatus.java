@@ -3,7 +3,7 @@ package com.stockpro.domain;
 /**
  * Represents the review status of an automated proposal in the safety approval inbox.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public enum ProposalStatus {
     /** Awaiting explicit staff review. */

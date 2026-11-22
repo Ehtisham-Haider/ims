@@ -26,7 +26,7 @@ import java.util.function.Consumer;
 /**
  * Spotlight-style floating {@code Ctrl+K} popup supporting instant search, screen jumps, and quick commands.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class CommandBarPopup {
     private final StackPane overlayHost;
@@ -97,8 +97,8 @@ public class CommandBarPopup {
 
         HBox searchRow = new HBox(10);
         searchRow.setAlignment(Pos.CENTER_LEFT);
-        Label icon = new Label("⌘K");
-        icon.setStyle("-fx-background-color: #EEF2FF; -fx-text-fill: #4F46E5; -fx-font-weight: bold; -fx-padding: 5 8 5 8; -fx-background-radius: 7;");
+        Label icon = new Label("Ctrl+K");
+        icon.getStyleClass().addAll("status-pill", "status-info-pill");
 
         inputField = new TextField();
         inputField.setPromptText("Search products, jump to screen, or type 'add 10 soap', 'toggle theme', 'export pdf'...");

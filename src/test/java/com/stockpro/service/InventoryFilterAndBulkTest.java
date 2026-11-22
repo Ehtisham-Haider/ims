@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Verifies filter chips, category/price filtering, starter demo loader, and bulk status/delete operations.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 class InventoryFilterAndBulkTest {
 

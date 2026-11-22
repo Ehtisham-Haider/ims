@@ -7,7 +7,7 @@ import java.util.regex.Pattern;
 /**
  * Parses natural Spotlight {@code Ctrl+K} commands into structured actions for quick keyboard execution.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public final class CommandParser {
     private static final Pattern ADD_PATTERN = Pattern.compile("^add\\s+(\\d+)\\s+(.+)$", Pattern.CASE_INSENSITIVE);
@@ -15,7 +15,7 @@ public final class CommandParser {
     /**
      * Enumerates supported Spotlight command bar action types.
      *
-     * @author Ehtisham Haider, Syed Ahmed
+     * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
      */
     public enum ActionType {
         /** Quickly add a new product or quantity via command text. */
@@ -37,7 +37,7 @@ public final class CommandParser {
      * @param targetScreen navigation destination key when {@link ActionType#NAVIGATE}
      * @param quantity parsed unit count when {@link ActionType#QUICK_ADD}
      * @param argument product name or search query
-     * @author Ehtisham Haider, Syed Ahmed
+     * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
      */
     public record ParsedCommand(
             ActionType actionType,

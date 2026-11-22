@@ -13,11 +13,11 @@ import java.util.function.Consumer;
 /**
  * Shared daemon thread pool ensuring database, file export, ML, and network tasks never block the JavaFX UI thread.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public final class AppExecutor {
     private static final Logger LOG = AppLogger.get(AppExecutor.class);
-    private static final ExecutorService POOL = Executors.newFixedThreadPool(4, runnable -> {
+    private static final ExecutorService POOL = Executors.newFixedThreadPool(6, runnable -> {
         Thread thread = new Thread(runnable, "stockpro-worker");
         thread.setDaemon(true);
         return thread;
@@ -88,5 +88,12 @@ public final class AppExecutor {
         } catch (IllegalStateException ex) {
             action.run();
         }
+    }
+
+    /**
+     * Shuts down background daemon workers cleanly during application exit.
+     */
+    public static void shutdown() {
+        POOL.shutdownNow();
     }
 }

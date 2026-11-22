@@ -13,7 +13,7 @@ import java.util.TreeMap;
  * Red-Black Tree ({@link TreeMap}) multi-index supporting fast sorted range queries over selling prices,
  * stock quantities, and expiration dates in O(log n + k) time.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class RangeIndexTree {
     private final TreeMap<Double, List<Product>> byPrice = new TreeMap<>();

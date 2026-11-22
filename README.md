@@ -19,5 +19,5 @@ mvn javafx:run
 ```
 
 ## Authors
-- **Ehtisham Haider**
-- **Syed Ahmed**
+- **Syed Ehtisham Haider Bukhari**
+- **Faheen Ahmad Khan**

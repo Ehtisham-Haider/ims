@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Verifies SQLite backup and restore, 1,000-product batch demo generation and empty reset,
  * telemetry latency/memory snapshots, and all 8 built-in 30B.docx lab QA checks.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 class SettingsBackupDemoTelemetryVivaTest {
 

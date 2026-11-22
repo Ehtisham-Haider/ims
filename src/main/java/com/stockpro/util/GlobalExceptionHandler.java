@@ -7,7 +7,7 @@ import org.slf4j.Logger;
 /**
  * Installs a global uncaught exception handler that logs failures and prevents silent UI crashes.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public final class GlobalExceptionHandler implements Thread.UncaughtExceptionHandler {
     private static final Logger LOG = AppLogger.get(GlobalExceptionHandler.class);

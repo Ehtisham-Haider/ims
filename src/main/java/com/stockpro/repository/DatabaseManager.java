@@ -1,5 +1,6 @@
 package com.stockpro.repository;
 
+import com.stockpro.ai.GroqApiClient;
 import com.stockpro.util.AppLogger;
 import com.stockpro.util.PasswordUtil;
 import com.zaxxer.hikari.HikariConfig;
@@ -20,7 +21,7 @@ import java.time.LocalDateTime;
 /**
  * Manages the local SQLite database lifecycle, HikariCP connection pool, schema creation, and default seed data.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public final class DatabaseManager implements AutoCloseable {
     private static final Logger LOG = AppLogger.get(DatabaseManager.class);
@@ -284,7 +285,8 @@ public final class DatabaseManager implements AutoCloseable {
                 {"offline.mode", "true"},
                 {"dead_stock.days", "60"},
                 {"groq.api_key", ""},
-                {"groq.model", "llama-3.3-70b-versatile"}
+                {"groq.model", GroqApiClient.DEFAULT_MODEL},
+                {"pexels.api_key", ""}
         };
 
         String upsertSetting = """
@@ -301,6 +303,7 @@ public final class DatabaseManager implements AutoCloseable {
             ps.executeBatch();
 
             seedDefaultUsersIfEmpty(conn, now);
+            migrateLegacyAuthorNames(conn);
         } catch (SQLException ex) {
             throw new IllegalStateException("Failed to seed initial SQLite defaults", ex);
         }
@@ -326,8 +329,8 @@ public final class DatabaseManager implements AutoCloseable {
                 VALUES (?, ?, ?, ?, 1, ?)
                 """;
         Object[][] defaults = {
-                {"admin", PasswordUtil.hash("admin123"), "Syed Ahmed", "OWNER"},
-                {"manager", PasswordUtil.hash("manager123"), "Ehtisham Haider", "MANAGER"},
+                {"admin", PasswordUtil.hash("admin123"), "Syed Ehtisham Haider Bukhari", "OWNER"},
+                {"manager", PasswordUtil.hash("manager123"), "Faheen Ahmad Khan", "MANAGER"},
                 {"cashier", PasswordUtil.hash("cashier123"), "Sara Khan", "CASHIER"}
         };
         try (PreparedStatement ps = conn.prepareStatement(insertUser)) {
@@ -341,6 +344,21 @@ public final class DatabaseManager implements AutoCloseable {
             }
             ps.executeBatch();
             LOG.info("Seeded default Owner, Manager, and Cashier accounts.");
+        }
+    }
+
+    /**
+     * Migrates pre-release default staff display names cleanly on existing local databases.
+     *
+     * @param conn active JDBC connection
+     * @throws SQLException if updating legacy rows fails
+     */
+    private static void migrateLegacyAuthorNames(Connection conn) throws SQLException {
+        try (Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate(
+                    "UPDATE users SET full_name = 'Syed Ehtisham Haider Bukhari' WHERE username = 'admin' AND full_name = 'Syed Ahmed'");
+            stmt.executeUpdate(
+                    "UPDATE users SET full_name = 'Faheen Ahmad Khan' WHERE username = 'manager' AND full_name = 'Ehtisham Haider'");
         }
     }
 

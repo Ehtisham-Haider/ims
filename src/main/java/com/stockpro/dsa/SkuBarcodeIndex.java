@@ -11,7 +11,7 @@ import java.util.Optional;
 /**
  * Provides O(1) exact HashMap lookup and duplicate checks across product SKUs and barcodes.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class SkuBarcodeIndex {
     private final Map<String, Product> skuMap = new HashMap<>();

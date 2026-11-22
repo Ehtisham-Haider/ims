@@ -7,7 +7,7 @@ import java.util.Map;
 /**
  * Encapsulates field-level and summary validation results for form and service checks.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class ValidationResult {
     private final boolean valid;

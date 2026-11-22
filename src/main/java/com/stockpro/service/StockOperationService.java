@@ -17,7 +17,7 @@ import java.util.Optional;
  * live change previews, mandatory reason validation, damaged stock quarantine, FEFO expiry lists,
  * and SHA-256 audit trail sealing.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class StockOperationService {
     private final ProductRepository productRepository;
@@ -35,7 +35,7 @@ public class StockOperationService {
      * @param newDamagedQty resulting quarantined damaged count
      * @param valid {@code true} if the resulting quantities are legally non-negative
      * @param note human-readable preview summary
-     * @author Ehtisham Haider, Syed Ahmed
+     * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
      */
     public record StockPreview(
             int currentQty,

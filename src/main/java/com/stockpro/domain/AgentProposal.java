@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 /**
  * Automated recommendation queued for explicit human approval before modifying store records.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class AgentProposal {
     private long id;

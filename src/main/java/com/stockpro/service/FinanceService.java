@@ -17,7 +17,7 @@ import java.util.Set;
 /**
  * Computes store financial valuations, gross unit margins, tax/GST totals, and dead-money stagnant stock.
  *
- * @author Ehtisham Haider, Syed Ahmed
+ * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class FinanceService {
     private final DatabaseManager dbManager;
@@ -35,7 +35,7 @@ public class FinanceService {
      * @param retailValueWithTax total retail value including tax
      * @param deadMoneyValue total cost tied up in stagnant items
      * @param deadMoneyItems list of in-stock items with zero sales over the lookback window
-     * @author Ehtisham Haider, Syed Ahmed
+     * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
      */
     public record FinanceSummary(
             double totalCostValue,
