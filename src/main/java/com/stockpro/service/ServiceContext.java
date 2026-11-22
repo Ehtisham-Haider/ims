@@ -67,6 +67,7 @@ public class ServiceContext {
     private final com.stockpro.ai.GroqWhisperClient groqWhisperClient;
     private final VoiceCommandEngine voiceCommandEngine;
     private final com.stockpro.ml.AdvancedOfflineMlService advancedOfflineMlService;
+    private final com.stockpro.ai.WorldAwareGenAiService worldAwareGenAiService;
 
     /**
      * Constructs a service registry bound to a specific {@link DatabaseManager}.
@@ -175,6 +176,9 @@ public class ServiceContext {
                 inventoryService, stockOperationService, catalogSearchEngine, groqWhisperClient, auditService);
         this.advancedOfflineMlService = new com.stockpro.ml.AdvancedOfflineMlService(
                 databaseManager, productRepository, supplierRepository, purchaseOrderRepository, offlineMlEngine);
+        this.worldAwareGenAiService = new com.stockpro.ai.WorldAwareGenAiService(
+                productRepository, groqApiClient, new DashboardMetricsService(databaseManager, productRepository), financeService);
+        this.executivePdfReportGenerator.setWorldAwareGenAiService(this.worldAwareGenAiService);
         syncSessionSettings();
     }
 
@@ -585,5 +589,14 @@ public class ServiceContext {
      */
     public com.stockpro.ml.AdvancedOfflineMlService getAdvancedOfflineMlService() {
         return advancedOfflineMlService;
+    }
+
+    /**
+     * Returns the Branch 08 World-Aware &amp; Generative AI service.
+     *
+     * @return {@link com.stockpro.ai.WorldAwareGenAiService}
+     */
+    public com.stockpro.ai.WorldAwareGenAiService getWorldAwareGenAiService() {
+        return worldAwareGenAiService;
     }
 }
