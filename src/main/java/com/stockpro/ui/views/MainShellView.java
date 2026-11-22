@@ -403,6 +403,12 @@ public class MainShellView {
         searchTrigger.setStyle("-fx-cursor: hand;");
         searchTrigger.setOnAction(e -> commandBarPopup.show());
 
+        Button voiceMicBtn = new Button("Voice");
+        voiceMicBtn.setGraphic(AppIcons.of(Feather.MIC, 14, "#4F46E5"));
+        voiceMicBtn.getStyleClass().add("btn-secondary");
+        voiceMicBtn.setTooltip(new Tooltip("Hands-Free Voice Command & Whisper Search"));
+        voiceMicBtn.setOnAction(e -> openTopBarVoiceModal(voiceMicBtn));
+
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
@@ -474,8 +480,75 @@ public class MainShellView {
             onExitApp.run();
         });
 
-        bar.getChildren().addAll(searchTrigger, spacer, branchSwitcher, clockLabel, bellButton, themePill, exitBtn);
+        bar.getChildren().addAll(searchTrigger, voiceMicBtn, spacer, branchSwitcher, clockLabel, bellButton, themePill, exitBtn);
         return bar;
+    }
+
+    private void openTopBarVoiceModal(Button sourceBtn) {
+        javafx.stage.Stage dlg = new javafx.stage.Stage();
+        dlg.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+        if (sourceBtn != null && sourceBtn.getScene() != null) {
+            dlg.initOwner(sourceBtn.getScene().getWindow());
+        }
+        dlg.setTitle("StockPro Voice Control & Whisper Search");
+
+        VBox card = new VBox(12);
+        card.getStyleClass().add("card");
+        card.setPadding(new Insets(18));
+
+        boolean micReady = services.getVoiceAudioRecorder().isMicrophoneAvailable();
+        Label hint = new Label(micReady
+                ? "Speak or type a command ('Add 10 Coffee', 'Restock 5 Milk', 'Open Warehouse Map', 'Find Rice')."
+                : "Simulated Voice / Whisper Command Input ('Add 10 Coffee', 'Open Warehouse Map', 'Find Rice'):");
+        hint.setWrapText(true);
+        hint.getStyleClass().add("muted-text");
+
+        javafx.scene.control.TextField cmdField = new javafx.scene.control.TextField();
+        cmdField.setPromptText("Speak or enter voice command...");
+
+        Button runBtn = new Button(micReady ? "Record & Execute (Whisper)" : "Execute Voice Command");
+        runBtn.setGraphic(AppIcons.of(Feather.MIC, 14, "#FFFFFF"));
+        runBtn.getStyleClass().add("btn-primary");
+        runBtn.setOnAction(e -> {
+            runBtn.setDisable(true);
+            String typed = cmdField.getText();
+            String actor = AppSession.getInstance().getActorName();
+            AppExecutor.runAsync(() -> {
+                byte[] wav = services.getVoiceAudioRecorder().recordClipOrSyntheticWav(2000);
+                return services.getVoiceCommandEngine().transcribeAndExecute(wav, typed, actor);
+            }, result -> {
+                runBtn.setDisable(false);
+                dlg.close();
+                toastManager.showInfo(result.message());
+                if (result.intent() == com.stockpro.domain.VoiceCommandResult.VoiceIntent.NAVIGATE
+                        && result.targetSectionName() != null && !result.targetSectionName().isBlank()) {
+                    navigateTo(NavigationSection.valueOf(result.targetSectionName()));
+                } else if (result.intent() == com.stockpro.domain.VoiceCommandResult.VoiceIntent.VOICE_SEARCH
+                        && result.matchedProductId() > 0) {
+                    services.getProductRepository().findById(result.matchedProductId())
+                            .ifPresent(this::navigateToInventoryWithProduct);
+                } else {
+                    refreshAlertBadge();
+                }
+            }, ex -> {
+                runBtn.setDisable(false);
+                toastManager.showInfo("Voice error: " + ex.getMessage());
+            });
+        });
+
+        Button closeBtn = new Button("Cancel");
+        closeBtn.getStyleClass().add("btn-secondary");
+        closeBtn.setOnAction(e -> dlg.close());
+
+        card.getChildren().addAll(hint, cmdField, new HBox(10, runBtn, closeBtn));
+        Scene sc = new Scene(card, 480, 185);
+        String cssPath = AppSession.getInstance().isDarkMode() ? "/css/dark-theme.css" : "/css/light-theme.css";
+        var cssUrl = getClass().getResource(cssPath);
+        if (cssUrl != null) {
+            sc.getStylesheets().add(cssUrl.toExternalForm());
+        }
+        dlg.setScene(sc);
+        dlg.showAndWait();
     }
 
     /**

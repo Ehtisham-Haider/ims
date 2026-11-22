@@ -216,12 +216,17 @@ public class AiAssistantView {
         HBox.setHgrow(chatInput, Priority.ALWAYS);
         chatInput.setOnAction(e -> sendUserPrompt(chatInput.getText()));
 
+        Button micBtn = new Button("Voice");
+        micBtn.setGraphic(AppIcons.of(Feather.MIC, 14));
+        micBtn.getStyleClass().add("btn-secondary");
+        micBtn.setOnAction(e -> triggerVoiceCommandPrompt(micBtn));
+
         Button sendBtn = new Button("Send");
         sendBtn.setGraphic(AppIcons.of(Feather.SEND, 14));
         sendBtn.getStyleClass().add("btn-primary");
         sendBtn.setOnAction(e -> sendUserPrompt(chatInput.getText()));
 
-        HBox composer = new HBox(10, chatInput, sendBtn);
+        HBox composer = new HBox(10, chatInput, micBtn, sendBtn);
         composer.setAlignment(Pos.CENTER_LEFT);
 
         container.getChildren().addAll(apiStatusBanner, naturalSearchBar, chatScroll, quickChips, composer);
@@ -276,6 +281,81 @@ public class AiAssistantView {
         b.getStyleClass().add("filter-chip");
         b.setOnAction(e -> action.run());
         return b;
+    }
+
+    private void triggerVoiceCommandPrompt(Button sourceBtn) {
+        javafx.stage.Stage dlg = new javafx.stage.Stage();
+        dlg.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+        if (sourceBtn != null && sourceBtn.getScene() != null) {
+            dlg.initOwner(sourceBtn.getScene().getWindow());
+        }
+        dlg.setTitle("Voice Control & Whisper Studio (whisper-large-v3-turbo)");
+
+        VBox card = new VBox(12);
+        card.getStyleClass().add("card");
+        card.setPadding(new Insets(18));
+
+        boolean micReady = services.getVoiceAudioRecorder().isMicrophoneAvailable();
+        Label statusLbl = new Label(micReady
+                ? "Microphone detected — click 'Capture 3s & Transcribe' or type a spoken test phrase below."
+                : "No live mic line detected — type a simulated voice phrase or run Whisper synthetic clip test.");
+        statusLbl.setWrapText(true);
+        statusLbl.getStyleClass().add("muted-text");
+
+        TextField spokenField = new TextField();
+        spokenField.setPromptText("e.g. 'Add 10 Arabica Coffee' | 'Restock 5 Milk' | 'Open Warehouse Map' | 'Find Basmati'");
+
+        javafx.animation.FadeTransition pulse = new javafx.animation.FadeTransition(javafx.util.Duration.millis(650), statusLbl);
+        pulse.setFromValue(1.0);
+        pulse.setToValue(0.45);
+        pulse.setCycleCount(javafx.animation.Animation.INDEFINITE);
+        pulse.setAutoReverse(true);
+
+        Button captureBtn = new Button(micReady ? "Capture 3s Voice (Whisper)" : "Run Voice Command");
+        captureBtn.setGraphic(AppIcons.of(Feather.MIC, 14, "#FFFFFF"));
+        captureBtn.getStyleClass().add("btn-primary");
+        captureBtn.setOnAction(e -> {
+            captureBtn.setDisable(true);
+            pulse.play();
+            String typedFallback = spokenField.getText();
+            String actor = AppSession.getInstance().getActorName();
+            AppExecutor.runAsync(() -> {
+                byte[] wav = services.getVoiceAudioRecorder().recordClipOrSyntheticWav(2500);
+                return services.getVoiceCommandEngine().transcribeAndExecute(wav, typedFallback, actor);
+            }, result -> {
+                pulse.stop();
+                statusLbl.setOpacity(1.0);
+                captureBtn.setDisable(false);
+                dlg.close();
+                if (result.intent() == com.stockpro.domain.VoiceCommandResult.VoiceIntent.CHAT_QUERY
+                        && result.rawTranscript() != null && !result.rawTranscript().isBlank()) {
+                    sendUserPrompt(result.rawTranscript());
+                } else {
+                    appendUserBubble("[Voice" + (result.usedCloudWhisper() ? " Whisper" : "") + "] " + result.rawTranscript());
+                    appendAssistantCard(result.message(), "Voice Control Engine", result.executed(), null, null, null);
+                    toastManager.showInfo(result.message());
+                }
+            }, ex -> {
+                pulse.stop();
+                statusLbl.setOpacity(1.0);
+                captureBtn.setDisable(false);
+                toastManager.showInfo("Voice processing error: " + ex.getMessage());
+            });
+        });
+
+        Button closeBtn = new Button("Cancel");
+        closeBtn.getStyleClass().add("btn-secondary");
+        closeBtn.setOnAction(e -> dlg.close());
+
+        card.getChildren().addAll(statusLbl, new Label("Spoken Command / Offline Transcript:"), spokenField,
+                new HBox(10, captureBtn, closeBtn));
+        javafx.scene.Scene sc = new javafx.scene.Scene(card, 500, 230);
+        var css = getClass().getResource(AppSession.getInstance().isDarkMode() ? "/css/dark-theme.css" : "/css/light-theme.css");
+        if (css != null) {
+            sc.getStylesheets().add(css.toExternalForm());
+        }
+        dlg.setScene(sc);
+        dlg.showAndWait();
     }
 
     private void sendUserPrompt(String rawPrompt) {
