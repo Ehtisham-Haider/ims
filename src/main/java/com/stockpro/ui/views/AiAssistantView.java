@@ -206,8 +206,11 @@ public class AiAssistantView {
         Button chipEmail = makeQuickChip("Write Supplier Email", Feather.MAIL, this::runSupplierEmailDraft);
         Button chipExplain = makeQuickChip("Explain It To Me", Feather.HELP_CIRCLE, this::runExplainWarning);
         Button chipAudit = makeQuickChip("Run AI Audit", Feather.SHIELD, this::runAgentAuditFromChat);
+        Button chipWorld = makeQuickChip("Weather & Holidays", Feather.CLOUD, this::runWorldAwareBriefing);
+        Button chipPromo = makeQuickChip("Promo Copy", Feather.TAG, this::runClearancePromoDraft);
+        Button chipHelp = makeQuickChip("Help Guide", Feather.BOOK_OPEN, this::runInAppHelpPrompt);
 
-        HBox quickChips = new HBox(8, chipRunOut, chipChart, chipEmail, chipExplain, chipAudit);
+        HBox quickChips = new HBox(8, chipRunOut, chipChart, chipEmail, chipExplain, chipAudit, chipWorld, chipPromo, chipHelp);
         quickChips.setAlignment(Pos.CENTER_LEFT);
 
         // Input Composer
@@ -381,6 +384,43 @@ public class AiAssistantView {
         appendUserBubble("Explain our current ML alerts and inventory warnings simply.");
         executeCloudOrPromptSetup(
                 () -> assistantService.explainInPlainEnglishReply("current ML warnings and anomalies"));
+    }
+
+    private void runWorldAwareBriefing() {
+        appendUserBubble("Check 7-day weather alerts, upcoming holidays, and local consumer trends.");
+        AppExecutor.runAsync(() -> {
+            var gen = services.getWorldAwareGenAiService();
+            var w = gen.analyzeWeatherStocking(31.5204, 74.3587);
+            var holidays = gen.forecastUpcomingHolidays("PK", java.time.LocalDate.now());
+            var trends = gen.spotLocalTrends("PK");
+            String hStr = holidays.isEmpty() ? "None" : holidays.get(0).holidayName() + " in " + holidays.get(0).daysAway() + "d (" + holidays.get(0).demandMultiplier() + "x)";
+            String tStr = trends.isEmpty() ? "None" : trends.get(0).trendKeyword() + " -> " + trends.get(0).opportunityPitch();
+            return "Weather Alert (" + w.source() + "): " + w.conditionHeadline() + " -> " + w.guidance()
+                    + "\nUpcoming Holiday: " + hStr
+                    + "\nLocal Trend Signal: " + tStr;
+        }, text -> appendAssistantCard(text, "World-Aware AI", true, null, null, null),
+                ex -> toastManager.showInfo("World-aware check failed: " + ex.getMessage()));
+    }
+
+    private void runClearancePromoDraft() {
+        appendUserBubble("Write a 25% clearance promo blurb for a high-stock/expiring SKU.");
+        AppExecutor.runAsync(() -> {
+            List<Product> products = services.getInventoryService().getAllProducts();
+            Product target = products.stream()
+                    .max(java.util.Comparator.comparingInt(Product::getQuantity))
+                    .orElse(null);
+            return services.getWorldAwareGenAiService().generateClearancePromoCopy("WhatsApp", target, 25);
+        }, text -> appendAssistantCard(text, "GenAI Promo Copywriter", true, null, null, null),
+                ex -> toastManager.showInfo("Promo draft failed: " + ex.getMessage()));
+    }
+
+    private void runInAppHelpPrompt() {
+        String q = chatInput != null && chatInput.getText() != null && !chatInput.getText().isBlank()
+                ? chatInput.getText().trim()
+                : "How do I use the 2D warehouse map, Vision Studio, and Voice control?";
+        appendUserBubble("[In-App Help] " + q);
+        String guide = services.getWorldAwareGenAiService().answerInAppHelpQuestion(q);
+        appendAssistantCard(guide, "Smart In-App Help Guide", true, null, null, null);
     }
 
     private void runAgentAuditFromChat() {
