@@ -459,6 +459,8 @@ public class AiAssistantView {
      * If unconfigured, surfaces a helpful key-setup prompt with an optional
      * explicit "Run Local Preview" button
      * rather than silently pretending offline text came from Cloud AI.
+     *
+     * @param taskSupplier supplier producing the assistant reply
      */
     private void executeCloudOrPromptSetup(
             java.util.function.Supplier<AiAssistantService.AssistantReply> taskSupplier) {

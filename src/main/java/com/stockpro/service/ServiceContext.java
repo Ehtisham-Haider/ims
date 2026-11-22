@@ -17,7 +17,8 @@ import com.stockpro.repository.UserRepository;
 import com.stockpro.service.command.CommandHistoryManager;
 
 /**
- * Central service registry wiring repositories and business services around the active {@link DatabaseManager}.
+ * Central service registry wiring repositories, V1 business services, and Version 2
+ * enterprise modules around the active {@link DatabaseManager}.
  *
  * @author Syed Ehtisham Haider Bukhari, Faheem Ahmed Khan
  */

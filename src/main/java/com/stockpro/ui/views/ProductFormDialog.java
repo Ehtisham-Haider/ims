@@ -37,9 +37,12 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Add/Edit Product dialog matching {@code Screens and popups/Add Product.png} with live red inline
- * field validation, photo picker, category/tag entry, shelf location, expiry date, substitute SKU,
- * custom extra metadata fields, archive toggle, and compact scrolling fit on 1280×752 laptop screens.
+ * Add/Edit Product dialog matching {@code Screens and popups/Add Product.png}
+ * with live red inline
+ * field validation, photo picker, category/tag entry, shelf location, expiry
+ * date, substitute SKU,
+ * custom extra metadata fields, archive toggle, and compact scrolling fit on
+ * 1280×752 laptop screens.
  *
  * @author Syed Ehtisham Haider Bukhari, Faheem Ahmed Khan
  */
@@ -55,7 +58,8 @@ public class ProductFormDialog {
     }
 
     /**
-     * Returns any structured custom fields entered via {@code Custom Extra Fields (key=value)}.
+     * Returns any structured custom fields entered via
+     * {@code Custom Extra Fields (key=value)}.
      *
      * @return immutable-snapshot custom attribute map
      */
@@ -64,25 +68,31 @@ public class ProductFormDialog {
     }
 
     /**
-     * Opens the modal Add/Edit product dialog and waits until the user saves or cancels.
+     * Opens the modal Add/Edit product dialog and waits until the user saves or
+     * cancels.
      *
-     * @param owner parent window
-     * @param existing optional product being edited, or {@code null} when adding a new product
+     * @param owner    parent window
+     * @param existing optional product being edited, or {@code null} when adding a
+     *                 new product
      * @param darkMode whether dark CSS should be applied
-     * @return {@link Optional} containing the validated {@link Product} on Save, or empty on Cancel
+     * @return {@link Optional} containing the validated {@link Product} on Save, or
+     *         empty on Cancel
      */
     public Optional<Product> showAndWait(Window owner, Product existing, boolean darkMode) {
         return showAndWait(owner, existing, darkMode, null);
     }
 
     /**
-     * Opens the modal Add/Edit product dialog with optional Pexels photo search fallback.
+     * Opens the modal Add/Edit product dialog with optional Pexels photo search
+     * fallback.
      *
-     * @param owner parent window
-     * @param existing optional product being edited, or {@code null} when adding a new product
-     * @param darkMode whether dark CSS should be applied
+     * @param owner        parent window
+     * @param existing     optional product being edited, or {@code null} when
+     *                     adding a new product
+     * @param darkMode     whether dark CSS should be applied
      * @param imageService optional image resolver supporting Pexels search fallback
-     * @return {@link Optional} containing the validated {@link Product} on Save, or empty on Cancel
+     * @return {@link Optional} containing the validated {@link Product} on Save, or
+     *         empty on Cancel
      */
     public Optional<Product> showAndWait(
             Window owner,
@@ -181,7 +191,8 @@ public class ProductFormDialog {
 
         ComboBox<String> categoryBox = new ComboBox<>();
         categoryBox.setEditable(true);
-        categoryBox.getItems().addAll("Groceries", "Dairy", "Bakery", "Snacks", "Drinks", "Electronics", "Accessories", "General");
+        categoryBox.getItems().addAll("Groceries", "Dairy", "Bakery", "Snacks", "Drinks", "Electronics", "Accessories",
+                "General");
         categoryBox.setValue(existing != null && existing.getCategory() != null ? existing.getCategory() : "General");
         categoryBox.setMaxWidth(Double.MAX_VALUE);
 
@@ -205,7 +216,8 @@ public class ProductFormDialog {
                         findPhotoBtn.setDisable(false);
                         if (resolved != null && new File(resolved).exists()) {
                             selectedPhotoPath = resolved;
-                            preview.setImage(new Image(new File(resolved).toURI().toString(), 268, 268, true, true, true));
+                            preview.setImage(
+                                    new Image(new File(resolved).toURI().toString(), 268, 268, true, true, true));
                             photoGlyph.setVisible(false);
                             photoHint.setText(ProductImageService.isGeneratedPlaceholder(resolved)
                                     ? "Local category artwork ready (add Pexels key in Settings for photos)."
@@ -217,17 +229,18 @@ public class ProductFormDialog {
                     ex -> {
                         findPhotoBtn.setDisable(false);
                         photoHint.setText("Lookup failed: " + ex.getMessage());
-                    }
-            );
+                    });
         });
 
-        TextField shelfField = new TextField(existing != null && existing.getShelfLocation() != null ? existing.getShelfLocation() : "");
+        TextField shelfField = new TextField(
+                existing != null && existing.getShelfLocation() != null ? existing.getShelfLocation() : "");
         shelfField.setPromptText("e.g. A1-01");
 
         TextField qtyField = new TextField(existing != null ? String.valueOf(existing.getQuantity()) : "0");
         Label qtyErr = makeErrorLabel();
 
-        TextField thresholdField = new TextField(existing != null ? String.valueOf(existing.getLowStockThreshold()) : "10");
+        TextField thresholdField = new TextField(
+                existing != null ? String.valueOf(existing.getLowStockThreshold()) : "10");
         Label thresholdErr = makeErrorLabel();
 
         TextField buyPriceField = new TextField(existing != null ? String.valueOf(existing.getBuyPrice()) : "0.00");
@@ -245,7 +258,8 @@ public class ProductFormDialog {
         statusBox.setValue(existing != null ? existing.getStatus() : StockStatus.IN_STOCK);
         statusBox.setMaxWidth(Double.MAX_VALUE);
 
-        TextField substituteField = new TextField(existing != null && existing.getSubstituteSku() != null ? existing.getSubstituteSku() : "");
+        TextField substituteField = new TextField(
+                existing != null && existing.getSubstituteSku() != null ? existing.getSubstituteSku() : "");
         substituteField.setPromptText("Backup SKU (optional)");
 
         CheckBox manualOverrideCheck = new CheckBox("Manual Status Override");
@@ -338,9 +352,12 @@ public class ProductFormDialog {
             out.setShelfLocation(shelfField.getText() != null ? shelfField.getText().trim() : "");
             out.setQuantity(ProductValidator.parseQuantity(qtyField.getText()));
             String thrText = thresholdField.getText();
-            out.setLowStockThreshold(thrText == null || thrText.isBlank() ? 10 : ProductValidator.parseQuantity(thrText));
-            out.setBuyPrice(buyPriceField.getText().isBlank() ? 0.0 : ProductValidator.parsePrice(buyPriceField.getText(), "Buy price"));
-            out.setSellPrice(sellPriceField.getText().isBlank() ? 0.0 : ProductValidator.parsePrice(sellPriceField.getText(), "Sell price"));
+            out.setLowStockThreshold(
+                    thrText == null || thrText.isBlank() ? 10 : ProductValidator.parseQuantity(thrText));
+            out.setBuyPrice(buyPriceField.getText().isBlank() ? 0.0
+                    : ProductValidator.parsePrice(buyPriceField.getText(), "Buy price"));
+            out.setSellPrice(sellPriceField.getText().isBlank() ? 0.0
+                    : ProductValidator.parsePrice(sellPriceField.getText(), "Sell price"));
             out.setExpiryDate(expiryPicker.getValue());
             out.setManualStatusOverride(manualOverrideCheck.isSelected());
             out.setStatus(statusBox.getValue());
@@ -386,8 +403,7 @@ public class ProductFormDialog {
                 qtyField.getText(),
                 thresholdField.getText(),
                 buyField.getText(),
-                sellField.getText()
-        );
+                sellField.getText());
         Map<String, String> errs = vr.getFieldErrors();
         applyFieldError(nameField, nameErr, errs.get("name"));
         applyFieldError(qtyField, qtyErr, errs.get("quantity"));

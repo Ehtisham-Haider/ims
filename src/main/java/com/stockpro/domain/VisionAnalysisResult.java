@@ -3,20 +3,23 @@ package com.stockpro.domain;
 import java.util.List;
 
 /**
- * Result produced by the Vision Studio across ZXing barcode decoding, perceptual duplicate matching,
+ * Result produced by Camera Vision Studio across ZXing barcode decoding,
+ * perceptual duplicate matching,
  * and 6 computer-vision inspection modes with automatic cloud/offline fallback.
  *
  * @author Syed Ehtisham Haider Bukhari, Faheem Ahmed Khan
- * @param mode vision analysis mode executed
- * @param headline concise primary finding title
+ * @param mode               vision analysis mode executed
+ * @param headline           concise primary finding title
  * @param estimatedItemCount detected object or SKU count inside the frame
- * @param confidencePercent estimated confidence score ({@code 0..100})
- * @param detectedBarcode decoded ZXing 1D/2D barcode string, if present
- * @param detectedText extracted OCR / label / note text snippet
- * @param extractedLines structured line items parsed from receipts or notes
- * @param anomalyFlagged {@code true} when shelf gap, box damage, or duplicate photo risk is detected
- * @param usedCloudVision {@code true} when Groq Vision API enriched the result
- * @param summary detailed action guidance for inventory staff
+ * @param confidencePercent  estimated confidence score ({@code 0..100})
+ * @param detectedBarcode    decoded ZXing 1D/2D barcode string, if present
+ * @param detectedText       extracted OCR / label / note text snippet
+ * @param extractedLines     structured line items parsed from receipts or notes
+ * @param anomalyFlagged     {@code true} when shelf gap, box damage, or
+ *                           duplicate photo risk is detected
+ * @param usedCloudVision    {@code true} when Groq Vision API enriched the
+ *                           result
+ * @param summary            detailed action guidance for inventory staff
  */
 public record VisionAnalysisResult(
         VisionMode mode,
@@ -28,8 +31,7 @@ public record VisionAnalysisResult(
         List<String> extractedLines,
         boolean anomalyFlagged,
         boolean usedCloudVision,
-        String summary
-) {
+        String summary) {
     /**
      * Supported multi-mode workflows in Camera Vision Studio.
      *

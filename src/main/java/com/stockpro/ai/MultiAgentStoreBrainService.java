@@ -42,7 +42,7 @@ import java.util.Locale;
  * {@code Delay-Rescue}, {@code Price-Negotiator}, {@code Warehouse Organizer},
  * and {@code Budget Guardian}), SQLite self-learning feedback weights,
  * Sales Detective root-cause diagnostics, Waste-Zero bundling, Eco impact tracking,
- * and the composite 0–100 Store Health Score.
+ * and composite 0–100 Store Health Score evaluation.
  *
  * @author Syed Ehtisham Haider Bukhari, Faheem Ahmed Khan
  */

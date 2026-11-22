@@ -43,9 +43,10 @@ import java.util.Locale;
 
 /**
  * Interactive AI Vision Studio dialog providing 6 optical inspection tabs
- * (Product Recognizer, Shelf Counter, Empty Shelf Gap, Damaged Box, Receipt Scanner,
+ * (Product Recognizer, Shelf Counter, Empty Shelf Gap, Damaged Box, Receipt
+ * Scanner,
  * Handwritten Note Reader), ZXing barcode decoding, Open Food Facts lookup,
- * Drag-and-Drop image intake, and pHash catalog duplicate checking.
+ * Drag-and-Drop intake, and pHash catalog duplicate checking.
  *
  * @author Syed Ehtisham Haider Bukhari, Faheem Ahmed Khan
  */
@@ -67,7 +68,7 @@ public class VisionStudioDialog {
     /**
      * Constructs an interactive Vision Studio dialog controller.
      *
-     * @param services shared application service context
+     * @param services     shared application service context
      * @param toastManager toast notification feedback helper
      */
     public VisionStudioDialog(ServiceContext services, ToastNotificationManager toastManager) {
@@ -77,9 +78,10 @@ public class VisionStudioDialog {
     }
 
     /**
-     * Displays the modal Vision Studio window optionally pre-loaded with an image file and mode.
+     * Displays the modal Vision Studio window optionally pre-loaded with an image
+     * file and mode.
      *
-     * @param owner parent window
+     * @param owner       parent window
      * @param initialFile optional pre-dropped image path (or {@code null})
      * @param initialMode initial inspection tab (or {@code null})
      */
@@ -127,14 +129,16 @@ public class VisionStudioDialog {
             modeTabs.getChildren().add(tb);
         }
 
-        // Split: Left Drag-Drop / Preview Canvas | Right Analysis Findings & Barcode Lookup
+        // Split: Left Drag-Drop / Preview Canvas | Right Analysis Findings & Barcode
+        // Lookup
         HBox body = new HBox(16);
         VBox.setVgrow(body, Priority.ALWAYS);
 
         StackPane dropZone = new StackPane();
         dropZone.setMinSize(320, 270);
         dropZone.setPrefSize(340, 280);
-        dropZone.setStyle("-fx-border-color: #6366F1; -fx-border-style: segments(6, 4); -fx-border-width: 2; -fx-border-radius: 12; -fx-background-radius: 12;");
+        dropZone.setStyle(
+                "-fx-border-color: #6366F1; -fx-border-style: segments(6, 4); -fx-border-width: 2; -fx-border-radius: 12; -fx-background-radius: 12;");
 
         previewImageView = new ImageView();
         previewImageView.setFitWidth(310);
@@ -176,7 +180,8 @@ public class VisionStudioDialog {
         uploadBtn.setMaxWidth(Double.MAX_VALUE);
         uploadBtn.setOnAction(e -> {
             FileChooser chooser = new FileChooser();
-            chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Images", "*.png", "*.jpg", "*.jpeg", "*.bmp"));
+            chooser.getExtensionFilters()
+                    .add(new FileChooser.ExtensionFilter("Images", "*.png", "*.jpg", "*.jpeg", "*.bmp"));
             File chosen = chooser.showOpenDialog(stage);
             if (chosen != null) {
                 loadImageAndAnalyze(chosen.toPath());
@@ -191,7 +196,8 @@ public class VisionStudioDialog {
         headlineLabel.getStyleClass().add("section-title");
         headlineLabel.setWrapText(true);
 
-        detailLabel = new Label("Drop an image or test a retail barcode (e.g. 5449000000996 Coca-Cola, 3017620422003 Nutella).");
+        detailLabel = new Label(
+                "Drop an image or test a retail barcode (e.g. 5449000000996 Coca-Cola, 3017620422003 Nutella).");
         detailLabel.getStyleClass().add("muted-text");
         detailLabel.setWrapText(true);
 
@@ -226,14 +232,14 @@ public class VisionStudioDialog {
                 offRow,
                 new Label("Extracted Items & Telemetry:"),
                 extractedLinesView,
-                footer
-        );
+                footer);
 
         body.getChildren().addAll(leftPane, rightPane);
         root.getChildren().addAll(hdr, modeTabs, body);
 
         Scene sc = new Scene(root, 860, 560);
-        var css = getClass().getResource(AppSession.getInstance().isDarkMode() ? "/css/dark-theme.css" : "/css/light-theme.css");
+        var css = getClass()
+                .getResource(AppSession.getInstance().isDarkMode() ? "/css/dark-theme.css" : "/css/light-theme.css");
         if (css != null) {
             sc.getStylesheets().add(css.toExternalForm());
         }
@@ -262,8 +268,7 @@ public class VisionStudioDialog {
         AppExecutor.runAsync(
                 () -> visionService.analyzeImageFile(target, mode),
                 this::renderResult,
-                ex -> toastManager.showInfo("Vision analysis failed: " + ex.getMessage())
-        );
+                ex -> toastManager.showInfo("Vision analysis failed: " + ex.getMessage()));
     }
 
     private void synthesizeSampleBarcodeFrame() {
@@ -280,8 +285,7 @@ public class VisionStudioDialog {
                     previewImageView.setImage(new Image(new ByteArrayInputStream(frame.png())));
                     renderResult(frame.result());
                 },
-                ex -> toastManager.showInfo("Sample frame failed: " + ex.getMessage())
-        );
+                ex -> toastManager.showInfo("Sample frame failed: " + ex.getMessage()));
     }
 
     private void lookupBarcodeAsync() {
@@ -295,20 +299,19 @@ public class VisionStudioDialog {
                 (OpenFoodFactsClient.BarcodeLookupResult res) -> {
                     if (res.found()) {
                         headlineLabel.setText(res.productName() + " (" + res.source() + ")");
-                        detailLabel.setText("Category: " + res.category() + " | Brand: " + res.brand() + " | Barcode: " + res.barcode());
+                        detailLabel.setText("Category: " + res.category() + " | Brand: " + res.brand() + " | Barcode: "
+                                + res.barcode());
                         extractedLinesView.getItems().setAll(
                                 "Barcode: " + res.barcode(),
                                 "Name: " + res.productName(),
                                 "Category: " + res.category(),
-                                "Brand: " + res.brand()
-                        );
+                                "Brand: " + res.brand());
                     } else {
                         headlineLabel.setText("Barcode not found on OpenFoodFacts / Offline Cache");
                         detailLabel.setText("Queried: " + res.barcode());
                     }
                 },
-                ex -> toastManager.showInfo("OpenFoodFacts lookup failed: " + ex.getMessage())
-        );
+                ex -> toastManager.showInfo("OpenFoodFacts lookup failed: " + ex.getMessage()));
     }
 
     private void renderResult(VisionAnalysisResult res) {
@@ -325,8 +328,7 @@ public class VisionStudioDialog {
                     "Mode: " + res.mode().getDisplayName(),
                     "Estimated Count: " + res.estimatedItemCount(),
                     "Decoded Barcode: " + (res.detectedBarcode().isBlank() ? "None" : res.detectedBarcode()),
-                    "Anomaly Flagged: " + (res.anomalyFlagged() ? "YES" : "No")
-            );
+                    "Anomaly Flagged: " + (res.anomalyFlagged() ? "YES" : "No"));
         }
     }
 

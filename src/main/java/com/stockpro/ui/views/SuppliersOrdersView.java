@@ -50,7 +50,8 @@ import java.util.function.Consumer;
 /**
  * Suppliers, Purchase Orders, and Financial Engine workspace matching
  * {@code Screens and popups/Suppliers and Orders.png}, with Feather vector icons,
- * editable PO draft line removal, supplier delete confirmation, status pills, and OpenPDF export.
+ * editable PO draft line removal, supplier delete confirmation, status pills, OpenPDF export,
+ * FX rates, landed cost allocation, and volume pricing tiers.
  *
  * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */

@@ -22,8 +22,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Landed Cost Engine implementing Strategy Pattern allocation ({@code BY_VALUE},
- * {@code BY_QUANTITY}, {@code BY_WEIGHT}) to spread freight, customs duties, and
+ * Landed Cost Engine implementing Strategy Pattern allocation
+ * ({@code BY_VALUE},
+ * {@code BY_QUANTITY}, {@code BY_WEIGHT}) to allocate freight, customs duties,
+ * and
  * handling charges across Purchase Order lines into true effective unit cost.
  *
  * @author Syed Ehtisham Haider Bukhari, Faheem Ahmed Khan
@@ -40,11 +42,11 @@ public class LandedCostEngine {
     /**
      * Constructs the Landed Cost allocation engine.
      *
-     * @param dbManager SQLite connection manager
-     * @param poRepository purchase order repository
+     * @param dbManager         SQLite connection manager
+     * @param poRepository      purchase order repository
      * @param productRepository product catalog repository
-     * @param auditService tamper-evident audit logger
-     * @param eventBus shared UI refresh event bus
+     * @param auditService      tamper-evident audit logger
+     * @param eventBus          shared UI refresh event bus
      */
     public LandedCostEngine(
             DatabaseManager dbManager,
@@ -60,13 +62,14 @@ public class LandedCostEngine {
     }
 
     /**
-     * Computes a non-persistent preview of landed unit costs across a Purchase Order's items.
+     * Computes a non-persistent preview of landed unit costs across a Purchase
+     * Order's items.
      *
-     * @param poId target Purchase Order id
+     * @param poId        target Purchase Order id
      * @param freightCost freight or shipping fee
      * @param customsDuty import tax or customs duty
      * @param handlingFee handling / port / insurance fee
-     * @param strategy overhead allocation strategy
+     * @param strategy    overhead allocation strategy
      * @return operation result with calculated {@link LandedCostAllocation}
      */
     public InventoryOperationResult<LandedCostAllocation> calculatePreview(
@@ -87,21 +90,25 @@ public class LandedCostEngine {
             return InventoryOperationResult.fail("Purchase Order " + po.getPoNumber() + " has no line items.");
         }
         AllocationStrategy chosen = strategy != null ? strategy : AllocationStrategy.BY_VALUE;
-        LandedCostAllocation result = allocateInternal(po, freightCost, customsDuty, handlingFee, chosen, LocalDateTime.now().toString());
-        return InventoryOperationResult.ok(result, "Computed " + chosen + " landed cost preview for " + po.getPoNumber() + ".");
+        LandedCostAllocation result = allocateInternal(po, freightCost, customsDuty, handlingFee, chosen,
+                LocalDateTime.now().toString());
+        return InventoryOperationResult.ok(result,
+                "Computed " + chosen + " landed cost preview for " + po.getPoNumber() + ".");
     }
 
     /**
      * Allocates landed charges across a Purchase Order, persists the breakdown to
-     * {@code landed_cost_allocations}, optionally updates catalog unit buy prices, and logs to audit.
+     * {@code landed_cost_allocations}, optionally updates catalog unit buy prices,
+     * and logs to audit.
      *
-     * @param poId target Purchase Order id
-     * @param freightCost freight charge
-     * @param customsDuty customs duty
-     * @param handlingFee handling / insurance fee
-     * @param strategy overhead allocation strategy
-     * @param updateCatalogBuyPrice whether to update each product's {@code buyPrice} to the new landed cost
-     * @param actor authenticated operator name
+     * @param poId                  target Purchase Order id
+     * @param freightCost           freight charge
+     * @param customsDuty           customs duty
+     * @param handlingFee           handling / insurance fee
+     * @param strategy              overhead allocation strategy
+     * @param updateCatalogBuyPrice whether to update each product's
+     *                              {@code buyPrice} to the new landed cost
+     * @param actor                 authenticated operator name
      * @return operation result containing persisted {@link LandedCostAllocation}
      */
     public InventoryOperationResult<LandedCostAllocation> allocateAndPersist(
@@ -112,8 +119,8 @@ public class LandedCostEngine {
             AllocationStrategy strategy,
             boolean updateCatalogBuyPrice,
             String actor) {
-        InventoryOperationResult<LandedCostAllocation> previewRes =
-                calculatePreview(poId, freightCost, customsDuty, handlingFee, strategy);
+        InventoryOperationResult<LandedCostAllocation> previewRes = calculatePreview(poId, freightCost, customsDuty,
+                handlingFee, strategy);
         if (!previewRes.isSuccess()) {
             return previewRes;
         }
@@ -122,13 +129,13 @@ public class LandedCostEngine {
         long generatedId = 0L;
 
         try (Connection conn = dbManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(
-                     """
-                     INSERT INTO landed_cost_allocations (
-                         po_id, freight_cost, customs_duty, handling_fee, strategy, breakdown_json, created_at
-                     ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                     """,
-                     Statement.RETURN_GENERATED_KEYS)) {
+                PreparedStatement ps = conn.prepareStatement(
+                        """
+                                INSERT INTO landed_cost_allocations (
+                                    po_id, freight_cost, customs_duty, handling_fee, strategy, breakdown_json, created_at
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                                """,
+                        Statement.RETURN_GENERATED_KEYS)) {
             ps.setLong(1, calc.poId());
             ps.setDouble(2, calc.freightCost());
             ps.setDouble(3, calc.customsDuty());
@@ -161,8 +168,7 @@ public class LandedCostEngine {
                 who,
                 "LANDED_COST",
                 "PO#" + poId,
-                "Allocated " + String.format("%.2f", calc.totalOverhead()) + " via " + calc.strategy()
-        );
+                "Allocated " + String.format("%.2f", calc.totalOverhead()) + " via " + calc.strategy());
         eventBus.publish("LANDED_COST_APPLIED");
 
         LandedCostAllocation persisted = new LandedCostAllocation(
@@ -173,8 +179,7 @@ public class LandedCostEngine {
                 calc.handlingFee(),
                 calc.strategy(),
                 calc.lines(),
-                calc.createdAt()
-        );
+                calc.createdAt());
         return InventoryOperationResult.ok(persisted,
                 "Saved landed cost allocation #" + generatedId + " (" + calc.strategy() + ").");
     }
@@ -189,10 +194,11 @@ public class LandedCostEngine {
         String sql = "SELECT id, po_id, freight_cost, customs_duty, handling_fee, strategy, breakdown_json, created_at "
                 + "FROM landed_cost_allocations ORDER BY id DESC LIMIT 100";
         try (Connection conn = dbManager.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
-                LandedCostLineBreakdown[] arr = gson.fromJson(rs.getString("breakdown_json"), LandedCostLineBreakdown[].class);
+                LandedCostLineBreakdown[] arr = gson.fromJson(rs.getString("breakdown_json"),
+                        LandedCostLineBreakdown[].class);
                 List<LandedCostLineBreakdown> lines = arr != null ? List.of(arr) : List.of();
                 out.add(new LandedCostAllocation(
                         rs.getLong("id"),
@@ -202,8 +208,7 @@ public class LandedCostEngine {
                         rs.getDouble("handling_fee"),
                         AllocationStrategy.valueOf(rs.getString("strategy")),
                         lines,
-                        rs.getString("created_at")
-                ));
+                        rs.getString("created_at")));
             }
         } catch (SQLException ex) {
             throw new IllegalStateException("Failed to list landed cost allocations.", ex);
@@ -252,8 +257,7 @@ public class LandedCostEngine {
                     item.getQuantity(),
                     item.getUnitCost(),
                     extra,
-                    effectiveUnit
-            ));
+                    effectiveUnit));
         }
         return new LandedCostAllocation(0L, po.getId(), freight, duty, handling, strategy, lines, now);
     }
