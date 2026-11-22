@@ -12,6 +12,8 @@ public enum NavigationSection {
     INVENTORY("Inventory"),
     /** Restock, sales, damaged, returned, lost, physical count, and audit trail. */
     STOCK_OPERATIONS("Stock Operations"),
+    /** Interactive 2D store floorplan, shelf saturation meters, and shortest picking tour. */
+    WAREHOUSE_MAP("Warehouse Map"),
     /** Supplier directory, purchase order builder, and finance engine. */
     SUPPLIERS_ORDERS("Suppliers & Orders"),
     /** Business analytics charts and PDF/Excel report exports. */
