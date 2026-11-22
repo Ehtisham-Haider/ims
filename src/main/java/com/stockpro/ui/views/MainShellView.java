@@ -749,6 +749,12 @@ public class MainShellView {
         if (bellButton == null) {
             return;
         }
+        if (bellButton.getScene() != null && bellButton.getScene().getRoot() != null) {
+            com.stockpro.util.I18nManager.getInstance().applyOrientationOnly(
+                    services.getSettingsRepository().get("app.language", "en"),
+                    bellButton.getScene().getRoot()
+            );
+        }
         AppExecutor.runAsync(
                 () -> getUrgentProducts().size(),
                 urgentCount -> bellButton.setText(String.valueOf(urgentCount)),

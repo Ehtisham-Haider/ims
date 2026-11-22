@@ -127,6 +127,7 @@ public class SettingsView {
 
         tabs.getTabs().addAll(
                 new Tab("General", wrapScroll(buildGeneralTab())),
+                new Tab("Language, Alerts & API", wrapScroll(buildLanguageAlertsApiTab())),
                 new Tab("AI & API Keys", wrapScroll(buildGroqAiTab())),
                 new Tab("Staff", wrapScroll(buildStaffTab())),
                 new Tab("Backup & Demo Data", wrapScroll(buildBackupAndDemoTab())),
@@ -516,6 +517,185 @@ public class SettingsView {
 
         container.getChildren().addAll(statusBanner, split, buildPexelsApiSection());
         return container;
+    }
+
+    private VBox buildLanguageAlertsApiTab() {
+        VBox tabRoot = new VBox(18);
+        tabRoot.setPadding(new Insets(4, 0, 20, 0));
+
+        // 1. Language & RTL Switcher Card
+        VBox langCard = new VBox(12);
+        langCard.getStyleClass().add("card");
+        langCard.setPadding(new Insets(18));
+        Label langHead = new Label("Interface Language & RTL Layout (English / Urdu)");
+        langHead.getStyleClass().add("section-title");
+
+        ComboBox<String> langCombo = new ComboBox<>();
+        langCombo.getItems().addAll("English (LTR)", "Urdu - اردو (RTL)");
+        String savedLang = services.getSettingsRepository().get("app.language", "en");
+        langCombo.setValue("ur".equalsIgnoreCase(savedLang) ? "Urdu - اردو (RTL)" : "English (LTR)");
+
+        Label i18nPreviewLbl = new Label(
+                com.stockpro.util.I18nManager.getInstance().get("nav.inventory", savedLang)
+                        + " • "
+                        + com.stockpro.util.I18nManager.getInstance().get("alerts.title", savedLang)
+        );
+        i18nPreviewLbl.getStyleClass().add("muted-text");
+
+        Button applyLangBtn = new Button("Apply Language");
+        applyLangBtn.getStyleClass().add("btn-primary");
+        applyLangBtn.setGraphic(AppIcons.of(Feather.GLOBE, 14));
+        applyLangBtn.setOnAction(e -> {
+            String code = langCombo.getValue() != null && langCombo.getValue().contains("Urdu") ? "ur" : "en";
+            javafx.scene.Node rootNode = langCombo.getScene() != null ? langCombo.getScene().getRoot() : langCard;
+            com.stockpro.util.I18nManager.getInstance().applyLanguage(code, rootNode, services.getSettingsRepository());
+            i18nPreviewLbl.setText(
+                    com.stockpro.util.I18nManager.getInstance().get("nav.inventory", code)
+                            + " • "
+                            + com.stockpro.util.I18nManager.getInstance().get("alerts.title", code)
+            );
+            toastManager.showInfo("Language switched to " + ("ur".equals(code) ? "Urdu (RTL)" : "English (LTR)"));
+        });
+        langCard.getChildren().addAll(langHead, new HBox(12, langCombo, applyLangBtn), i18nPreviewLbl);
+
+        // 2. Telegram & Gmail Outbound Alert Channels Card
+        VBox alertsCard = new VBox(10);
+        alertsCard.getStyleClass().add("card");
+        alertsCard.setPadding(new Insets(18));
+        Label alertHead = new Label("Telegram Bot & Gmail SMTP Alert Channels ($0 Free)");
+        alertHead.getStyleClass().add("section-title");
+
+        com.stockpro.repository.SettingsRepository settingsRepo = services.getSettingsRepository();
+        javafx.scene.control.PasswordField tgTokenF = new javafx.scene.control.PasswordField();
+        tgTokenF.setPromptText("Telegram Bot Token (from @BotFather)");
+        tgTokenF.setText(settingsRepo.get("alerts.telegram.token", ""));
+
+        TextField tgChatF = new TextField(settingsRepo.get("alerts.telegram.chat_id", ""));
+        tgChatF.setPromptText("Telegram Chat ID (e.g. -100123456)");
+
+        TextField gmailAddrF = new TextField(settingsRepo.get("alerts.gmail.address", ""));
+        gmailAddrF.setPromptText("Sender Gmail address");
+
+        javafx.scene.control.PasswordField gmailPassF = new javafx.scene.control.PasswordField();
+        gmailPassF.setPromptText("16-char Gmail App Password");
+        gmailPassF.setText(settingsRepo.get("alerts.gmail.app_password", ""));
+
+        TextField gmailRcptF = new TextField(settingsRepo.get("alerts.gmail.recipient", ""));
+        gmailRcptF.setPromptText("Alert recipient email");
+
+        Label alertStatusLbl = new Label("Recent Alert Dispatch Logs: "
+                + services.getAlertDispatcherService().getRecentLogs(5).size() + " entries");
+        alertStatusLbl.getStyleClass().add("muted-text");
+
+        Button saveAlertsBtn = new Button("Save Alert Credentials");
+        saveAlertsBtn.getStyleClass().add("btn-secondary");
+        saveAlertsBtn.setOnAction(e -> {
+            settingsRepo.set("alerts.telegram.token", tgTokenF.getText().trim());
+            settingsRepo.set("alerts.telegram.chat_id", tgChatF.getText().trim());
+            settingsRepo.set("alerts.gmail.address", gmailAddrF.getText().trim());
+            settingsRepo.set("alerts.gmail.app_password", gmailPassF.getText().trim());
+            settingsRepo.set("alerts.gmail.recipient", gmailRcptF.getText().trim());
+            toastManager.showInfo("Saved Telegram and Gmail alert configuration.");
+        });
+
+        Button testAlertBtn = new Button("Send Test Alert");
+        testAlertBtn.getStyleClass().add("btn-primary");
+        testAlertBtn.setGraphic(AppIcons.of(Feather.SEND, 14));
+        testAlertBtn.setOnAction(e -> {
+            testAlertBtn.setDisable(true);
+            saveAlertsBtn.fire();
+            AppExecutor.runAsync(
+                    () -> services.getAlertDispatcherService().dispatchMultiChannelAlert(
+                            "INFO", "HIGH", "StockPro Test Alert",
+                            "Triggered manually from Settings by " + AppSession.getInstance().getActorName()),
+                    logs -> {
+                        testAlertBtn.setDisable(false);
+                        long okCount = logs.stream().filter(com.stockpro.service.AlertDispatcherService.DispatchLogEntry::delivered).count();
+                        String msg = "Dispatched " + logs.size() + " alert(s), " + okCount + " delivered remotely.";
+                        alertStatusLbl.setText(msg);
+                        toastManager.showInfo(msg);
+                    },
+                    ex -> {
+                        testAlertBtn.setDisable(false);
+                        toastManager.showInfo("Alert dispatch failed: " + ex.getMessage());
+                    }
+            );
+        });
+        alertsCard.getChildren().addAll(
+                alertHead,
+                new Label("Telegram Bot Token"), tgTokenF,
+                new Label("Telegram Chat ID"), tgChatF,
+                new Label("Gmail Sender Address"), gmailAddrF,
+                new Label("Gmail App Password"), gmailPassF,
+                new Label("Gmail Recipient Email"), gmailRcptF,
+                new HBox(10, saveAlertsBtn, testAlertBtn),
+                alertStatusLbl
+        );
+
+        // 3. Embedded Localhost JWT REST API Server Card
+        VBox apiCard = new VBox(10);
+        apiCard.getStyleClass().add("card");
+        apiCard.setPadding(new Insets(18));
+        Label apiHead = new Label("Localhost Loopback REST API (127.0.0.1 + HMAC-SHA256 JWT)");
+        apiHead.getStyleClass().add("section-title");
+
+        TextField portField = new TextField(settingsRepo.get("api.local.port", "8765"));
+        portField.setPromptText("TCP Port (e.g. 8765)");
+
+        com.stockpro.service.LocalRestApiServer apiServer = services.getLocalRestApiServer();
+        Label apiStateLbl = new Label(apiServer.isRunning()
+                ? "Listening at http://127.0.0.1:" + apiServer.getPort() + "/api/v1/health"
+                : "Local REST API Server is currently stopped.");
+        apiStateLbl.getStyleClass().add("muted-text");
+
+        TextField jwtSampleField = new TextField();
+        jwtSampleField.setEditable(false);
+        jwtSampleField.setPromptText("Click 'Generate Admin JWT' to inspect sample Bearer token");
+
+        Button toggleApiBtn = new Button(apiServer.isRunning() ? "Stop REST API" : "Start REST API");
+        toggleApiBtn.getStyleClass().add("btn-primary");
+        toggleApiBtn.setOnAction(e -> {
+            if (apiServer.isRunning()) {
+                apiServer.stop();
+                settingsRepo.set("api.local.enabled", "false");
+                toggleApiBtn.setText("Start REST API");
+                apiStateLbl.setText("Local REST API Server stopped.");
+                toastManager.showInfo("Stopped Local REST API server.");
+            } else {
+                try {
+                    int port = Integer.parseInt(portField.getText().trim());
+                    int bound = apiServer.start(port);
+                    settingsRepo.set("api.local.port", String.valueOf(bound));
+                    settingsRepo.set("api.local.enabled", "true");
+                    toggleApiBtn.setText("Stop REST API");
+                    apiStateLbl.setText("Listening at http://127.0.0.1:" + bound + "/api/v1/health");
+                    toastManager.showInfo("Started Local REST API on 127.0.0.1:" + bound);
+                } catch (Exception ex) {
+                    toastManager.showInfo("Failed to start REST API: " + ex.getMessage());
+                }
+            }
+        });
+
+        Button issueJwtBtn = new Button("Generate Sample JWT");
+        issueJwtBtn.getStyleClass().add("btn-secondary");
+        issueJwtBtn.setOnAction(e -> {
+            com.stockpro.domain.UserRole role = AppSession.getInstance().getCurrentUser() != null
+                    ? AppSession.getInstance().getCurrentUser().getRole()
+                    : com.stockpro.domain.UserRole.OWNER;
+            jwtSampleField.setText(apiServer.generateJwt(AppSession.getInstance().getActorName(), role, 3600));
+            toastManager.showInfo("Generated 1-hour HS256 JWT Bearer token.");
+        });
+
+        apiCard.getChildren().addAll(
+                apiHead,
+                new Label("Loopback TCP Port"), portField,
+                new HBox(10, toggleApiBtn, issueJwtBtn),
+                apiStateLbl,
+                jwtSampleField
+        );
+
+        tabRoot.getChildren().addAll(langCard, alertsCard, apiCard);
+        return tabRoot;
     }
 
     /**
