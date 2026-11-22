@@ -161,6 +161,14 @@ public class InventoryView {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
+        Button visionBtn = new Button("AI Vision Studio");
+        visionBtn.setGraphic(AppIcons.of(Feather.APERTURE, 14));
+        visionBtn.getStyleClass().add("btn-secondary");
+        visionBtn.setOnAction(e -> new VisionStudioDialog(services, toastManager).show(
+                rootPane.getScene() != null ? rootPane.getScene().getWindow() : null,
+                null,
+                com.stockpro.domain.VisionAnalysisResult.VisionMode.PRODUCT_RECOGNIZER));
+
         Button scanBtn = new Button("Scan Barcode");
         scanBtn.setGraphic(AppIcons.of(Feather.CAMERA, 14));
         scanBtn.getStyleClass().add("btn-secondary");
@@ -171,7 +179,7 @@ public class InventoryView {
         addBtn.getStyleClass().add("btn-primary");
         addBtn.setOnAction(e -> openAddProductDialog());
 
-        header.getChildren().addAll(titleCol, spacer, scanBtn, addBtn);
+        header.getChildren().addAll(titleCol, spacer, visionBtn, scanBtn, addBtn);
 
         HBox filterBar = buildFilterBar();
 
@@ -578,6 +586,30 @@ public class InventoryView {
         footer.setAlignment(Pos.CENTER_LEFT);
 
         card.getChildren().addAll(tableView, footer);
+        card.setOnDragOver(ev -> {
+            if (ev.getDragboard().hasFiles()) {
+                ev.acceptTransferModes(javafx.scene.input.TransferMode.COPY);
+            }
+            ev.consume();
+        });
+        card.setOnDragDropped(ev -> {
+            List<File> files = ev.getDragboard().getFiles();
+            boolean handled = false;
+            if (files != null && !files.isEmpty()) {
+                for (File f : files) {
+                    if (services.getVisionStudioService().isSupportedImageFile(f)) {
+                        new VisionStudioDialog(services, toastManager).show(
+                                rootPane.getScene() != null ? rootPane.getScene().getWindow() : null,
+                                f.toPath(),
+                                com.stockpro.domain.VisionAnalysisResult.VisionMode.PRODUCT_RECOGNIZER);
+                        handled = true;
+                        break;
+                    }
+                }
+            }
+            ev.setDropCompleted(handled);
+            ev.consume();
+        });
         return card;
     }
 
