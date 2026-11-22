@@ -63,6 +63,10 @@ public class ServiceContext {
     private final PerceptualImageHasher perceptualImageHasher;
     private final OpenFoodFactsClient openFoodFactsClient;
     private final VisionStudioService visionStudioService;
+    private final VoiceAudioRecorder voiceAudioRecorder;
+    private final com.stockpro.ai.GroqWhisperClient groqWhisperClient;
+    private final VoiceCommandEngine voiceCommandEngine;
+    private final com.stockpro.ml.AdvancedOfflineMlService advancedOfflineMlService;
 
     /**
      * Constructs a service registry bound to a specific {@link DatabaseManager}.
@@ -165,6 +169,12 @@ public class ServiceContext {
         this.openFoodFactsClient = new OpenFoodFactsClient();
         this.visionStudioService = new VisionStudioService(
                 productRepository, perceptualImageHasher, openFoodFactsClient, groqApiClient, auditService);
+        this.voiceAudioRecorder = new VoiceAudioRecorder();
+        this.groqWhisperClient = new com.stockpro.ai.GroqWhisperClient(groqApiClient);
+        this.voiceCommandEngine = new VoiceCommandEngine(
+                inventoryService, stockOperationService, catalogSearchEngine, groqWhisperClient, auditService);
+        this.advancedOfflineMlService = new com.stockpro.ml.AdvancedOfflineMlService(
+                databaseManager, productRepository, supplierRepository, purchaseOrderRepository, offlineMlEngine);
         syncSessionSettings();
     }
 
@@ -539,5 +549,41 @@ public class ServiceContext {
      */
     public VisionStudioService getVisionStudioService() {
         return visionStudioService;
+    }
+
+    /**
+     * Returns the 16 kHz PCM/WAV microphone recorder helper.
+     *
+     * @return {@link VoiceAudioRecorder}
+     */
+    public VoiceAudioRecorder getVoiceAudioRecorder() {
+        return voiceAudioRecorder;
+    }
+
+    /**
+     * Returns the Groq {@code whisper-large-v3-turbo} speech-to-text client.
+     *
+     * @return {@link com.stockpro.ai.GroqWhisperClient}
+     */
+    public com.stockpro.ai.GroqWhisperClient getGroqWhisperClient() {
+        return groqWhisperClient;
+    }
+
+    /**
+     * Returns the hands-free voice command orchestrator.
+     *
+     * @return {@link VoiceCommandEngine}
+     */
+    public VoiceCommandEngine getVoiceCommandEngine() {
+        return voiceCommandEngine;
+    }
+
+    /**
+     * Returns the Branch 07 Advanced Offline ML analytics service.
+     *
+     * @return {@link com.stockpro.ml.AdvancedOfflineMlService}
+     */
+    public com.stockpro.ml.AdvancedOfflineMlService getAdvancedOfflineMlService() {
+        return advancedOfflineMlService;
     }
 }
