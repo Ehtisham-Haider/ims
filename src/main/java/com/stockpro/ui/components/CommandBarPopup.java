@@ -26,7 +26,7 @@ import java.util.function.Consumer;
 /**
  * Spotlight-style floating {@code Ctrl+K} popup supporting instant search, screen jumps, and quick commands.
  *
- * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
+ * @author Syed Ehtisham Haider Bukhari, Faheem Ahmad Khan
  */
 public class CommandBarPopup {
     private final StackPane overlayHost;
@@ -85,7 +85,7 @@ public class CommandBarPopup {
      */
     private void buildUi() {
         backdrop = new StackPane();
-        backdrop.setStyle("-fx-background-color: rgba(15, 23, 42, 0.45);");
+        backdrop.getStyleClass().add("modal-backdrop");
         backdrop.setAlignment(Pos.TOP_CENTER);
         backdrop.setPadding(new Insets(72, 24, 24, 24));
 
@@ -173,6 +173,7 @@ public class CommandBarPopup {
     public void show() {
         if (!overlayHost.getChildren().contains(backdrop)) {
             overlayHost.getChildren().add(backdrop);
+            ToastNotificationManager.animateIn(backdrop, backdrop.getChildren().get(0));
         }
         inputField.clear();
         refreshSuggestions("");

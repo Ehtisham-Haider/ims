@@ -20,4 +20,4 @@ mvn javafx:run
 
 ## Authors
 - **Syed Ehtisham Haider Bukhari**
-- **Faheen Ahmad Khan**
+- **Faheem Ahmad Khan**

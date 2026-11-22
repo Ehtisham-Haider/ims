@@ -2,6 +2,7 @@ package com.stockpro.ui.views;
 
 import com.stockpro.domain.Product;
 import com.stockpro.ui.components.AppIcons;
+import com.stockpro.ui.components.ThemeManager;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -105,10 +106,7 @@ public class DeleteConfirmDialog {
         card.getChildren().addAll(heading, body, actions);
 
         Scene scene = new Scene(card, 460, 190);
-        var cssUrl = getClass().getResource(darkMode ? "/css/dark-theme.css" : "/css/light-theme.css");
-        if (cssUrl != null) {
-            scene.getStylesheets().add(cssUrl.toExternalForm());
-        }
+        ThemeManager.apply(scene);
         dialog.setScene(scene);
         dialog.showAndWait();
         return choice;

@@ -3,7 +3,7 @@ package com.stockpro;
 /**
  * Non-JavaFX launcher wrapper allowing seamless execution from IDEs and shaded archives.
  *
- * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
+ * @author Syed Ehtisham Haider Bukhari, Faheem Ahmad Khan
  */
 public final class Launcher {
 

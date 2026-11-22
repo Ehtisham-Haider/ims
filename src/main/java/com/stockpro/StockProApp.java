@@ -3,6 +3,7 @@ package com.stockpro;
 import com.stockpro.repository.DatabaseManager;
 import com.stockpro.service.AppSession;
 import com.stockpro.service.ServiceContext;
+import com.stockpro.ui.components.ThemeManager;
 import com.stockpro.ui.views.LoginView;
 import com.stockpro.ui.views.MainShellView;
 import com.stockpro.util.AppExecutor;
@@ -24,7 +25,6 @@ import org.slf4j.Logger;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
-import java.awt.GradientPaint;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.geom.Path2D;
@@ -56,6 +56,7 @@ public class StockProApp extends Application {
     @Override
     public void start(Stage stage) {
         GlobalExceptionHandler.install();
+        ThemeManager.loadFonts();
         LOG.info("Starting StockPro desktop application...");
         this.primaryStage = stage;
 
@@ -122,24 +123,15 @@ public class StockProApp extends Application {
     }
 
     /**
-     * Applies either {@code light-theme.css} or {@code dark-theme.css} immediately without restart.
+     * Applies the base design system plus the active light/dark token sheet immediately without restart.
      */
     private void applyActiveTheme() {
-        if (mainScene == null) {
-            return;
-        }
-        mainScene.getStylesheets().clear();
-        String path = AppSession.getInstance().isDarkMode()
-                ? "/css/dark-theme.css"
-                : "/css/light-theme.css";
-        var url = getClass().getResource(path);
-        if (url != null) {
-            mainScene.getStylesheets().add(url.toExternalForm());
-        }
+        ThemeManager.apply(mainScene);
     }
 
     /**
-     * Generates a crisp 64×64 vector-rendered isometric StockPro cube icon for taskbar and title bar display.
+     * Generates a crisp 64×64 vector-rendered StockPro cube icon on the flat brand-accent tile
+     * for taskbar and title bar display.
      *
      * @return FX {@link Image}
      */
@@ -148,8 +140,8 @@ public class StockProApp extends Application {
         Graphics2D g = img.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        g.setPaint(new GradientPaint(0, 0, new Color(79, 70, 229), 64, 64, new Color(124, 58, 237)));
-        g.fillRoundRect(4, 4, 56, 56, 16, 16);
+        g.setColor(new Color(179, 18, 31));
+        g.fillRoundRect(4, 4, 56, 56, 18, 18);
 
         Path2D hex = new Path2D.Double();
         hex.moveTo(32, 12);

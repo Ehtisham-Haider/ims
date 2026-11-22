@@ -13,6 +13,7 @@ import com.stockpro.service.ProductImageService;
 import com.stockpro.service.ServiceContext;
 import com.stockpro.service.TelemetryMonitorService;
 import com.stockpro.ui.components.AppIcons;
+import com.stockpro.ui.components.ThemeManager;
 import com.stockpro.ui.components.KpiStatCard;
 import com.stockpro.ui.components.KpiStatCard.DeltaTone;
 import com.stockpro.ui.components.StockProLogo;
@@ -962,10 +963,7 @@ public class SettingsView {
         card.getChildren().addAll(h, b, actions);
 
         Scene sc = new Scene(card, 430, 195);
-        var css = getClass().getResource(AppSession.getInstance().isDarkMode() ? "/css/dark-theme.css" : "/css/light-theme.css");
-        if (css != null) {
-            sc.getStylesheets().add(css.toExternalForm());
-        }
+        ThemeManager.apply(sc);
         dialog.setScene(sc);
         dialog.showAndWait();
     }
@@ -974,10 +972,10 @@ public class SettingsView {
         VBox box = new VBox(16);
         box.setPadding(new Insets(14, 4, 14, 0));
 
-        memoryCard = new KpiStatCard(Feather.CPU, "#4F46E5", "kpi-card-blue", "JVM Heap Used", "0 MB", "Max: 0 MB");
-        searchLatencyCard = new KpiStatCard(Feather.ZAP, "#10B981", "kpi-card-green", "Trie / HashMap Latency", "0 ms", "Sub-millisecond");
-        dbSizeCard = new KpiStatCard(Feather.DATABASE, "#8B5CF6", "kpi-card-purple", "SQLite DB Size", "0 KB", "Local disk store");
-        recordsCard = new KpiStatCard(Feather.HARD_DRIVE, "#F59E0B", "kpi-card-amber", "Total DB Records", "0", "Products & logs");
+        memoryCard = new KpiStatCard(Feather.CPU, "#4F46E5", KpiStatCard.INVERSE, "JVM Heap Used", "0 MB", "Max: 0 MB");
+        searchLatencyCard = new KpiStatCard(Feather.ZAP, "#10B981", KpiStatCard.ACCENT, "Trie / HashMap Latency", "0 ms", "Sub-millisecond");
+        dbSizeCard = new KpiStatCard(Feather.DATABASE, "#8B5CF6", KpiStatCard.MUTED, "SQLite DB Size", "0 KB", "Local disk store");
+        recordsCard = new KpiStatCard(Feather.HARD_DRIVE, "#F59E0B", KpiStatCard.PLAIN, "Total DB Records", "0", "Products & logs");
 
         HBox row = new HBox(12, memoryCard, searchLatencyCard, dbSizeCard, recordsCard);
 

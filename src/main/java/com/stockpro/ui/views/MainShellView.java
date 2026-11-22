@@ -9,19 +9,36 @@ import com.stockpro.service.InventoryOperationResult;
 import com.stockpro.service.ServiceContext;
 import com.stockpro.ui.components.AppIcons;
 import com.stockpro.ui.components.CommandBarPopup;
+import com.stockpro.ui.components.Motion;
 import com.stockpro.ui.components.StockProLogo;
 import com.stockpro.ui.components.ToastNotificationManager;
 import com.stockpro.ui.controllers.NavigationSection;
 import com.stockpro.util.AppExecutor;
+import javafx.animation.AnimationTimer;
+import javafx.animation.FadeTransition;
+import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.geometry.Side;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.scene.SnapshotParameters;
+import javafx.scene.control.OverrunStyle;
+import javafx.scene.image.ImageView;
+import javafx.scene.image.WritableImage;
+import javafx.scene.transform.Transform;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
@@ -32,27 +49,32 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.Rectangle;
 import javafx.stage.FileChooser;
 import javafx.util.Duration;
 import org.kordamp.ikonli.feather.Feather;
 
 import java.io.File;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * Primary desktop shell featuring the collapsible Midnight Navy sidebar with Feather vector icons,
- * modern white/dark top header bar, Sun/Moon pill toggle, {@code Ctrl+K} Spotlight Command Bar,
- * urgent alert bell badge, exit button, keyboard shortcuts, and automatic EventBus listener cleanup.
+ * Primary desktop shell: an icon-rail sidebar that animates open to show labels, a minimal top
+ * bar (brand on the left; currency, search, alerts, theme and profile controls on the right),
+ * smooth fade/slide view transitions, the {@code Ctrl+K} command bar, keyboard shortcuts and
+ * automatic EventBus listener cleanup.
  *
  * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class MainShellView {
-    private static final DateTimeFormatter CLOCK_FORMAT = DateTimeFormatter.ofPattern("hh:mm a");
+    private static final double RAIL_COLLAPSED = 72;
+    private static final double RAIL_EXPANDED = 224;
+
+    /** Remembers the rail state for the rest of the session (e.g. across logout/login). */
+    private static boolean sidebarCollapsed = true;
 
     private final ServiceContext services;
     private final Runnable onLogout;
@@ -61,24 +83,21 @@ public class MainShellView {
 
     private final Map<NavigationSection, Button> navButtons = new EnumMap<>(NavigationSection.class);
     private final Map<NavigationSection, Supplier<Node>> viewFactories = new EnumMap<>(NavigationSection.class);
+    private final List<Button> railButtons = new ArrayList<>();
 
     private StackPane rootOverlayHost;
     private StackPane contentViewport;
     private VBox sidebar;
-    private Label sidebarTitle;
-    private Label sidebarTagline;
-    private VBox profileTextBox;
     private Button collapseBtn;
-    private Button lightModePillBtn;
-    private Button darkModePillBtn;
-    private Button bellButton;
-    private Label clockLabel;
+    private Button themeToggleBtn;
+    private Label alertBadge;
+    private Label currencyLabel;
+    private Timeline railTimeline;
+    private final DoubleProperty railLabelAlpha = new SimpleDoubleProperty(1);
 
     private ToastNotificationManager toastManager;
     private CommandBarPopup commandBarPopup;
-    private Timeline clockTimeline;
     private NavigationSection currentSection = NavigationSection.DASHBOARD;
-    private boolean sidebarCollapsed = false;
 
     private Runnable activeAddShortcutHandler;
     private Runnable activeSearchShortcutHandler;
@@ -131,15 +150,7 @@ public class MainShellView {
             activeViewThemeRefresh = dash::onThemeChanged;
             return dash.build();
         });
-        viewFactories.put(NavigationSection.INVENTORY, () -> {
-            InventoryView inv = new InventoryView(services, toastManager, this::refreshAlertBadge);
-            setActiveAddShortcutHandler(inv::openAddProductDialog);
-            setActiveSearchShortcutHandler(inv::focusSearch);
-            setActiveDeleteShortcutHandler(inv::deleteSelectedRow);
-            activeViewDispose = inv::dispose;
-            activeViewThemeRefresh = inv::onThemeChanged;
-            return inv.build();
-        });
+        viewFactories.put(NavigationSection.INVENTORY, () -> createInventoryView().build());
         viewFactories.put(NavigationSection.STOCK_OPERATIONS, () -> {
             clearShortcutHooks();
             StockOperationsView stockView = new StockOperationsView(services, toastManager);
@@ -172,14 +183,27 @@ public class MainShellView {
             activeViewThemeRefresh = aiView::onThemeChanged;
             return aiView.build();
         });
-        viewFactories.put(NavigationSection.SETTINGS, () -> {
-            clearShortcutHooks();
-            SettingsView settingsView = new SettingsView(services, toastManager, () -> {
-                updateThemeTogglePills();
-                onApplyTheme.run();
-            });
-            return settingsView.build();
-        });
+        viewFactories.put(NavigationSection.SETTINGS, () -> createSettingsView(0).build());
+    }
+
+    private InventoryView createInventoryView() {
+        InventoryView inv = new InventoryView(services, toastManager, this::refreshAlertBadge);
+        clearShortcutHooks();
+        setActiveAddShortcutHandler(inv::openAddProductDialog);
+        setActiveSearchShortcutHandler(inv::focusSearch);
+        setActiveDeleteShortcutHandler(inv::deleteSelectedRow);
+        activeViewDispose = inv::dispose;
+        activeViewThemeRefresh = inv::onThemeChanged;
+        return inv;
+    }
+
+    private SettingsView createSettingsView(int tabIndex) {
+        clearShortcutHooks();
+        return new SettingsView(services, toastManager, () -> {
+            updateThemeToggle();
+            refreshCurrencyLabel();
+            onApplyTheme.run();
+        }, tabIndex);
     }
 
     private void clearShortcutHooks() {
@@ -202,7 +226,7 @@ public class MainShellView {
     }
 
     /**
-     * Builds the complete shell layout with sidebar, header bar, content area, and overlays.
+     * Builds the complete shell layout with sidebar rail, top bar, content area, and overlays.
      *
      * @return root {@link Parent} node
      */
@@ -212,14 +236,20 @@ public class MainShellView {
         shellLayout.getStyleClass().add("app-canvas");
 
         sidebar = buildSidebar();
+        railLabelAlpha.addListener((o, a, b) -> applyRailLabelAlpha(b.doubleValue()));
         shellLayout.setLeft(sidebar);
 
         VBox rightColumn = new VBox();
         rightColumn.setFillWidth(true);
         HBox topBar = buildTopBar();
         contentViewport = new StackPane();
-        contentViewport.setPadding(new Insets(18, 24, 18, 24));
+        contentViewport.setAlignment(Pos.TOP_LEFT);
+        contentViewport.setPadding(new Insets(2, 16, 12, 2));
         VBox.setVgrow(contentViewport, Priority.ALWAYS);
+        Rectangle clip = new Rectangle();
+        clip.widthProperty().bind(contentViewport.widthProperty());
+        clip.heightProperty().bind(contentViewport.heightProperty());
+        contentViewport.setClip(clip);
 
         rightColumn.getChildren().addAll(topBar, contentViewport);
         shellLayout.setCenter(rightColumn);
@@ -237,16 +267,15 @@ public class MainShellView {
                 toastManager
         );
 
+        applyRailState(false);
         navigateTo(NavigationSection.DASHBOARD);
         refreshAlertBadge();
-        startClockTicker();
-
         return rootOverlayHost;
     }
 
     /**
      * Installs global keyboard shortcuts ({@code Ctrl+K}, {@code Ctrl+N}, {@code Ctrl+F},
-     * {@code Ctrl+Z}, {@code Ctrl+Y}, {@code Del}) on the host scene.
+     * {@code Ctrl+B}, {@code Ctrl+Z}, {@code Ctrl+Y}, {@code Del}) on the host scene.
      *
      * @param scene active JavaFX scene
      */
@@ -257,13 +286,11 @@ public class MainShellView {
         scene.getAccelerators().put(new KeyCodeCombination(KeyCode.K, KeyCombination.CONTROL_DOWN),
                 () -> commandBarPopup.show());
         scene.getAccelerators().put(new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN), () -> {
+            if (activeAddShortcutHandler == null) {
+                navigateTo(NavigationSection.INVENTORY);
+            }
             if (activeAddShortcutHandler != null) {
                 activeAddShortcutHandler.run();
-            } else {
-                navigateTo(NavigationSection.INVENTORY);
-                if (activeAddShortcutHandler != null) {
-                    activeAddShortcutHandler.run();
-                }
             }
         });
         scene.getAccelerators().put(new KeyCodeCombination(KeyCode.F, KeyCombination.CONTROL_DOWN), () -> {
@@ -273,6 +300,8 @@ public class MainShellView {
                 commandBarPopup.show();
             }
         });
+        scene.getAccelerators().put(new KeyCodeCombination(KeyCode.B, KeyCombination.CONTROL_DOWN),
+                this::toggleSidebarCollapse);
         scene.getAccelerators().put(new KeyCodeCombination(KeyCode.Z, KeyCombination.CONTROL_DOWN), this::performUndo);
         scene.getAccelerators().put(new KeyCodeCombination(KeyCode.Y, KeyCombination.CONTROL_DOWN), this::performRedo);
         scene.setOnKeyPressed(e -> {
@@ -288,161 +317,261 @@ public class MainShellView {
         });
     }
 
+    // ---------------------------------------------------------------------------------------------
+    // Sidebar rail
+    // ---------------------------------------------------------------------------------------------
+
     /**
-     * Builds the Deep Midnight Navy collapsible sidebar matching the reference mockups.
+     * Builds the icon rail: accent logo tile, primary destinations, then expand, settings,
+     * logout and exit pinned to the bottom.
      *
      * @return configured sidebar {@link VBox}
      */
     private VBox buildSidebar() {
-        VBox box = new VBox(6);
+        VBox box = new VBox(8);
         box.getStyleClass().add("sidebar");
-        box.setPrefWidth(232);
-        box.setMinWidth(74);
+        box.setFillWidth(true);
 
-        HBox brandRow = new HBox(10);
-        brandRow.setAlignment(Pos.CENTER_LEFT);
-        brandRow.setPadding(new Insets(2, 4, 14, 4));
-
-        VBox brandTexts = new VBox(1);
-        sidebarTitle = new Label("StockPro");
-        sidebarTitle.getStyleClass().add("sidebar-brand-title");
-        sidebarTagline = new Label("Smart Inventory");
-        sidebarTagline.getStyleClass().add("sidebar-brand-sub");
-        brandTexts.getChildren().addAll(sidebarTitle, sidebarTagline);
-
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        collapseBtn = new Button();
-        collapseBtn.setGraphic(AppIcons.of(Feather.MENU, 16, "#94A3B8"));
-        collapseBtn.setTooltip(new Tooltip("Collapse / Expand Sidebar"));
-        collapseBtn.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-padding: 5;");
-        collapseBtn.setOnAction(e -> toggleSidebarCollapse());
-
-        brandRow.getChildren().addAll(StockProLogo.create(30), brandTexts, spacer, collapseBtn);
-        box.getChildren().add(brandRow);
+        Node logo = StockProLogo.create(44);
+        VBox.setMargin(logo, new Insets(0, 0, 40, 0));
+        box.getChildren().add(logo);
 
         for (NavigationSection section : NavigationSection.values()) {
-            Button btn = new Button(section.getLabel());
-            btn.setGraphic(AppIcons.of(featherFor(section), 16));
-            btn.setGraphicTextGap(12);
-            btn.getStyleClass().add("nav-button");
-            btn.setMaxWidth(Double.MAX_VALUE);
-            btn.setTooltip(new Tooltip(section.getLabel()));
-            btn.setOnAction(e -> navigateTo(section));
-            navButtons.put(section, btn);
-            box.getChildren().add(btn);
+            if (section == NavigationSection.SETTINGS) {
+                continue;
+            }
+            box.getChildren().add(createNavButton(section));
         }
 
         Region verticalSpacer = new Region();
         VBox.setVgrow(verticalSpacer, Priority.ALWAYS);
         box.getChildren().add(verticalSpacer);
 
-        User current = AppSession.getInstance().getCurrentUser();
-        String initials = current != null ? current.getInitials() : "SP";
-        String fullName = current != null ? current.getFullName() : "Guest";
-        String role = current != null ? current.getRole().getDisplayName() : "User";
+        collapseBtn = railButton("Expand", Feather.CHEVRONS_RIGHT, true);
+        collapseBtn.setOnAction(e -> toggleSidebarCollapse());
 
-        HBox userRow = new HBox(10);
-        userRow.setAlignment(Pos.CENTER_LEFT);
-        userRow.setPadding(new Insets(10, 6, 6, 6));
+        Button settingsBtn = createNavButton(NavigationSection.SETTINGS);
 
-        Label avatar = new Label(initials);
-        avatar.setMinSize(34, 34);
-        avatar.setAlignment(Pos.CENTER);
-        avatar.setStyle("-fx-background-color: #4F46E5; -fx-text-fill: #FFFFFF; -fx-font-weight: bold; -fx-background-radius: 999;");
+        Button logoutBtn = railButton("Logout", Feather.LOG_OUT, true);
+        logoutBtn.setOnAction(e -> logout());
 
-        profileTextBox = new VBox(1);
-        Label nameLbl = new Label(fullName);
-        nameLbl.getStyleClass().add("sidebar-profile-name");
-        Label roleLbl = new Label(role);
-        roleLbl.getStyleClass().add("sidebar-profile-role");
-        profileTextBox.getChildren().addAll(nameLbl, roleLbl);
-        userRow.getChildren().addAll(avatar, profileTextBox);
-
-        Button logoutBtn = new Button("Logout");
-        logoutBtn.setGraphic(AppIcons.of(Feather.LOG_OUT, 15));
-        logoutBtn.setGraphicTextGap(12);
-        logoutBtn.getStyleClass().add("nav-button");
-        logoutBtn.setMaxWidth(Double.MAX_VALUE);
-        logoutBtn.setOnAction(e -> {
-            cleanupBeforeLeave();
-            services.getAuthService().logout();
-            onLogout.run();
-        });
-
-        box.getChildren().addAll(userRow, logoutBtn);
-        return box;
-    }
-
-    /**
-     * Builds the modern top header bar containing Spotlight search, alerts bell, Sun/Moon pill switch,
-     * live clock badge, and quick Exit App action.
-     *
-     * @return configured header {@link HBox}
-     */
-    private HBox buildTopBar() {
-        HBox bar = new HBox(12);
-        bar.getStyleClass().add("topbar");
-        bar.setAlignment(Pos.CENTER_LEFT);
-
-        Button searchTrigger = new Button("Search products, reports, or press Ctrl+K...");
-        searchTrigger.setGraphic(AppIcons.of(Feather.SEARCH, 15));
-        searchTrigger.setGraphicTextGap(10);
-        searchTrigger.getStyleClass().add("search-box");
-        searchTrigger.setPrefWidth(360);
-        searchTrigger.setAlignment(Pos.CENTER_LEFT);
-        searchTrigger.setStyle("-fx-cursor: hand;");
-        searchTrigger.setOnAction(e -> commandBarPopup.show());
-
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        clockLabel = new Label("Live • " + LocalTime.now().format(CLOCK_FORMAT));
-        clockLabel.getStyleClass().add("clock-pill");
-
-        bellButton = new Button("0");
-        bellButton.setGraphic(AppIcons.of(Feather.BELL, 15));
-        bellButton.setGraphicTextGap(6);
-        bellButton.getStyleClass().add("btn-secondary");
-        bellButton.setTooltip(new Tooltip("View urgent Low/Out-of-Stock alerts"));
-        bellButton.setOnAction(e -> {
-            List<Product> urgent = getUrgentProducts();
-            toastManager.showAlertsBannerList(urgent, this::navigateToInventoryWithProduct);
-        });
-
-        lightModePillBtn = new Button();
-        lightModePillBtn.setGraphic(AppIcons.of(Feather.SUN, 14));
-        lightModePillBtn.getStyleClass().add("theme-switch-btn");
-        lightModePillBtn.setTooltip(new Tooltip("Light Mode"));
-        lightModePillBtn.setOnAction(e -> setDarkTheme(false));
-
-        darkModePillBtn = new Button();
-        darkModePillBtn.setGraphic(AppIcons.of(Feather.MOON, 14));
-        darkModePillBtn.getStyleClass().add("theme-switch-btn");
-        darkModePillBtn.setTooltip(new Tooltip("Dark Mode"));
-        darkModePillBtn.setOnAction(e -> setDarkTheme(true));
-
-        HBox themePill = new HBox(2, lightModePillBtn, darkModePillBtn);
-        themePill.getStyleClass().add("theme-switch-pill");
-        themePill.setAlignment(Pos.CENTER);
-        updateThemeTogglePills();
-
-        Button exitBtn = new Button();
-        exitBtn.setGraphic(AppIcons.of(Feather.POWER, 15));
-        exitBtn.getStyleClass().add("icon-btn-danger");
-        exitBtn.setTooltip(new Tooltip("Close StockPro Application"));
+        Button exitBtn = railButton("Exit StockPro", Feather.POWER, true);
+        exitBtn.setGraphic(AppIcons.of(Feather.POWER, 18, "#EF4444"));
         exitBtn.setOnAction(e -> {
             cleanupBeforeLeave();
             onExitApp.run();
         });
 
-        bar.getChildren().addAll(searchTrigger, spacer, clockLabel, bellButton, themePill, exitBtn);
-        return bar;
+        box.getChildren().addAll(collapseBtn, settingsBtn, logoutBtn, exitBtn);
+        return box;
+    }
+
+    private Button createNavButton(NavigationSection section) {
+        Button btn = railButton(section.getLabel(), featherFor(section), false);
+        btn.setOnAction(e -> navigateTo(section));
+        navButtons.put(section, btn);
+        return btn;
+    }
+
+    private Button railButton(String label, Feather icon, boolean plain) {
+        Button btn = new Button(label);
+        btn.setGraphic(AppIcons.of(icon, 18));
+        btn.setGraphicTextGap(12);
+        btn.getStyleClass().add("nav-button");
+        if (plain) {
+            btn.getStyleClass().add("nav-button-plain");
+        }
+        btn.setMaxWidth(Double.MAX_VALUE);
+        btn.setUserData(label);
+        Motion.watchState(btn);
+        railButtons.add(btn);
+        return btn;
     }
 
     /**
-     * Switches the active center screen cleanly while disposing previous view EventBus listeners.
+     * Animates the rail between its icon-only and labelled widths.
+     */
+    private void toggleSidebarCollapse() {
+        sidebarCollapsed = !sidebarCollapsed;
+        applyRailState(true);
+    }
+
+    private void applyRailState(boolean animate) {
+        double target = sidebarCollapsed ? RAIL_COLLAPSED : RAIL_EXPANDED;
+        collapseBtn.setGraphic(AppIcons.of(sidebarCollapsed ? Feather.CHEVRONS_RIGHT : Feather.CHEVRONS_LEFT, 18));
+        collapseBtn.setText(sidebarCollapsed ? "Expand" : "Collapse");
+        collapseBtn.setUserData(sidebarCollapsed ? "Expand  (Ctrl+B)" : "Collapse  (Ctrl+B)");
+
+        if (railTimeline != null) {
+            railTimeline.stop();
+        }
+        if (!animate) {
+            setRailWidth(target);
+            setRailLabelsVisible(!sidebarCollapsed);
+            railLabelAlpha.set(1);
+            return;
+        }
+
+        Duration total = Duration.millis(300);
+        if (sidebarCollapsed) {
+            // Fade labels out first, then let the rail close underneath them.
+            railTimeline = new Timeline(
+                    new KeyFrame(Duration.ZERO, new KeyValue(railLabelAlpha, railLabelAlpha.get())),
+                    new KeyFrame(Duration.millis(110), new KeyValue(railLabelAlpha, 0, Motion.EASE)),
+                    new KeyFrame(total,
+                            new KeyValue(sidebar.prefWidthProperty(), target, Motion.EASE),
+                            new KeyValue(sidebar.minWidthProperty(), target, Motion.EASE),
+                            new KeyValue(sidebar.maxWidthProperty(), target, Motion.EASE)));
+            railTimeline.setOnFinished(e -> {
+                setRailLabelsVisible(false);
+                railLabelAlpha.set(1);
+            });
+        } else {
+            // Labels are laid out (invisible) immediately and fade in as the rail opens.
+            railLabelAlpha.set(0);
+            setRailLabelsVisible(true);
+            railTimeline = new Timeline(
+                    new KeyFrame(Duration.millis(120), new KeyValue(railLabelAlpha, 0)),
+                    new KeyFrame(total,
+                            new KeyValue(railLabelAlpha, 1, Motion.EASE),
+                            new KeyValue(sidebar.prefWidthProperty(), target, Motion.EASE),
+                            new KeyValue(sidebar.minWidthProperty(), target, Motion.EASE),
+                            new KeyValue(sidebar.maxWidthProperty(), target, Motion.EASE)));
+        }
+        railTimeline.play();
+    }
+
+    private void applyRailLabelAlpha(double alpha) {
+        for (Button b : railButtons) {
+            Node text = b.lookup(".text");
+            if (text != null) {
+                text.setOpacity(alpha);
+            }
+        }
+    }
+
+    private void setRailWidth(double width) {
+        sidebar.setMinWidth(width);
+        sidebar.setPrefWidth(width);
+        sidebar.setMaxWidth(width);
+    }
+
+    private void setRailLabelsVisible(boolean visible) {
+        for (Button b : railButtons) {
+            b.setTextOverrun(OverrunStyle.CLIP);
+            b.setContentDisplay(visible ? ContentDisplay.LEFT : ContentDisplay.GRAPHIC_ONLY);
+            b.setTooltip(visible ? null : new Tooltip(String.valueOf(b.getUserData())));
+            b.applyCss();
+        }
+        applyRailLabelAlpha(railLabelAlpha.get());
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Top bar
+    // ---------------------------------------------------------------------------------------------
+
+    /**
+     * Builds the top bar: two-line brand on the left; currency pill, search, alerts with badge,
+     * theme toggle and profile avatar on the right (mirroring the reference layout).
+     *
+     * @return configured header {@link HBox}
+     */
+    private HBox buildTopBar() {
+        HBox bar = new HBox(8);
+        bar.getStyleClass().add("topbar");
+        bar.setAlignment(Pos.CENTER_LEFT);
+
+        Label brandTop = new Label(AppSession.getInstance().getStoreName() != null
+                && !AppSession.getInstance().getStoreName().isBlank()
+                ? AppSession.getInstance().getStoreName() : "StockPro");
+        brandTop.getStyleClass().add("brand-title");
+        Label brandBottom = new Label("Inventory");
+        brandBottom.getStyleClass().add("brand-sub");
+        VBox brand = new VBox(-4, brandTop, brandBottom);
+        brand.setAlignment(Pos.CENTER_LEFT);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        // Currency pill → Store settings
+        currencyLabel = new Label();
+        currencyLabel.getStyleClass().add("kbd");
+        Button currencyPill = new Button();
+        currencyPill.getStyleClass().add("top-pill");
+        HBox pillContent = new HBox(8, currencyLabel, AppIcons.of(Feather.CHEVRON_DOWN, 14));
+        pillContent.setAlignment(Pos.CENTER_LEFT);
+        currencyPill.setGraphic(pillContent);
+        currencyPill.setTooltip(new Tooltip("Store currency"));
+        currencyPill.setOnAction(e -> navigateToSettingsTab(0));
+        refreshCurrencyLabel();
+
+        Button searchBtn = topIconButton(Feather.SEARCH, "Search products, screens and actions  (Ctrl+K)");
+        searchBtn.setOnAction(e -> commandBarPopup.show());
+
+        Button bellBtn = topIconButton(Feather.BELL, "Low / out-of-stock alerts");
+        bellBtn.setOnAction(e -> toastManager.showAlertsBannerList(getUrgentProducts(), this::navigateToInventoryWithProduct));
+        alertBadge = new Label("0");
+        alertBadge.getStyleClass().add("badge-count");
+        alertBadge.setMouseTransparent(true);
+        alertBadge.setVisible(false);
+        StackPane bellHost = new StackPane(bellBtn, alertBadge);
+        StackPane.setAlignment(alertBadge, Pos.TOP_RIGHT);
+        StackPane.setMargin(alertBadge, new Insets(-7, -7, 0, 0));
+
+        themeToggleBtn = topIconButton(Feather.MOON, "Toggle light / dark mode");
+        themeToggleBtn.setOnAction(e -> toggleTheme());
+        updateThemeToggle();
+
+        bar.getChildren().addAll(brand, spacer, currencyPill, searchBtn, bellHost, themeToggleBtn, buildAvatar());
+        return bar;
+    }
+
+    private Button topIconButton(Feather icon, String tooltip) {
+        Button btn = new Button();
+        btn.setGraphic(AppIcons.of(icon, 17));
+        btn.getStyleClass().add("top-icon-btn");
+        btn.setTooltip(new Tooltip(tooltip));
+        return btn;
+    }
+
+    private Node buildAvatar() {
+        User current = AppSession.getInstance().getCurrentUser();
+        String initials = current != null ? current.getInitials() : "SP";
+        String fullName = current != null ? current.getFullName() : "Guest";
+        String role = current != null ? current.getRole().getDisplayName() : "User";
+
+        Button avatar = new Button(initials);
+        avatar.getStyleClass().add("avatar");
+        avatar.setTooltip(new Tooltip(fullName + " · " + role));
+
+        MenuItem who = new MenuItem(fullName + "  ·  " + role);
+        who.setDisable(true);
+        MenuItem settings = new MenuItem("Settings");
+        settings.setOnAction(e -> navigateTo(NavigationSection.SETTINGS));
+        MenuItem logout = new MenuItem("Logout");
+        logout.setOnAction(e -> logout());
+        ContextMenu menu = new ContextMenu(who, new SeparatorMenuItem(), settings, logout);
+        avatar.setOnAction(e -> menu.show(avatar, Side.BOTTOM, 0, 6));
+        return avatar;
+    }
+
+    private void refreshCurrencyLabel() {
+        if (currencyLabel == null) {
+            return;
+        }
+        String raw = services.getSettingsRepository().get("store.currency", "USD ($)");
+        int open = raw.indexOf('(');
+        String code = open > 0 ? raw.substring(0, open).trim() : raw.trim();
+        currencyLabel.setText(AppSession.getInstance().getCurrencySymbol() + "  " + code);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Navigation
+    // ---------------------------------------------------------------------------------------------
+
+    /**
+     * Switches the active center screen with a subtle fade/slide while disposing previous view
+     * EventBus listeners.
      *
      * @param section destination view section
      */
@@ -452,15 +581,10 @@ public class MainShellView {
         }
         disposeActiveView();
         currentSection = section;
-        navButtons.forEach((sec, btn) -> {
-            btn.getStyleClass().remove("nav-button-active");
-            if (sec == section) {
-                btn.getStyleClass().add("nav-button-active");
-            }
-        });
+        updateActiveNavButton(section);
         Supplier<Node> factory = viewFactories.get(section);
         if (factory != null) {
-            contentViewport.getChildren().setAll(factory.get());
+            showView(factory.get());
         }
         refreshAlertBadge();
     }
@@ -474,15 +598,8 @@ public class MainShellView {
         disposeActiveView();
         currentSection = NavigationSection.INVENTORY;
         updateActiveNavButton(NavigationSection.INVENTORY);
-
-        InventoryView inv = new InventoryView(services, toastManager, this::refreshAlertBadge);
-        setActiveAddShortcutHandler(inv::openAddProductDialog);
-        setActiveSearchShortcutHandler(inv::focusSearch);
-        setActiveDeleteShortcutHandler(inv::deleteSelectedRow);
-        activeViewDispose = inv::dispose;
-        activeViewThemeRefresh = inv::onThemeChanged;
-
-        contentViewport.getChildren().setAll(inv.build());
+        InventoryView inv = createInventoryView();
+        showView(inv.build());
         if (product != null) {
             inv.selectAndInspectProduct(product);
         }
@@ -498,15 +615,8 @@ public class MainShellView {
         disposeActiveView();
         currentSection = NavigationSection.INVENTORY;
         updateActiveNavButton(NavigationSection.INVENTORY);
-
-        InventoryView inv = new InventoryView(services, toastManager, this::refreshAlertBadge);
-        setActiveAddShortcutHandler(inv::openAddProductDialog);
-        setActiveSearchShortcutHandler(inv::focusSearch);
-        setActiveDeleteShortcutHandler(inv::deleteSelectedRow);
-        activeViewDispose = inv::dispose;
-        activeViewThemeRefresh = inv::onThemeChanged;
-
-        contentViewport.getChildren().setAll(inv.build());
+        InventoryView inv = createInventoryView();
+        showView(inv.build());
         if (filterCriteria != null) {
             inv.applyExternalCriteria(filterCriteria);
         }
@@ -522,13 +632,16 @@ public class MainShellView {
         disposeActiveView();
         currentSection = NavigationSection.SETTINGS;
         updateActiveNavButton(NavigationSection.SETTINGS);
-        clearShortcutHooks();
-        SettingsView settingsView = new SettingsView(services, toastManager, () -> {
-            updateThemeTogglePills();
-            onApplyTheme.run();
-        }, tabIndex);
-        contentViewport.getChildren().setAll(settingsView.build());
+        showView(createSettingsView(tabIndex).build());
         refreshAlertBadge();
+    }
+
+    private void showView(Node view) {
+        contentViewport.getChildren().setAll(view);
+        if (view instanceof Parent parent) {
+            Motion.enhance(parent);
+        }
+        Motion.reveal(view, 10);
     }
 
     private void updateActiveNavButton(NavigationSection target) {
@@ -545,6 +658,7 @@ public class MainShellView {
             try {
                 activeViewDispose.run();
             } catch (Exception ignored) {
+                // A failing dispose hook must never block navigation.
             }
             activeViewDispose = null;
         }
@@ -553,25 +667,20 @@ public class MainShellView {
 
     private void cleanupBeforeLeave() {
         disposeActiveView();
-        if (clockTimeline != null) {
-            clockTimeline.stop();
+        if (railTimeline != null) {
+            railTimeline.stop();
         }
     }
 
-    /**
-     * Toggles between collapsed (icon-only) and expanded sidebar widths.
-     */
-    private void toggleSidebarCollapse() {
-        sidebarCollapsed = !sidebarCollapsed;
-        sidebar.setPrefWidth(sidebarCollapsed ? 74 : 232);
-        sidebarTitle.setVisible(!sidebarCollapsed);
-        sidebarTitle.setManaged(!sidebarCollapsed);
-        sidebarTagline.setVisible(!sidebarCollapsed);
-        sidebarTagline.setManaged(!sidebarCollapsed);
-        profileTextBox.setVisible(!sidebarCollapsed);
-        profileTextBox.setManaged(!sidebarCollapsed);
-        navButtons.forEach((sec, btn) -> btn.setText(sidebarCollapsed ? "" : sec.getLabel()));
+    private void logout() {
+        cleanupBeforeLeave();
+        services.getAuthService().logout();
+        onLogout.run();
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // Theme
+    // ---------------------------------------------------------------------------------------------
 
     /**
      * Switches runtime Light/Dark theme immediately and persists preference in SQLite.
@@ -581,32 +690,75 @@ public class MainShellView {
     }
 
     private void setDarkTheme(boolean nextDark) {
+        // Freeze the current frame on top, switch themes underneath, then dissolve the old frame
+        // away so every color in the window cross-fades instead of snapping.
+        ImageView frozen = snapshotOverlay();
         AppSession.getInstance().setDarkMode(nextDark);
         services.getSettingsRepository().set("ui.theme", nextDark ? "dark" : "light");
-        updateThemeTogglePills();
+        updateThemeToggle();
         onApplyTheme.run();
         if (activeViewThemeRefresh != null) {
             activeViewThemeRefresh.run();
         }
+        if (frozen != null) {
+            FadeTransition dissolve = new FadeTransition(Duration.millis(420), frozen);
+            dissolve.setToValue(0);
+            dissolve.setInterpolator(Interpolator.EASE_BOTH);
+            dissolve.setOnFinished(e -> rootOverlayHost.getChildren().remove(frozen));
+            // Restyling the whole window makes the next frame slow; start the dissolve only once
+            // that frame has been drawn (hidden under the frozen image) so no part of it is skipped.
+            new AnimationTimer() {
+                private int frames;
+
+                @Override
+                public void handle(long now) {
+                    if (++frames >= 2) {
+                        stop();
+                        dissolve.play();
+                    }
+                }
+            }.start();
+        }
         toastManager.showInfo("Switched to " + (nextDark ? "Dark" : "Light") + " Mode.");
     }
 
+    private ImageView snapshotOverlay() {
+        if (rootOverlayHost == null || rootOverlayHost.getScene() == null
+                || rootOverlayHost.getWidth() <= 0 || rootOverlayHost.getHeight() <= 0) {
+            return null;
+        }
+        double sx = 1;
+        double sy = 1;
+        if (rootOverlayHost.getScene().getWindow() != null) {
+            sx = rootOverlayHost.getScene().getWindow().getOutputScaleX();
+            sy = rootOverlayHost.getScene().getWindow().getOutputScaleY();
+        }
+        SnapshotParameters params = new SnapshotParameters();
+        params.setTransform(Transform.scale(sx, sy));
+        WritableImage image = rootOverlayHost.snapshot(params, null);
+        ImageView view = new ImageView(image);
+        view.setFitWidth(rootOverlayHost.getWidth());
+        view.setFitHeight(rootOverlayHost.getHeight());
+        view.setMouseTransparent(true);
+        view.setManaged(false);
+        rootOverlayHost.getChildren().add(view);
+        return view;
+    }
+
     /**
-     * Updates Sun/Moon pill toggle styling to match active theme.
+     * Shows a moon in light mode and a sun in dark mode on the top-bar theme toggle.
      */
-    private void updateThemeTogglePills() {
-        if (lightModePillBtn == null || darkModePillBtn == null) {
+    private void updateThemeToggle() {
+        if (themeToggleBtn == null) {
             return;
         }
         boolean dark = AppSession.getInstance().isDarkMode();
-        lightModePillBtn.getStyleClass().remove("theme-switch-btn-active");
-        darkModePillBtn.getStyleClass().remove("theme-switch-btn-active");
-        if (dark) {
-            darkModePillBtn.getStyleClass().add("theme-switch-btn-active");
-        } else {
-            lightModePillBtn.getStyleClass().add("theme-switch-btn-active");
-        }
+        themeToggleBtn.setGraphic(AppIcons.of(dark ? Feather.SUN : Feather.MOON, 17));
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // Actions
+    // ---------------------------------------------------------------------------------------------
 
     /**
      * Executes Undo and displays a confirmation toast.
@@ -627,15 +779,22 @@ public class MainShellView {
     }
 
     /**
-     * Updates the header notification bell badge count asynchronously.
+     * Updates the top-bar alert badge count asynchronously.
      */
     public void refreshAlertBadge() {
-        if (bellButton == null) {
+        if (alertBadge == null) {
             return;
         }
         AppExecutor.runAsync(
                 () -> getUrgentProducts().size(),
-                urgentCount -> bellButton.setText(String.valueOf(urgentCount)),
+                urgentCount -> {
+                    alertBadge.setText(urgentCount > 99 ? "99+" : String.valueOf(urgentCount));
+                    alertBadge.setVisible(urgentCount > 0);
+                    alertBadge.getStyleClass().remove("badge-count-alert");
+                    if (urgentCount > 0) {
+                        alertBadge.getStyleClass().add("badge-count-alert");
+                    }
+                },
                 ex -> {}
         );
     }
@@ -674,24 +833,11 @@ public class MainShellView {
         );
     }
 
-    /**
-     * Starts a lightweight UI clock ticker updating the header time pill every 30 seconds.
-     */
-    private void startClockTicker() {
-        if (clockTimeline != null) {
-            clockTimeline.stop();
-        }
-        clockTimeline = new Timeline(new KeyFrame(Duration.seconds(30),
-                e -> clockLabel.setText("Live • " + LocalTime.now().format(CLOCK_FORMAT))));
-        clockTimeline.setCycleCount(Timeline.INDEFINITE);
-        clockTimeline.play();
-    }
-
     private Feather featherFor(NavigationSection section) {
         return switch (section) {
-            case DASHBOARD -> Feather.HOME;
+            case DASHBOARD -> Feather.GRID;
             case INVENTORY -> Feather.PACKAGE;
-            case STOCK_OPERATIONS -> Feather.SHOPPING_CART;
+            case STOCK_OPERATIONS -> Feather.SHOPPING_BAG;
             case SUPPLIERS_ORDERS -> Feather.TRUCK;
             case ANALYTICS_REPORTS -> Feather.BAR_CHART_2;
             case AI_ASSISTANT -> Feather.CPU;

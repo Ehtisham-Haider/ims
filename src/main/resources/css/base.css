@@ -1,0 +1,1457 @@
+/*
+ * StockPro — BASE design system.
+ *
+ * Every rule here is written against the looked-up color tokens (-sp-*) defined in
+ * light-theme.css / dark-theme.css, so both themes share one structure and cannot drift.
+ *
+ * Rules of the system:
+ *   - one corner radius everywhere: 12px
+ *   - no drop shadows, no gradients
+ *   - 1px component borders in -sp-border (black in light mode)
+ *   - Albert Sans for UI text, Red Hat Display for headings and numerals
+ */
+
+/* ==========================================================================
+   Root & typography
+   ========================================================================== */
+.root {
+    -fx-font-family: "Albert Sans", "Segoe UI", sans-serif;
+    -fx-font-size: 13px;
+    -fx-background-color: -sp-bg;
+    -fx-focus-color: -sp-accent;
+    -fx-faint-focus-color: transparent;
+    -fx-accent: -sp-accent;
+    -fx-base: -sp-surface;
+    -fx-control-inner-background: -sp-surface;
+    -fx-text-fill: -sp-ink;
+}
+
+.label {
+    -fx-text-fill: -sp-ink;
+}
+
+.app-canvas {
+    -fx-background-color: -sp-bg;
+}
+
+.page-title {
+    -fx-font-family: "Red Hat Display", "Albert Sans", sans-serif;
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -sp-ink;
+}
+
+.page-subtitle {
+    -fx-font-size: 13px;
+    -fx-text-fill: -sp-ink-2;
+}
+
+.section-title {
+    -fx-font-family: "Red Hat Display", "Albert Sans", sans-serif;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -sp-ink;
+}
+
+.muted-text {
+    -fx-text-fill: -sp-ink-2;
+}
+
+.error-label {
+    -fx-text-fill: -sp-danger;
+    -fx-font-size: 11.5px;
+    -fx-font-weight: bold;
+}
+
+/* ==========================================================================
+   Icons — default ink, semantic tones, then context overrides (more specific)
+   ========================================================================== */
+.ikonli-font-icon {
+    -fx-icon-color: -sp-ink;
+}
+
+.ikonli-font-icon.icon-muted   { -fx-icon-color: -sp-ink-2; }
+.ikonli-font-icon.icon-accent  { -fx-icon-color: -sp-accent-text; }
+.ikonli-font-icon.icon-success { -fx-icon-color: -sp-success; }
+.ikonli-font-icon.icon-warning { -fx-icon-color: -sp-warning; }
+.ikonli-font-icon.icon-danger  { -fx-icon-color: -sp-danger; }
+
+/* ==========================================================================
+   Shell — sidebar
+   ========================================================================== */
+.sidebar {
+    -fx-background-color: transparent;
+    -fx-padding: 14 14 14 14;
+}
+
+.logo-tile {
+    -fx-background-color: -sp-accent;
+    -fx-background-radius: 12;
+}
+
+.logo-glyph {
+    -fx-fill: transparent;
+    -fx-stroke: -sp-on-accent;
+}
+
+.logo-letter {
+    -fx-font-family: "Red Hat Display", "Albert Sans", sans-serif;
+    -fx-font-size: 22px;
+    -fx-font-weight: 800;
+    -fx-text-fill: -sp-on-accent;
+}
+
+.nav-button {
+    -fx-background-color: -sp-surface;
+    -fx-border-color: -sp-border;
+    -fx-border-width: 0.8;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-text-fill: -sp-ink;
+    -fx-font-size: 13.5px;
+    -fx-font-weight: bold;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 0 13 0 13;
+    -fx-min-height: 44px;
+    -fx-pref-height: 44px;
+    -fx-cursor: hand;
+}
+
+.nav-button:hover {
+    -fx-background-color: -sp-surface-3;
+}
+
+.nav-button-active,
+.nav-button-active:hover {
+    -fx-background-color: -sp-inverse;
+    -fx-border-color: -sp-inverse;
+    -fx-text-fill: -sp-on-inverse;
+}
+
+.nav-button-active .ikonli-font-icon {
+    -fx-icon-color: -sp-on-inverse;
+}
+
+.nav-button-plain {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.nav-button-plain:hover {
+    -fx-background-color: -sp-surface;
+    -fx-border-color: -sp-border;
+}
+
+.sidebar-section-label {
+    -fx-font-size: 10.5px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -sp-ink-3;
+    -fx-padding: 6 0 0 4;
+}
+
+/* legacy names kept for any remaining callers */
+.sidebar-brand-title,
+.brand-title {
+    -fx-font-family: "Red Hat Display", "Albert Sans", sans-serif;
+    -fx-font-size: 17px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -sp-ink;
+}
+
+.sidebar-brand-sub,
+.brand-sub {
+    -fx-font-family: "Red Hat Display", "Albert Sans", sans-serif;
+    -fx-font-size: 17px;
+    -fx-text-fill: -sp-ink;
+}
+
+.sidebar-profile-name {
+    -fx-text-fill: -sp-ink;
+    -fx-font-weight: bold;
+}
+
+.sidebar-profile-role {
+    -fx-text-fill: -sp-ink-2;
+    -fx-font-size: 11px;
+}
+
+/* ==========================================================================
+   Shell — top bar
+   ========================================================================== */
+.topbar {
+    -fx-background-color: transparent;
+    -fx-padding: 14 16 10 4;
+}
+
+.top-pill {
+    -fx-background-color: -sp-surface;
+    -fx-border-color: -sp-border;
+    -fx-border-width: 0.8;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-padding: 0 12 0 10;
+    -fx-min-height: 40px;
+    -fx-pref-height: 40px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -sp-ink;
+    -fx-cursor: hand;
+}
+
+.top-pill:hover,
+.top-icon-btn:hover {
+    -fx-background-color: -sp-surface-3;
+}
+
+.top-icon-btn {
+    -fx-background-color: -sp-surface;
+    -fx-border-color: -sp-border;
+    -fx-border-width: 0.8;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-min-width: 40px;
+    -fx-min-height: 40px;
+    -fx-pref-width: 40px;
+    -fx-pref-height: 40px;
+    -fx-padding: 0;
+    -fx-cursor: hand;
+}
+
+.top-search {
+    -fx-background-color: -sp-surface;
+    -fx-border-color: -sp-border;
+    -fx-border-width: 0.8;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-min-height: 40px;
+    -fx-pref-height: 40px;
+    -fx-padding: 0 12 0 12;
+    -fx-text-fill: -sp-ink-2;
+    -fx-alignment: CENTER_LEFT;
+    -fx-cursor: hand;
+}
+
+.top-search:hover {
+    -fx-background-color: -sp-surface-3;
+}
+
+.kbd {
+    -fx-background-color: -sp-surface-2;
+    -fx-border-color: -sp-border-soft;
+    -fx-border-width: 0.8;
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
+    -fx-padding: 1 6 1 6;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -sp-ink-2;
+}
+
+.badge-count {
+    -fx-background-color: -sp-inverse;
+    -fx-text-fill: -sp-on-inverse;
+    -fx-background-radius: 12;
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-padding: 1 5 1 5;
+    -fx-min-width: 18px;
+    -fx-alignment: CENTER;
+}
+
+.badge-count-alert {
+    -fx-background-color: -sp-accent;
+    -fx-text-fill: -sp-on-accent;
+}
+
+.avatar {
+    -fx-padding: 0;
+    -fx-cursor: hand;
+    -fx-background-color: -sp-inverse;
+    -fx-text-fill: -sp-on-inverse;
+    -fx-background-radius: 12;
+    -fx-font-family: "Red Hat Display", "Albert Sans", sans-serif;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-alignment: CENTER;
+    -fx-min-width: 40px;
+    -fx-min-height: 40px;
+    -fx-pref-width: 40px;
+    -fx-pref-height: 40px;
+}
+
+/* legacy top-bar classes */
+.search-box {
+    -fx-background-color: -sp-surface;
+    -fx-text-fill: -sp-ink-2;
+    -fx-border-color: -sp-border;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-padding: 7 12 7 12;
+}
+
+.clock-pill {
+    -fx-background-color: -sp-surface;
+    -fx-border-color: -sp-border;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-text-fill: -sp-ink;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+    -fx-padding: 6 12 6 12;
+}
+
+.theme-switch-pill {
+    -fx-background-color: -sp-surface;
+    -fx-border-color: -sp-border;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-padding: 3;
+}
+
+.theme-switch-btn {
+    -fx-background-color: transparent;
+    -fx-background-radius: 12;
+    -fx-padding: 5 10 5 10;
+    -fx-cursor: hand;
+}
+
+.theme-switch-btn-active {
+    -fx-background-color: -sp-inverse;
+}
+
+.theme-switch-btn-active .ikonli-font-icon {
+    -fx-icon-color: -sp-on-inverse;
+}
+
+/* ==========================================================================
+   Surfaces & cards
+   ========================================================================== */
+.card {
+    -fx-background-color: -sp-surface;
+    -fx-background-radius: 12;
+    -fx-border-color: -sp-border;
+    -fx-border-radius: 12;
+    -fx-border-width: 0.8;
+    -fx-padding: 16;
+}
+
+.surface-subtle {
+    -fx-background-color: -sp-surface-2;
+    -fx-border-color: -sp-border-soft;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+}
+
+/* ---- KPI stat cards (reference: black / accent / gray / white) ---- */
+.kpi-card {
+    -fx-padding: 14 16 14 16;
+}
+
+.kpi-title {
+    -fx-font-size: 13.5px;
+    -fx-font-weight: 500;
+    -fx-text-fill: -sp-ink;
+}
+
+.kpi-value {
+    -fx-font-family: "Red Hat Display", "Albert Sans", sans-serif;
+    -fx-font-size: 27px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -sp-ink;
+}
+
+.kpi-caption {
+    -fx-font-size: 11.5px;
+    -fx-text-fill: -sp-ink-2;
+}
+
+.kpi-delta-positive { -fx-font-size: 11.5px; -fx-font-weight: bold; -fx-text-fill: -sp-success; }
+.kpi-delta-warning  { -fx-font-size: 11.5px; -fx-font-weight: bold; -fx-text-fill: -sp-warning; }
+.kpi-delta-danger   { -fx-font-size: 11.5px; -fx-font-weight: bold; -fx-text-fill: -sp-danger; }
+.kpi-delta-accent   { -fx-font-size: 11.5px; -fx-font-weight: bold; -fx-text-fill: -sp-accent-text; }
+
+.kpi-inverse {
+    -fx-background-color: -sp-inverse;
+    -fx-border-color: -sp-inverse;
+}
+.kpi-inverse .label { -fx-text-fill: -sp-on-inverse; }
+.kpi-inverse .kpi-caption,
+.kpi-inverse .muted-text,
+.kpi-inverse .kpi-delta-positive,
+.kpi-inverse .kpi-delta-warning,
+.kpi-inverse .kpi-delta-danger,
+.kpi-inverse .kpi-delta-accent { -fx-text-fill: -sp-on-inverse-2; }
+.kpi-inverse .ikonli-font-icon { -fx-icon-color: -sp-on-inverse; }
+
+.kpi-accent {
+    -fx-background-color: -sp-accent;
+    -fx-border-color: -sp-accent;
+}
+.kpi-accent .label { -fx-text-fill: -sp-on-accent; }
+.kpi-accent .kpi-caption,
+.kpi-accent .muted-text,
+.kpi-accent .kpi-delta-positive,
+.kpi-accent .kpi-delta-warning,
+.kpi-accent .kpi-delta-danger,
+.kpi-accent .kpi-delta-accent { -fx-text-fill: -sp-on-accent-2; }
+.kpi-accent .ikonli-font-icon { -fx-icon-color: -sp-on-accent; }
+
+.kpi-muted {
+    -fx-background-color: -sp-gray-card;
+    -fx-border-color: -sp-gray-card;
+}
+
+.kpi-plain {
+    -fx-background-color: -sp-surface;
+}
+
+.kpi-meter-track {
+    -fx-background-color: -sp-surface-3;
+    -fx-background-radius: 12;
+}
+.kpi-inverse .kpi-meter-track { -fx-background-color: -sp-inverse-2; }
+.kpi-accent .kpi-meter-track  { -fx-background-color: rgba(0, 0, 0, 0.16); }
+.kpi-muted .kpi-meter-track   { -fx-background-color: -sp-surface; }
+
+.kpi-meter-fill {
+    -fx-background-color: -sp-ink;
+    -fx-background-radius: 12;
+}
+.kpi-inverse .kpi-meter-fill { -fx-background-color: -sp-accent; }
+.kpi-accent .kpi-meter-fill  { -fx-background-color: -sp-on-accent; }
+
+/* ---- Inverse feature card (AI briefing) ---- */
+.ai-briefing-card {
+    -fx-background-color: -sp-inverse;
+    -fx-background-radius: 12;
+    -fx-border-color: -sp-inverse;
+    -fx-border-radius: 12;
+    -fx-padding: 16;
+}
+.ai-briefing-card .label { -fx-text-fill: -sp-on-inverse; }
+.ai-briefing-card .muted-text { -fx-text-fill: -sp-on-inverse-2; }
+.ai-briefing-card .ikonli-font-icon { -fx-icon-color: -sp-on-inverse; }
+
+.briefing-title {
+    -fx-font-family: "Red Hat Display", "Albert Sans", sans-serif;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+}
+
+.briefing-line {
+    -fx-font-size: 13px;
+}
+
+.btn-on-inverse {
+    -fx-background-color: -sp-accent;
+    -fx-text-fill: -sp-on-accent;
+    -fx-font-weight: bold;
+    -fx-background-radius: 12;
+    -fx-padding: 8 14 8 14;
+    -fx-cursor: hand;
+}
+.btn-on-inverse .ikonli-font-icon,
+.ai-briefing-card .btn-on-inverse .ikonli-font-icon { -fx-icon-color: -sp-on-accent; }
+.btn-on-inverse:hover { -fx-background-color: -sp-accent-hover; }
+
+.btn-ghost-inverse {
+    -fx-background-color: transparent;
+    -fx-border-color: -sp-on-inverse-2;
+    -fx-border-width: 0.8;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-text-fill: -sp-on-inverse;
+    -fx-font-weight: bold;
+    -fx-padding: 7 13 7 13;
+    -fx-cursor: hand;
+}
+.btn-ghost-inverse:hover { -fx-background-color: -sp-inverse-2; }
+
+/* ---- Alert & activity rows ---- */
+.list-row {
+    -fx-background-color: transparent;
+    -fx-background-radius: 12;
+    -fx-padding: 6 8 6 6;
+}
+
+.list-row-clickable {
+    -fx-cursor: hand;
+}
+
+.list-row-clickable:hover {
+    -fx-background-color: -sp-surface-2;
+}
+
+.row-icon {
+    -fx-background-radius: 12;
+    -fx-min-width: 32px;
+    -fx-min-height: 32px;
+    -fx-pref-width: 32px;
+    -fx-pref-height: 32px;
+    -fx-max-width: 32px;
+    -fx-max-height: 32px;
+}
+
+.row-icon-neutral { -fx-background-color: -sp-surface-3; }
+.row-icon-warning { -fx-background-color: -sp-warning-soft; }
+.row-icon-danger  { -fx-background-color: -sp-danger-soft; }
+.row-icon-success { -fx-background-color: -sp-success-soft; }
+.row-icon-accent  { -fx-background-color: -sp-accent-soft; }
+
+.row-icon-warning .ikonli-font-icon { -fx-icon-color: -sp-warning; }
+.row-icon-danger .ikonli-font-icon  { -fx-icon-color: -sp-danger; }
+.row-icon-success .ikonli-font-icon { -fx-icon-color: -sp-success; }
+.row-icon-accent .ikonli-font-icon  { -fx-icon-color: -sp-accent-text; }
+
+.row-title {
+    -fx-font-weight: bold;
+}
+
+.row-meta {
+    -fx-font-size: 11.5px;
+    -fx-text-fill: -sp-ink-2;
+}
+
+.divider {
+    -fx-background-color: -sp-divider;
+    -fx-min-height: 1px;
+    -fx-pref-height: 1px;
+    -fx-max-height: 1px;
+}
+
+/* ---- Chart legend ---- */
+.legend-label {
+    -fx-font-size: 11.5px;
+    -fx-text-fill: -sp-ink-2;
+}
+
+.legend-value {
+    -fx-font-family: "Red Hat Display", "Albert Sans", sans-serif;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+}
+
+.donut-center-value {
+    -fx-font-family: "Red Hat Display", "Albert Sans", sans-serif;
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+}
+
+/* ==========================================================================
+   Banners & chat
+   ========================================================================== */
+.ai-key-banner-warn {
+    -fx-background-color: -sp-warning-soft;
+    -fx-border-color: -sp-warning;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-padding: 10 14 10 14;
+}
+
+.ai-key-banner-ok {
+    -fx-background-color: -sp-success-soft;
+    -fx-border-color: -sp-success;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-padding: 10 14 10 14;
+}
+
+.chat-bubble-ai {
+    -fx-background-color: -sp-surface-2;
+    -fx-border-color: -sp-border-soft;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-padding: 12 14 12 14;
+}
+
+.chat-bubble-user {
+    -fx-background-color: -sp-inverse;
+    -fx-text-fill: -sp-on-inverse;
+    -fx-padding: 10 14 10 14;
+    -fx-background-radius: 12;
+    -fx-font-weight: bold;
+}
+
+.bot-avatar {
+    -fx-background-color: -sp-accent;
+    -fx-background-radius: 12;
+}
+.bot-avatar .ikonli-font-icon { -fx-icon-color: -sp-on-accent; }
+
+.preview-banner-info,
+.preview-banner-ok,
+.preview-banner-err {
+    -fx-font-weight: bold;
+    -fx-padding: 8 10 8 10;
+    -fx-background-radius: 12;
+}
+.preview-banner-info { -fx-background-color: -sp-surface-2; -fx-text-fill: -sp-ink; }
+.preview-banner-ok   { -fx-background-color: -sp-success-soft; -fx-text-fill: -sp-success; }
+.preview-banner-err  { -fx-background-color: -sp-danger-soft; -fx-text-fill: -sp-danger; }
+
+/* Barcode labels always print on paper, so they stay black-on-white in both themes. */
+.barcode-strip {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: -sp-border;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+}
+
+.barcode-code-label {
+    -fx-font-family: "Consolas", monospace;
+    -fx-font-weight: bold;
+    -fx-text-fill: #121212;
+}
+
+.print-card {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 12;
+    -fx-border-color: #121212;
+    -fx-border-radius: 12;
+}
+.print-card .label { -fx-text-fill: #121212; }
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+.btn-primary {
+    -fx-background-color: -sp-inverse;
+    -fx-text-fill: -sp-on-inverse;
+    -fx-font-weight: bold;
+    -fx-background-radius: 12;
+    -fx-border-color: -sp-inverse;
+    -fx-border-radius: 12;
+    -fx-border-width: 0.8;
+    -fx-padding: 8 15 8 15;
+    -fx-cursor: hand;
+}
+.btn-primary .ikonli-font-icon { -fx-icon-color: -sp-on-inverse; }
+.btn-primary:hover { -fx-background-color: -sp-inverse-2; -fx-border-color: -sp-inverse-2; }
+
+.btn-secondary {
+    -fx-background-color: -sp-surface;
+    -fx-text-fill: -sp-ink;
+    -fx-border-color: -sp-border;
+    -fx-border-width: 0.8;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-font-weight: bold;
+    -fx-padding: 8 14 8 14;
+    -fx-cursor: hand;
+}
+.btn-secondary:hover { -fx-background-color: -sp-surface-3; }
+
+.btn-success {
+    -fx-background-color: -sp-accent;
+    -fx-text-fill: -sp-on-accent;
+    -fx-border-color: -sp-accent;
+    -fx-border-radius: 12;
+    -fx-border-width: 0.8;
+    -fx-font-weight: bold;
+    -fx-background-radius: 12;
+    -fx-padding: 8 15 8 15;
+    -fx-cursor: hand;
+}
+.btn-success .ikonli-font-icon { -fx-icon-color: -sp-on-accent; }
+.btn-success:hover { -fx-background-color: -sp-accent-hover; -fx-border-color: -sp-accent-hover; }
+
+.btn-danger-outline {
+    -fx-background-color: -sp-surface;
+    -fx-text-fill: -sp-danger;
+    -fx-border-color: -sp-danger;
+    -fx-border-width: 0.8;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-font-weight: bold;
+    -fx-padding: 8 14 8 14;
+    -fx-cursor: hand;
+}
+.btn-danger-outline .ikonli-font-icon { -fx-icon-color: -sp-danger; }
+.btn-danger-outline:hover { -fx-background-color: -sp-danger-soft; }
+
+.button:disabled { -fx-opacity: 0.45; }
+
+.icon-btn {
+    -fx-background-color: transparent;
+    -fx-text-fill: -sp-ink;
+    -fx-background-radius: 12;
+    -fx-padding: 6 8 6 8;
+    -fx-cursor: hand;
+}
+.icon-btn:hover { -fx-background-color: -sp-surface-3; }
+
+.icon-btn-danger {
+    -fx-background-color: transparent;
+    -fx-text-fill: -sp-danger;
+    -fx-background-radius: 12;
+    -fx-padding: 6 8 6 8;
+    -fx-cursor: hand;
+}
+.icon-btn-danger .ikonli-font-icon { -fx-icon-color: -sp-danger; }
+.icon-btn-danger:hover { -fx-background-color: -sp-danger-soft; }
+
+.link-btn {
+    -fx-background-color: transparent;
+    -fx-text-fill: -sp-ink;
+    -fx-font-weight: bold;
+    -fx-padding: 4 2 4 2;
+    -fx-cursor: hand;
+}
+.link-btn:hover { -fx-text-fill: -sp-accent-text; }
+.link-btn:hover .ikonli-font-icon { -fx-icon-color: -sp-accent-text; }
+
+/* Plain JavaFX buttons inside standard dialogs (scoped so custom buttons keep their own look) */
+.dialog-pane .button {
+    -fx-background-color: -sp-surface;
+    -fx-text-fill: -sp-ink;
+    -fx-border-color: -sp-border;
+    -fx-border-width: 0.8;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-font-weight: bold;
+    -fx-padding: 7 14 7 14;
+}
+.dialog-pane .button:hover { -fx-background-color: -sp-surface-3; }
+.dialog-pane .button:default {
+    -fx-background-color: -sp-inverse;
+    -fx-text-fill: -sp-on-inverse;
+    -fx-border-color: -sp-inverse;
+}
+
+/* ==========================================================================
+   Status pills, chips & segmented controls
+   ========================================================================== */
+.status-pill {
+    -fx-padding: 3 10 3 10;
+    -fx-background-radius: 12;
+    -fx-font-size: 11.5px;
+    -fx-font-weight: bold;
+}
+
+.status-in-stock     { -fx-background-color: -sp-success-soft; -fx-text-fill: -sp-success; }
+.status-low-stock    { -fx-background-color: -sp-warning-soft; -fx-text-fill: -sp-warning; }
+.status-out-of-stock { -fx-background-color: -sp-danger-soft;  -fx-text-fill: -sp-danger; }
+.status-info-pill    { -fx-background-color: -sp-surface-3;    -fx-text-fill: -sp-ink; }
+
+.filter-chip {
+    -fx-background-color: -sp-surface;
+    -fx-text-fill: -sp-ink;
+    -fx-border-color: -sp-border;
+    -fx-border-width: 0.8;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-padding: 6 14 6 14;
+    -fx-cursor: hand;
+    -fx-font-weight: bold;
+}
+.filter-chip:hover { -fx-background-color: -sp-surface-3; }
+
+.filter-chip-active,
+.filter-chip-active:hover {
+    -fx-background-color: -sp-accent;
+    -fx-text-fill: -sp-on-accent;
+    -fx-border-color: -sp-accent;
+}
+.filter-chip-active .ikonli-font-icon { -fx-icon-color: -sp-on-accent; }
+
+/* Segmented track (reference: "All time | Weekly | Monthly") */
+.segmented {
+    -fx-background-color: -sp-surface-2;
+    -fx-border-color: -sp-border-soft;
+    -fx-border-width: 0.8;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-padding: 3;
+    -fx-spacing: 2;
+}
+.segmented .filter-chip {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 5 14 5 14;
+}
+.segmented .filter-chip:hover { -fx-background-color: -sp-surface-3; }
+.segmented .filter-chip-active,
+.segmented .filter-chip-active:hover {
+    -fx-background-color: -sp-accent;
+    -fx-border-color: -sp-accent;
+}
+
+/* ==========================================================================
+   Form controls
+   ========================================================================== */
+.text-field, .password-field, .text-area, .combo-box, .date-picker, .spinner, .choice-box {
+    -fx-background-color: -sp-surface;
+    -fx-border-color: -sp-border;
+    -fx-border-width: 0.8;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-text-fill: -sp-ink;
+    -fx-prompt-text-fill: -sp-ink-3;
+    -fx-highlight-fill: -sp-accent;
+    -fx-highlight-text-fill: -sp-on-accent;
+}
+
+.text-field, .password-field {
+    -fx-padding: 7 10 7 10;
+}
+
+.text-field:focused, .password-field:focused, .text-area:focused,
+.combo-box:focused, .date-picker:focused, .spinner:focused, .choice-box:focused {
+    -fx-border-color: -sp-accent;
+}
+
+.text-area .content {
+    -fx-background-color: -sp-surface;
+    -fx-background-radius: 12;
+}
+
+.text-area .scroll-pane,
+.text-area .scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+
+.combo-box .list-cell,
+.choice-box .label {
+    -fx-text-fill: -sp-ink;
+    -fx-background-color: transparent;
+}
+
+.combo-box .arrow-button,
+.date-picker .arrow-button,
+.choice-box .open-button {
+    -fx-background-color: transparent;
+}
+
+.combo-box .arrow,
+.choice-box .arrow,
+.spinner .increment-arrow,
+.spinner .decrement-arrow {
+    -fx-background-color: -sp-ink-2;
+}
+
+.date-picker .calendar-button,
+.date-picker .arrow {
+    -fx-background-color: -sp-ink-2;
+}
+
+.date-picker .text-field {
+    -fx-border-color: transparent;
+    -fx-background-color: transparent;
+}
+
+.spinner .text-field {
+    -fx-border-color: transparent;
+    -fx-background-color: transparent;
+}
+
+.spinner .increment-arrow-button,
+.spinner .decrement-arrow-button {
+    -fx-background-color: transparent;
+}
+
+.field-error,
+.field-error:focused {
+    -fx-border-color: -sp-danger;
+    -fx-background-color: -sp-danger-soft;
+}
+
+.check-box,
+.radio-button {
+    -fx-text-fill: -sp-ink;
+}
+
+.check-box .box,
+.radio-button .radio {
+    -fx-background-color: -sp-surface;
+    -fx-border-color: -sp-border;
+    -fx-border-width: 0.8;
+    -fx-border-radius: 5;
+    -fx-background-radius: 5;
+}
+
+.radio-button .radio {
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+}
+
+.check-box:selected .box,
+.radio-button:selected .radio {
+    -fx-background-color: -sp-accent;
+    -fx-border-color: -sp-accent;
+}
+
+.check-box:selected .mark,
+.radio-button:selected .dot {
+    -fx-background-color: -sp-on-accent;
+}
+
+.toggle-button {
+    -fx-background-color: -sp-surface;
+    -fx-border-color: -sp-border;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-text-fill: -sp-ink;
+    -fx-font-weight: bold;
+}
+
+.toggle-button:selected {
+    -fx-background-color: -sp-accent;
+    -fx-border-color: -sp-accent;
+    -fx-text-fill: -sp-on-accent;
+}
+
+.slider .track {
+    -fx-background-color: -sp-surface-3;
+    -fx-background-radius: 12;
+}
+
+.slider .thumb {
+    -fx-background-color: -sp-ink;
+    -fx-background-radius: 12;
+}
+
+.separator .line {
+    -fx-border-color: -sp-divider;
+    -fx-border-width: 1 0 0 0;
+}
+
+/* ==========================================================================
+   Popups — combo lists, context menus, date picker, dialogs, tooltips
+   ========================================================================== */
+.combo-box-popup .list-view,
+.context-menu {
+    -fx-background-color: -sp-surface;
+    -fx-border-color: -sp-border;
+    -fx-border-width: 0.8;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-padding: 4;
+    -fx-effect: null;
+}
+
+.combo-box-popup .list-cell {
+    -fx-text-fill: -sp-ink;
+    -fx-background-color: transparent;
+    -fx-background-radius: 12;
+    -fx-padding: 7 12 7 12;
+}
+
+.combo-box-popup .list-cell:hover {
+    -fx-background-color: -sp-surface-3;
+}
+
+.combo-box-popup .list-cell:selected {
+    -fx-background-color: -sp-inverse;
+    -fx-text-fill: -sp-on-inverse;
+}
+
+.menu-item {
+    -fx-background-radius: 12;
+    -fx-padding: 6 12 6 12;
+}
+
+.menu-item .label {
+    -fx-text-fill: -sp-ink;
+}
+
+.menu-item:focused {
+    -fx-background-color: -sp-surface-3;
+}
+
+.date-picker-popup {
+    -fx-background-color: -sp-surface;
+    -fx-border-color: -sp-border;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-effect: null;
+}
+
+.date-picker-popup .month-year-pane {
+    -fx-background-color: -sp-surface;
+}
+
+.date-picker-popup .spinner .label,
+.date-picker-popup .month-year-pane .label,
+.date-picker-popup .day-name-cell,
+.date-picker-popup .week-number-cell {
+    -fx-text-fill: -sp-ink;
+}
+
+.date-picker-popup .spinner .left-arrow,
+.date-picker-popup .spinner .right-arrow {
+    -fx-background-color: -sp-ink;
+}
+
+.date-picker-popup .day-cell {
+    -fx-background-color: -sp-surface;
+    -fx-text-fill: -sp-ink;
+    -fx-background-radius: 12;
+}
+
+.date-picker-popup .day-cell:hover {
+    -fx-background-color: -sp-surface-3;
+}
+
+.date-picker-popup .today {
+    -fx-border-color: -sp-accent;
+    -fx-border-radius: 12;
+}
+
+.date-picker-popup .selected {
+    -fx-background-color: -sp-accent;
+    -fx-text-fill: -sp-on-accent;
+}
+
+.date-picker-popup .previous-month,
+.date-picker-popup .next-month {
+    -fx-text-fill: -sp-ink-3;
+}
+
+.dialog-pane {
+    -fx-background-color: -sp-surface;
+    -fx-border-color: -sp-border;
+    -fx-border-width: 0.8;
+}
+
+.dialog-pane > .header-panel {
+    -fx-background-color: -sp-surface-2;
+}
+
+.dialog-pane > .header-panel .label,
+.dialog-pane > .content.label {
+    -fx-text-fill: -sp-ink;
+}
+
+.dialog-pane > .button-bar > .container {
+    -fx-background-color: -sp-surface;
+}
+
+.tooltip {
+    -fx-background-color: -sp-inverse;
+    -fx-text-fill: -sp-on-inverse;
+    -fx-background-radius: 12;
+    -fx-font-family: "Albert Sans", "Segoe UI", sans-serif;
+    -fx-font-size: 11.5px;
+    -fx-font-weight: bold;
+    -fx-padding: 6 10 6 10;
+    -fx-effect: null;
+}
+
+/* ==========================================================================
+   Tabs
+   ========================================================================== */
+.tab-pane > .tab-header-area {
+    -fx-padding: 0 0 6 0;
+}
+
+.tab-pane > .tab-header-area > .tab-header-background {
+    -fx-background-color: transparent;
+    -fx-border-color: -sp-divider;
+    -fx-border-width: 0 0 1 0;
+}
+
+.tab-pane .tab {
+    -fx-background-color: transparent;
+    -fx-padding: 6 14 8 14;
+    -fx-background-insets: 0;
+    -fx-cursor: hand;
+}
+
+.tab-pane .tab .tab-label {
+    -fx-text-fill: -sp-ink-2;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+}
+
+.tab-pane .tab:hover .tab-label {
+    -fx-text-fill: -sp-ink;
+}
+
+.tab-pane .tab:selected {
+    -fx-border-color: -sp-accent;
+    -fx-border-width: 0 0 2 0;
+}
+
+.tab-pane .tab:selected .tab-label {
+    -fx-text-fill: -sp-ink;
+}
+
+.tab-pane .focus-indicator {
+    -fx-border-color: transparent;
+}
+
+.tab-pane > .tab-content-area {
+    -fx-background-color: transparent;
+}
+
+/* ==========================================================================
+   Tables & lists
+   ========================================================================== */
+.table-view {
+    -fx-background-color: -sp-surface;
+    -fx-border-color: -sp-border;
+    -fx-border-width: 0.8;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-padding: 2 4 2 4;
+    -fx-table-cell-border-color: transparent;
+}
+
+.table-view:focused {
+    -fx-background-insets: 0;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: transparent;
+    -fx-border-color: -sp-divider;
+    -fx-border-width: 0 0 1 0;
+}
+
+.table-view .column-header,
+.table-view .filler,
+.table-view .show-hide-columns-button,
+.table-view .corner {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: -sp-ink-2;
+    -fx-font-weight: 500;
+    -fx-font-size: 12px;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 8 6 8 6;
+}
+
+.table-view .column-header .arrow {
+    -fx-background-color: -sp-ink-2;
+}
+
+.table-row-cell {
+    -fx-background-color: -sp-surface;
+    -fx-border-color: -sp-divider;
+    -fx-border-width: 0 0 1 0;
+    -fx-cell-size: 44px;
+    -fx-text-fill: -sp-ink;
+}
+
+.table-row-cell:odd {
+    -fx-background-color: -sp-surface;
+}
+
+.table-row-cell .table-cell {
+    -fx-text-fill: -sp-ink;
+    -fx-border-color: transparent;
+}
+
+.table-row-cell:hover {
+    -fx-background-color: -sp-surface-2;
+}
+
+.table-row-cell:selected,
+.table-row-cell:selected:hover {
+    -fx-background-color: -sp-accent-soft;
+}
+
+.table-row-cell:selected .table-cell,
+.table-row-cell:selected .text {
+    -fx-text-fill: -sp-ink;
+    -fx-fill: -sp-ink;
+}
+
+.table-row-cell:selected .status-in-stock     { -fx-text-fill: -sp-success; }
+.table-row-cell:selected .status-low-stock    { -fx-text-fill: -sp-warning; }
+.table-row-cell:selected .status-out-of-stock { -fx-text-fill: -sp-danger; }
+.table-row-cell:selected .status-info-pill    { -fx-text-fill: -sp-ink; }
+
+.table-row-cell:empty,
+.table-row-cell:empty:hover {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.table-view .placeholder .label {
+    -fx-text-fill: -sp-ink-2;
+}
+
+.list-view {
+    -fx-background-color: -sp-surface;
+    -fx-border-color: -sp-border;
+    -fx-border-width: 0.8;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-padding: 3;
+}
+
+.list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -sp-ink;
+    -fx-background-radius: 12;
+    -fx-padding: 8 12 8 12;
+}
+
+.list-cell:filled:hover {
+    -fx-background-color: -sp-surface-2;
+}
+
+.list-cell:filled:selected {
+    -fx-background-color: -sp-accent-soft;
+    -fx-text-fill: -sp-ink;
+}
+
+/* ==========================================================================
+   Progress, scroll
+   ========================================================================== */
+.progress-bar > .track {
+    -fx-background-color: -sp-surface-3;
+    -fx-background-radius: 12;
+    -fx-background-insets: 0;
+}
+
+.progress-bar > .bar {
+    -fx-background-color: -sp-accent;
+    -fx-background-radius: 12;
+    -fx-background-insets: 0;
+    -fx-padding: 3;
+}
+
+.progress-indicator > .determinate-indicator > .indicator,
+.progress-indicator > .spinner {
+    -fx-background-color: -sp-accent;
+}
+
+.scroll-pane {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+    -fx-padding: 0;
+    -fx-background-insets: 0;
+}
+
+.scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+
+.scroll-pane > .corner {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar:vertical,
+.scroll-bar:horizontal {
+    -fx-background-color: transparent;
+    -fx-padding: 2;
+}
+
+.scroll-bar:vertical { -fx-pref-width: 10px; }
+.scroll-bar:horizontal { -fx-pref-height: 10px; }
+
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+    -fx-padding: 0;
+    -fx-pref-height: 0;
+    -fx-pref-width: 0;
+}
+
+.scroll-bar .increment-arrow,
+.scroll-bar .decrement-arrow {
+    -fx-shape: " ";
+    -fx-padding: 0;
+}
+
+.scroll-bar .track {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: -sp-ink-3;
+    -fx-background-radius: 12;
+    -fx-opacity: 0.55;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-opacity: 0.9;
+}
+
+/* ==========================================================================
+   Overlays: drawer, toast, modal, command bar
+   ========================================================================== */
+.drawer-panel {
+    -fx-background-color: -sp-surface;
+    -fx-border-color: -sp-border;
+    -fx-border-width: 0.8;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+}
+
+.toast-banner {
+    -fx-background-color: -sp-inverse;
+    -fx-background-radius: 12;
+    -fx-padding: 10 12 10 16;
+}
+
+.toast-banner .label,
+.toast-message {
+    -fx-text-fill: -sp-on-inverse;
+    -fx-font-weight: bold;
+}
+
+.toast-banner .ikonli-font-icon {
+    -fx-icon-color: -sp-on-inverse-2;
+}
+
+.toast-action {
+    -fx-background-color: -sp-accent;
+    -fx-text-fill: -sp-on-accent;
+    -fx-border-color: -sp-accent;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-padding: 5 12 5 12;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+
+.toast-close {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 2 4 2 4;
+    -fx-cursor: hand;
+}
+
+.modal-backdrop {
+    -fx-background-color: -sp-overlay;
+}
+
+.modal-card {
+    -fx-background-color: -sp-surface;
+    -fx-border-color: -sp-border;
+    -fx-border-width: 0.8;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-padding: 18;
+}
+
+.modal-title {
+    -fx-font-family: "Red Hat Display", "Albert Sans", sans-serif;
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}
+
+/* ==========================================================================
+   Login
+   ========================================================================== */
+.login-brand-pane {
+    -fx-background-color: -sp-brand-pane;
+    -fx-border-color: -sp-border;
+    -fx-border-width: 0 1 0 0;
+}
+
+.login-brand-pane .label {
+    -fx-text-fill: -sp-on-brand;
+}
+
+.login-brand-title {
+    -fx-font-family: "Red Hat Display", "Albert Sans", sans-serif;
+    -fx-font-size: 44px;
+    -fx-font-weight: 800;
+}
+
+.login-brand-sub {
+    -fx-font-family: "Red Hat Display", "Albert Sans", sans-serif;
+    -fx-font-size: 17px;
+    -fx-font-weight: bold;
+}
+
+.login-brand-pane .login-tagline {
+    -fx-font-size: 14px;
+    -fx-text-fill: -sp-on-brand-2;
+}
+
+.login-feature-pill {
+    -fx-background-color: -sp-brand-pill;
+    -fx-background-radius: 12;
+    -fx-padding: 6 12 6 10;
+}
+
+.login-feature-pill .label {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+
+.login-feature-pill .ikonli-font-icon {
+    -fx-icon-color: -sp-accent;
+}
+
+.login-form-pane {
+    -fx-background-color: -sp-surface;
+}
+
+.login-link {
+    -fx-text-fill: -sp-ink;
+    -fx-underline: true;
+}
+
+.ai-briefing-card .kpi-meter-fill {
+    -fx-background-color: -sp-accent;
+}
+
+/* ==========================================================================
+   Refinements
+   ========================================================================== */
+
+/* Tables / lists that sit inside a card do not draw a second border. */
+.card .table-view,
+.card .list-view,
+.surface-subtle .table-view {
+    -fx-border-color: transparent;
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.card .table-row-cell {
+    -fx-background-color: transparent;
+}
+
+.card .table-row-cell:hover {
+    -fx-background-color: -sp-surface-2;
+}
+
+.card .table-row-cell:selected,
+.card .table-row-cell:selected:hover {
+    -fx-background-color: -sp-accent-soft;
+}
+
+/* Vertically centre every cell's content. */
+.table-row-cell .table-cell {
+    -fx-alignment: CENTER_LEFT;
+}
+
+/* Editable combo boxes and spinners: the inner field must not draw its own frame. */
+.combo-box .text-field,
+.combo-box-base .text-field {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+/* Medium / SemiBold faces register as their own font families in JavaFX. */
+.kpi-title,
+.table-view .column-header .label,
+.legend-label,
+.page-subtitle {
+    -fx-font-family: "Albert Sans Medium", "Albert Sans", sans-serif;
+}
+
+.row-title,
+.tab-pane .tab .tab-label {
+    -fx-font-family: "Albert Sans SemiBold", "Albert Sans", sans-serif;
+    -fx-font-weight: normal;
+}
+
+/* Grayscale text antialiasing: JavaFX's default LCD (sub-pixel) mode leaves colour fringes
+   around unhinted web fonts at fractional display scaling, which reads as jagged edges. */
+.text {
+    -fx-font-smoothing-type: gray;
+}
+
+/* Unselected tabs keep a transparent underline so selection can fade its colour in/out. */
+.tab-pane .tab {
+    -fx-border-color: transparent;
+    -fx-border-width: 0 0 2 0;
+}

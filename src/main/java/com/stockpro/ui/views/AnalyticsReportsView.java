@@ -9,6 +9,7 @@ import com.stockpro.service.InventoryEventBus;
 import com.stockpro.service.ServiceContext;
 import com.stockpro.service.SpreadsheetImportExportService;
 import com.stockpro.ui.components.AppIcons;
+import com.stockpro.ui.components.ThemeManager;
 import com.stockpro.ui.components.KpiStatCard;
 import com.stockpro.ui.components.KpiStatCard.DeltaTone;
 import com.stockpro.ui.components.ModernTrendChart;
@@ -194,15 +195,15 @@ public class AnalyticsReportsView {
         actionBar.setAlignment(Pos.CENTER_LEFT);
 
         // 5 KPI Cards matching Analytics (2).png
-        totalSalesCard = new KpiStatCard(Feather.SHOPPING_BAG, "#4F46E5", "kpi-card-blue", "Retail Value", "$0.00",
+        totalSalesCard = new KpiStatCard(Feather.SHOPPING_BAG, "#4F46E5", KpiStatCard.INVERSE, "Retail Value", "$0.00",
                 "Catalog total");
-        revenueCard = new KpiStatCard(Feather.DOLLAR_SIGN, "#10B981", "kpi-card-green", "Cost Asset", "$0.00",
+        revenueCard = new KpiStatCard(Feather.DOLLAR_SIGN, "#10B981", KpiStatCard.ACCENT, "Cost Asset", "$0.00",
                 "On hand value");
-        profitCard = new KpiStatCard(Feather.TRENDING_UP, "#F59E0B", "kpi-card-amber", "Est. Profit", "$0.00",
+        profitCard = new KpiStatCard(Feather.TRENDING_UP, "#F59E0B", KpiStatCard.MUTED, "Est. Profit", "$0.00",
                 "Gross potential");
-        bestSellerCard = new KpiStatCard(Feather.AWARD, "#8B5CF6", "kpi-card-purple", "Top Product", "—",
+        bestSellerCard = new KpiStatCard(Feather.AWARD, "#8B5CF6", KpiStatCard.PLAIN, "Top Product", "—",
                 "Highest value");
-        deadStockCard = new KpiStatCard(Feather.ALERT_TRIANGLE, "#EF4444", "kpi-card-rose", "Dead Stock", "0",
+        deadStockCard = new KpiStatCard(Feather.ALERT_TRIANGLE, "#EF4444", KpiStatCard.PLAIN, "Dead Stock", "0",
                 "Stagnant 60d+");
         HBox kpiRow = new HBox(12, totalSalesCard, revenueCard, profitCard, bestSellerCard, deadStockCard);
 
@@ -423,11 +424,7 @@ public class AnalyticsReportsView {
         card.getChildren().addAll(hdr, body, actions);
 
         Scene sc = new Scene(card, 470, 230);
-        String cssPath = AppSession.getInstance().isDarkMode() ? "/css/dark-theme.css" : "/css/light-theme.css";
-        var cssUrl = getClass().getResource(cssPath);
-        if (cssUrl != null) {
-            sc.getStylesheets().add(cssUrl.toExternalForm());
-        }
+        ThemeManager.apply(sc);
         dialog.setScene(sc);
         dialog.showAndWait();
     }
@@ -498,8 +495,8 @@ public class AnalyticsReportsView {
             List<Double> profitVals = snap.trendPoints().stream().map(DashboardMetricsService.TrendPoint::profitAmount)
                     .toList();
             profitTrendChart.setSeries(xLabels, List.of(
-                    new ModernTrendChart.SeriesData("Sales", "#4F46E5", salesVals),
-                    new ModernTrendChart.SeriesData("Profit", "#10B981", profitVals)));
+                    new ModernTrendChart.SeriesData("Sales", "ink", salesVals),
+                    new ModernTrendChart.SeriesData("Profit", "accent", profitVals)));
 
             // Category donut
             Map<String, Double> catTotals = new LinkedHashMap<>();
@@ -510,7 +507,7 @@ public class AnalyticsReportsView {
                 catTotals.merge(c, v, Double::sum);
                 grand += v;
             }
-            String[] palette = { "#4F46E5", "#10B981", "#F59E0B", "#0EA5E9" };
+            String[] palette = { "ink", "accent", "hatch", "neutral" };
             List<Map.Entry<String, Double>> topCats = catTotals.entrySet().stream()
                     .sorted(Map.Entry.<String, Double>comparingByValue().reversed()).limit(4)
                     .toList();
@@ -531,11 +528,11 @@ public class AnalyticsReportsView {
                     String.format("%.0f%%", snap.inStockPercent()),
                     "Stock Health",
                     new StockDonutChart.Slice("In Stock", String.valueOf(snap.inStockCount()),
-                            snap.inStockPercent() / 100.0, "#10B981"),
+                            snap.inStockPercent() / 100.0, "ink"),
                     new StockDonutChart.Slice("Low Stock", String.valueOf(snap.lowStockCount()),
-                            snap.lowStockPercent() / 100.0, "#F59E0B"),
+                            snap.lowStockPercent() / 100.0, "hatch"),
                     new StockDonutChart.Slice("Out of Stock", String.valueOf(snap.outOfStockCount()),
-                            snap.outOfStockPercent() / 100.0, "#EF4444"));
+                            snap.outOfStockPercent() / 100.0, "accent"));
 
             topProducts.setAll(scoped.stream()
                     .sorted(java.util.Comparator.comparingDouble(Product::getRetailValuation).reversed())
