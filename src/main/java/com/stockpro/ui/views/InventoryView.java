@@ -511,6 +511,8 @@ public class InventoryView {
         tableView.getColumns().addAll(List.of(
                 selectCol, imgCol, skuCol, nameCol, catCol, qtyCol, buyCol, sellCol, expCol, statusCol, actionCol
         ));
+        tableView.setTableMenuButtonVisible(true);
+        bindColumnVisibilityPreferences(List.of(skuCol, nameCol, catCol, qtyCol, buyCol, sellCol, expCol, statusCol));
 
         // Open details drawer ONLY when clicking non-interactive row content (never stealing checkbox or action clicks)
         tableView.setRowFactory(tv -> {
@@ -1061,5 +1063,84 @@ public class InventoryView {
                 toastManager.showInfo(ex.getMessage());
             }
         }
+    }
+
+    private void bindColumnVisibilityPreferences(List<TableColumn<Product, ?>> toggleColumns) {
+        com.stockpro.service.UserColumnPreferenceService prefService = services.getUserColumnPreferenceService();
+        String actor = AppSession.getInstance().getActorName();
+        Map<String, Boolean> defaults = new java.util.LinkedHashMap<>();
+        for (TableColumn<Product, ?> col : toggleColumns) {
+            defaults.put(col.getText(), true);
+        }
+        Map<String, Boolean> saved = prefService.loadPreferences(actor, defaults);
+        for (TableColumn<Product, ?> col : toggleColumns) {
+            Boolean visible = saved.get(col.getText());
+            if (visible != null) {
+                col.setVisible(visible);
+            }
+            col.visibleProperty().addListener((obs, oldV, newV) ->
+                    persistColumnVisibility(prefService, actor, toggleColumns));
+        }
+
+        javafx.scene.control.MenuItem customizeItem = new javafx.scene.control.MenuItem("Customize Columns...");
+        customizeItem.setOnAction(e -> openColumnCustomizerDialog(prefService, actor, toggleColumns));
+        javafx.scene.control.ContextMenu menu = tableView.getContextMenu();
+        if (menu == null) {
+            menu = new javafx.scene.control.ContextMenu();
+            tableView.setContextMenu(menu);
+        }
+        menu.getItems().add(customizeItem);
+    }
+
+    private void persistColumnVisibility(
+            com.stockpro.service.UserColumnPreferenceService prefService,
+            String actor,
+            List<TableColumn<Product, ?>> toggleColumns) {
+        Map<String, Boolean> current = new java.util.LinkedHashMap<>();
+        for (TableColumn<Product, ?> col : toggleColumns) {
+            current.put(col.getText(), col.isVisible());
+        }
+        AppExecutor.submit(() -> {
+            prefService.savePreferences(actor, current);
+            return null;
+        });
+    }
+
+    private void openColumnCustomizerDialog(
+            com.stockpro.service.UserColumnPreferenceService prefService,
+            String actor,
+            List<TableColumn<Product, ?>> toggleColumns) {
+        Stage dialog = new Stage();
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        dialog.setTitle("Customize Inventory Columns");
+
+        VBox box = new VBox(10);
+        box.setPadding(new Insets(18));
+        Label title = new Label("Show / Hide Columns for " + actor);
+        title.getStyleClass().add("section-title");
+        box.getChildren().add(title);
+
+        for (TableColumn<Product, ?> col : toggleColumns) {
+            javafx.scene.control.CheckBox cb = new javafx.scene.control.CheckBox(col.getText());
+            cb.setSelected(col.isVisible());
+            cb.setOnAction(ev -> col.setVisible(cb.isSelected()));
+            box.getChildren().add(cb);
+        }
+
+        Button doneBtn = new Button("Save & Close");
+        doneBtn.getStyleClass().add("btn-primary");
+        doneBtn.setOnAction(ev -> {
+            persistColumnVisibility(prefService, actor, toggleColumns);
+            dialog.close();
+            toastManager.showInfo("Saved table column preferences.");
+        });
+        box.getChildren().add(doneBtn);
+
+        Scene scene = new Scene(box, 320, 360);
+        if (tableView.getScene() != null) {
+            scene.getStylesheets().addAll(tableView.getScene().getStylesheets());
+        }
+        dialog.setScene(scene);
+        dialog.showAndWait();
     }
 }
