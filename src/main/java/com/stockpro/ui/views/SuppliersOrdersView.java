@@ -359,7 +359,7 @@ public class SuppliersOrdersView {
             }
         });
         TableColumn<PurchaseOrder, Void> actCol = new TableColumn<>("Actions");
-        actCol.setMinWidth(210);
+        actCol.setMinWidth(265);
         actCol.setCellFactory(col -> new TableCell<>() {
             @Override
             protected void updateItem(Void v, boolean empty) {
@@ -374,7 +374,12 @@ public class SuppliersOrdersView {
                 pdfBtn.setStyle("-fx-padding: 4 9 4 9;");
                 pdfBtn.setOnAction(e -> exportPoPdf(po));
 
-                HBox box = new HBox(6, pdfBtn);
+                Button verifyBtn = new Button("3-Way Check");
+                verifyBtn.getStyleClass().add("btn-secondary");
+                verifyBtn.setStyle("-fx-padding: 4 9 4 9;");
+                verifyBtn.setOnAction(e -> openBlindAndThreeWayDialog(po));
+
+                HBox box = new HBox(6, pdfBtn, verifyBtn);
                 if ("Draft".equalsIgnoreCase(po.getStatus())) {
                     Button sendBtn = new Button("Send");
                     sendBtn.getStyleClass().add("btn-secondary");
@@ -396,6 +401,82 @@ public class SuppliersOrdersView {
 
         card.getChildren().addAll(heading, table);
         return card;
+    }
+
+    private void openBlindAndThreeWayDialog(PurchaseOrder po) {
+        if (po == null || po.getItems().isEmpty()) {
+            toastManager.showInfo("Purchase order has no line items.");
+            return;
+        }
+        java.util.Map<String, TextField> countFields = new java.util.LinkedHashMap<>();
+        VBox box = new VBox(10);
+        box.getStyleClass().add("card");
+        box.setPadding(new Insets(18));
+
+        Label title = new Label("Blind Dock Receiving & 3-Way Match — " + po.getPoNumber());
+        title.getStyleClass().add("section-title");
+        Label hint = new Label("Enter physical dock counts (unbiased) and vendor invoice amount.");
+        hint.getStyleClass().add("muted-text");
+        box.getChildren().addAll(title, hint);
+
+        for (PurchaseOrderItem item : po.getItems()) {
+            HBox row = new HBox(10);
+            row.setAlignment(Pos.CENTER_LEFT);
+            Label skuLbl = new Label(item.getProductSku() + " — " + item.getProductName());
+            HBox.setHgrow(skuLbl, Priority.ALWAYS);
+            TextField qtyInput = new TextField("0");
+            qtyInput.setPrefWidth(90);
+            qtyInput.setPromptText("Dock Qty");
+            countFields.put(item.getProductSku(), qtyInput);
+            row.getChildren().addAll(skuLbl, qtyInput);
+            box.getChildren().add(row);
+        }
+
+        TextField invNumField = new TextField("INV-" + po.getPoNumber());
+        TextField invTotalField = new TextField(String.format("%.2f", po.getTotalCost()));
+        HBox invRow = new HBox(10, invNumField, invTotalField);
+        Label resultLbl = new Label();
+        resultLbl.setWrapText(true);
+
+        Button runBtn = new Button("Run Blind Check & 3-Way Match");
+        runBtn.getStyleClass().add("btn-primary");
+        Stage dlg = new Stage();
+        dlg.initModality(Modality.APPLICATION_MODAL);
+        dlg.setTitle("3-Way Invoice Match");
+        runBtn.setOnAction(e -> {
+            java.util.Map<String, Integer> counts = new java.util.LinkedHashMap<>();
+            try {
+                for (var entry : countFields.entrySet()) {
+                    counts.put(entry.getKey(), Integer.parseInt(entry.getValue().getText().trim()));
+                }
+                double invTotal = Double.parseDouble(invTotalField.getText().trim());
+                AppExecutor.runAsync(() -> {
+                    var blind = services.getMultiBranchTransferRmaService().recordBlindDelivery(
+                            po.getId(), counts, AppSession.getInstance().getActorName());
+                    var match = services.getMultiBranchTransferRmaService().performThreeWayMatch(
+                            po.getId(), invNumField.getText().trim(), invTotal, counts, AppSession.getInstance().getActorName());
+                    return blind.getMessage() + " | " + match.getMessage();
+                }, msg -> {
+                    resultLbl.setText(msg);
+                    toastManager.showInfo(msg);
+                }, ex -> resultLbl.setText("Error: " + ex.getMessage()));
+            } catch (NumberFormatException ex) {
+                resultLbl.setText("Enter valid numeric dock counts and invoice amount.");
+            }
+        });
+
+        Button closeBtn = new Button("Close");
+        closeBtn.getStyleClass().add("btn-secondary");
+        closeBtn.setOnAction(e -> dlg.close());
+
+        box.getChildren().addAll(new Label("Invoice # & Billed Total:"), invRow, resultLbl, new HBox(10, runBtn, closeBtn));
+        Scene scene = new Scene(box, 520, 420);
+        var css = getClass().getResource(AppSession.getInstance().isDarkMode() ? "/css/dark-theme.css" : "/css/light-theme.css");
+        if (css != null) {
+            scene.getStylesheets().add(css.toExternalForm());
+        }
+        dlg.setScene(scene);
+        dlg.showAndWait();
     }
 
     private VBox buildDeadMoneyCard() {

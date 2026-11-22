@@ -54,6 +54,7 @@ public class ServiceContext {
     private final BuiltInLabTestRunner builtInLabTestRunner;
     private final ProductImageService productImageService;
     private final CatalogVariantBomService catalogVariantBomService;
+    private final MultiBranchTransferRmaService multiBranchTransferRmaService;
 
     /**
      * Constructs a service registry bound to a specific {@link DatabaseManager}.
@@ -136,6 +137,15 @@ public class ServiceContext {
                 auditService,
                 InventoryEventBus.getInstance()
         );
+        this.multiBranchTransferRmaService = new MultiBranchTransferRmaService(
+                databaseManager,
+                productRepository,
+                purchaseOrderRepository,
+                stockMovementRepository,
+                auditService,
+                InventoryEventBus.getInstance()
+        );
+        this.stockOperationService.setBranchService(this.multiBranchTransferRmaService);
         syncSessionSettings();
     }
 
@@ -429,5 +439,14 @@ public class ServiceContext {
      */
     public CatalogVariantBomService getCatalogVariantBomService() {
         return catalogVariantBomService;
+    }
+
+    /**
+     * Returns the Version 2 multi-branch, transfers, ATP, blind receiving, 3-way match, RMA, and backorder service.
+     *
+     * @return {@link MultiBranchTransferRmaService}
+     */
+    public MultiBranchTransferRmaService getMultiBranchTransferRmaService() {
+        return multiBranchTransferRmaService;
     }
 }
