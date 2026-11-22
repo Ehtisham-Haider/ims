@@ -72,6 +72,7 @@ public class ExecutivePdfReportGenerator {
     private final DashboardMetricsService metricsService;
     private final FinanceService financeService;
     private final AiAssistantService aiAssistantService;
+    private com.stockpro.ai.WorldAwareGenAiService worldAwareGenAiService;
 
     /**
      * Creates an executive PDF report generator wired to live analytics and AI
@@ -94,6 +95,15 @@ public class ExecutivePdfReportGenerator {
     }
 
     /**
+     * Attaches the optional World-Aware GenAI executive narrative generator.
+     *
+     * @param worldAwareGenAiService world-aware GenAI service instance
+     */
+    public void setWorldAwareGenAiService(com.stockpro.ai.WorldAwareGenAiService worldAwareGenAiService) {
+        this.worldAwareGenAiService = worldAwareGenAiService;
+    }
+
+    /**
      * Generates the single-page branded A4 Business Report PDF matching the
      * reference design.
      *
@@ -113,6 +123,9 @@ public class ExecutivePdfReportGenerator {
             FinanceService.FinanceSummary fin = financeService.computeSummary(60, session.getTaxRatePercent());
             List<Product> products = productRepository.findAll(false);
             String rawBriefing = aiAssistantService.generateMorningBriefing();
+            if (worldAwareGenAiService != null) {
+                rawBriefing = rawBriefing + "\n" + worldAwareGenAiService.writeMonthlyExecutiveNarrative(periodLabel);
+            }
 
             try (FileOutputStream fos = new FileOutputStream(outputPath.toFile());
                     Document doc = new Document(PageSize.A4, 0, 0, 0, 0)) {

@@ -257,8 +257,33 @@ public class ProductFormDialog {
         TextField customMetaField = new TextField();
         customMetaField.setPromptText("e.g. Brand=Sony, Voltage=220V");
 
+        Button aiSeoBtn = new Button("AI SEO");
+        aiSeoBtn.setGraphic(AppIcons.of(Feather.ZAP, 12));
+        aiSeoBtn.getStyleClass().add("btn-secondary");
+        aiSeoBtn.setTooltip(new javafx.scene.control.Tooltip("Generate product description & SEO discovery tags"));
+        aiSeoBtn.setOnAction(e -> {
+            double sp = 0.0;
+            try {
+                sp = Double.parseDouble(sellPriceField.getText().trim());
+            } catch (Exception ignored) {
+            }
+            String qName = nameField.getText();
+            String qCat = categoryBox.getEditor().getText() != null && !categoryBox.getEditor().getText().isBlank()
+                    ? categoryBox.getEditor().getText().trim()
+                    : categoryBox.getValue();
+            var copySeo = new com.stockpro.ai.WorldAwareGenAiService(null, null, null, null)
+                    .generateProductDescriptionAndSeo(qName, qCat, sp);
+            tagsField.setText(copySeo.seoTags());
+            tagsField.setTooltip(new javafx.scene.control.Tooltip(copySeo.description()));
+            photoHint.setText("Generated SEO: " + copySeo.description());
+            photoHint.setVisible(true);
+            photoHint.setManaged(true);
+        });
+        HBox tagRow = new HBox(6, tagsField, aiSeoBtn);
+        HBox.setHgrow(tagsField, Priority.ALWAYS);
+
         grid.add(wrapField("Product Name *", nameField, nameErr), 0, 0);
-        grid.add(wrapField("Tags", tagsField, null), 1, 0);
+        grid.add(wrapField("Tags", tagRow, null), 1, 0);
         grid.add(wrapField("Category", categoryBox, null), 0, 1);
         grid.add(wrapField("Shelf Location", shelfField, null), 1, 1);
         grid.add(wrapField("Quantity *", qtyField, qtyErr), 0, 2);
