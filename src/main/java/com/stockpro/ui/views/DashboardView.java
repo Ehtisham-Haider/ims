@@ -64,6 +64,7 @@ public class DashboardView {
     private VBox recentActivityBox;
     private VBox briefingBodyBox;
     private HBox briefingActionsRow;
+    private Label healthScoreBadge;
     private int trendDays = 7;
 
     /**
@@ -141,12 +142,17 @@ public class DashboardView {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
+        healthScoreBadge = new Label("Health: --/100");
+        healthScoreBadge.getStyleClass().addAll("status-pill", "status-in-stock");
+        healthScoreBadge.setStyle("-fx-cursor: hand; -fx-font-weight: 700;");
+        healthScoreBadge.setOnMouseClicked(e -> onNavigate.accept(NavigationSection.AI_ASSISTANT));
+
         Button refreshBtn = new Button("Refresh");
         refreshBtn.setGraphic(AppIcons.of(Feather.REFRESH_CW, 14));
         refreshBtn.getStyleClass().add("btn-secondary");
         refreshBtn.setOnAction(e -> refreshAsync());
 
-        headerRow.getChildren().addAll(titleGroup, spacer, refreshBtn);
+        headerRow.getChildren().addAll(titleGroup, spacer, healthScoreBadge, refreshBtn);
 
         // Row 1: 5 Pastel KPI Stat Cards with Feather icons & micro-sparklines
         totalProductsCard = new KpiStatCard(Feather.PACKAGE, "#4F46E5", "kpi-card-blue", "Total Products", "0", "Active SKUs");
@@ -337,8 +343,20 @@ public class DashboardView {
     public void refreshAsync() {
         int horizon = trendDays;
         AppExecutor.runAsync(
-                () -> metricsService.loadSnapshot(horizon),
-                this::applySnapshot,
+                () -> new Object[]{
+                        metricsService.loadSnapshot(horizon),
+                        services.getMultiAgentStoreBrainService().computeStoreHealthScore()
+                },
+                res -> {
+                    applySnapshot((DashboardMetricsService.DashboardSnapshot) res[0]);
+                    var score = (com.stockpro.domain.StoreBrainModels.StoreHealthScoreReport) res[1];
+                    if (healthScoreBadge != null && score != null) {
+                        healthScoreBadge.setText(score.headline());
+                        healthScoreBadge.getStyleClass().setAll("status-pill",
+                                score.overallScore() >= 80 ? "status-in-stock"
+                                        : score.overallScore() >= 60 ? "status-low-stock" : "status-out-of-stock");
+                    }
+                },
                 ex -> {}
         );
     }

@@ -35,11 +35,13 @@ import java.util.function.Consumer;
  * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
  */
 public class ApprovalInboxView {
+    private final ServiceContext services;
     private final AgenticOrchestratorService orchestrator;
     private final ToastNotificationManager toastManager;
     private final Consumer<String> eventListener = topic -> refreshAsync();
 
     private VBox cardsContainer;
+    private Label brainSummaryLabel;
     private CheckBox pendingOnlyCheck;
 
     /**
@@ -49,6 +51,7 @@ public class ApprovalInboxView {
      * @param toastManager toast notification helper
      */
     public ApprovalInboxView(ServiceContext services, ToastNotificationManager toastManager) {
+        this.services = services;
         this.orchestrator = services.getAgenticOrchestratorService();
         this.toastManager = toastManager;
         InventoryEventBus.getInstance().subscribe(eventListener);
@@ -109,7 +112,30 @@ public class ApprovalInboxView {
             );
         });
 
-        header.getChildren().addAll(titleCol, sp, pendingOnlyCheck, runAgentsBtn);
+        Button team7Btn = new Button("Run 7-Agent Store Brain");
+        team7Btn.setGraphic(AppIcons.of(Feather.CPU, 14, "#FFFFFF"));
+        team7Btn.getStyleClass().add("btn-primary");
+        team7Btn.setOnAction(e -> {
+            team7Btn.setDisable(true);
+            AppExecutor.runAsync(
+                    () -> services.getMultiAgentStoreBrainService().runSevenAgentTeamConsensus(),
+                    created -> {
+                        team7Btn.setDisable(false);
+                        toastManager.showInfo("7-Agent Store Brain queued " + created.size() + " ranked consensus proposal(s).");
+                        refreshAsync();
+                    },
+                    ex -> {
+                        team7Btn.setDisable(false);
+                        toastManager.showInfo("Team consensus error: " + ex.getMessage());
+                    }
+            );
+        });
+
+        header.getChildren().addAll(titleCol, sp, pendingOnlyCheck, runAgentsBtn, team7Btn);
+
+        brainSummaryLabel = new Label("Store Brain Telemetry loading...");
+        brainSummaryLabel.setWrapText(true);
+        brainSummaryLabel.getStyleClass().add("muted-text");
 
         cardsContainer = new VBox(12);
         refreshAsync();
@@ -118,7 +144,7 @@ public class ApprovalInboxView {
         scroll.setFitToWidth(true);
         VBox.setVgrow(scroll, Priority.ALWAYS);
 
-        page.getChildren().addAll(header, scroll);
+        page.getChildren().addAll(header, brainSummaryLabel, scroll);
         return page;
     }
 
@@ -128,8 +154,24 @@ public class ApprovalInboxView {
     public void refreshAsync() {
         boolean pendingOnly = pendingOnlyCheck == null || pendingOnlyCheck.isSelected();
         AppExecutor.runAsync(
-                () -> orchestrator.listProposals(pendingOnly),
-                this::renderCards,
+                () -> new Object[]{
+                        orchestrator.listProposals(pendingOnly),
+                        services.getMultiAgentStoreBrainService().computeStoreHealthScore(),
+                        services.getMultiAgentStoreBrainService().investigateSalesDrivers(14),
+                        services.getMultiAgentStoreBrainService().getWasteEcoSummary()
+                },
+                arr -> {
+                    @SuppressWarnings("unchecked")
+                    List<AgentProposal> list = (List<AgentProposal>) arr[0];
+                    var health = (com.stockpro.domain.StoreBrainModels.StoreHealthScoreReport) arr[1];
+                    var det = (com.stockpro.domain.StoreBrainModels.SalesDetectiveReport) arr[2];
+                    var eco = (com.stockpro.domain.StoreBrainModels.WasteEcoImpactSummary) arr[3];
+                    if (brainSummaryLabel != null) {
+                        brainSummaryLabel.setText(health.headline() + "  |  Sales Detective: " + det.headline()
+                                + "  |  Eco Impact: " + eco.summary());
+                    }
+                    renderCards(list);
+                },
                 ex -> toastManager.showInfo("Failed to load proposals: " + ex.getMessage())
         );
     }
@@ -202,7 +244,13 @@ public class ApprovalInboxView {
                 String actor = AppSession.getInstance().getActorName();
                 boolean canApprove = AppSession.getInstance().canDeleteOrApprove();
                 AppExecutor.runAsync(
-                        () -> orchestrator.approveProposal(proposal.getId(), actor, canApprove),
+                        () -> {
+                            var res = orchestrator.approveProposal(proposal.getId(), actor, canApprove);
+                            if (res.isSuccess()) {
+                                services.getMultiAgentStoreBrainService().recordDecisionFeedback(proposal.getAgentName(), true);
+                            }
+                            return res;
+                        },
                         (InventoryOperationResult<AgentProposal> res) -> {
                             toastManager.showInfo(res.getMessage());
                             refreshAsync();
@@ -217,7 +265,13 @@ public class ApprovalInboxView {
             rejectBtn.setOnAction(e -> {
                 String actor = AppSession.getInstance().getActorName();
                 AppExecutor.runAsync(
-                        () -> orchestrator.rejectProposal(proposal.getId(), actor),
+                        () -> {
+                            var res = orchestrator.rejectProposal(proposal.getId(), actor);
+                            if (res.isSuccess()) {
+                                services.getMultiAgentStoreBrainService().recordDecisionFeedback(proposal.getAgentName(), false);
+                            }
+                            return res;
+                        },
                         res -> {
                             toastManager.showInfo(res.getMessage());
                             refreshAsync();
