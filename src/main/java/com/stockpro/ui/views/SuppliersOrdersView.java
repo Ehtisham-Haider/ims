@@ -120,6 +120,7 @@ public class SuppliersOrdersView {
         taxEstimateCard = new KpiStatCard(Feather.PERCENT, "#8B5CF6", "kpi-card-purple", "Tax / GST Estimate", "$0.00", "15% store rate");
         deadMoneyCard = new KpiStatCard(Feather.CLOCK, "#F59E0B", "kpi-card-amber", "Dead Money Stock", "$0.00", "0 stagnant SKUs");
         HBox financeKpiRow = new HBox(12, storeValueCard, storeProfitCard, taxEstimateCard, deadMoneyCard);
+        HBox treasuryStrip = buildTreasuryToolbar();
 
         // Two-Column Suppliers + PO Builder
         VBox suppliersCard = buildSuppliersCard();
@@ -135,7 +136,7 @@ public class SuppliersOrdersView {
         deadMoneyCardBox.setPrefWidth(430);
         HBox bottomRow = new HBox(16, poHistoryCard, deadMoneyCardBox);
 
-        page.getChildren().addAll(title, subtitle, financeKpiRow, splitRow, bottomRow);
+        page.getChildren().addAll(title, subtitle, financeKpiRow, treasuryStrip, splitRow, bottomRow);
 
         ScrollPane scroll = new ScrollPane(page);
         scroll.setFitToWidth(true);
@@ -742,5 +743,361 @@ public class SuppliersOrdersView {
                     summary.deadMoneyItems().isEmpty() ? DeltaTone.POSITIVE : DeltaTone.WARNING);
             deadMoneyRows.setAll(summary.deadMoneyItems());
         }, ex -> toastManager.showInfo("Failed to refresh supplier finances: " + ex.getMessage()));
+    }
+
+    private HBox buildTreasuryToolbar() {
+        HBox bar = new HBox(10);
+        bar.setAlignment(Pos.CENTER_LEFT);
+        bar.getStyleClass().add("card");
+        bar.setPadding(new Insets(10, 14, 10, 14));
+
+        Label lbl = new Label("Global Finance & Purchasing Tools:");
+        lbl.getStyleClass().add("section-title");
+
+        Button fxBtn = new Button("FX Currency Converter");
+        fxBtn.setGraphic(AppIcons.of(Feather.GLOBE, 14));
+        fxBtn.getStyleClass().add("btn-secondary");
+        fxBtn.setOnAction(e -> openFxCurrencyDialog());
+
+        Button landedBtn = new Button("Landed Cost Allocator");
+        landedBtn.setGraphic(AppIcons.of(Feather.ANCHOR, 14));
+        landedBtn.getStyleClass().add("btn-secondary");
+        landedBtn.setOnAction(e -> openLandedCostDialog());
+
+        Button tiersBtn = new Button("Volume Tiers & MOQ");
+        tiersBtn.setGraphic(AppIcons.of(Feather.LAYERS, 14));
+        tiersBtn.getStyleClass().add("btn-secondary");
+        tiersBtn.setOnAction(e -> openVolumeTiersDialog());
+
+        Button cashBtn = new Button("30/60/90d Cash Flow");
+        cashBtn.setGraphic(AppIcons.of(Feather.ACTIVITY, 14));
+        cashBtn.getStyleClass().add("btn-secondary");
+        cashBtn.setOnAction(e -> openCashFlowDialog());
+
+        Region sp = new Region();
+        HBox.setHgrow(sp, Priority.ALWAYS);
+        bar.getChildren().addAll(lbl, sp, fxBtn, landedBtn, tiersBtn, cashBtn);
+        return bar;
+    }
+
+    private void openFxCurrencyDialog() {
+        Stage dlg = createModalStage("Multi-Currency FX Converter & Cache", 540, 440);
+        VBox box = new VBox(12);
+        box.getStyleClass().add("card");
+        box.setPadding(new Insets(18));
+
+        TextField amtField = new TextField("100.00");
+        ComboBox<String> fromBox = new ComboBox<>();
+        ComboBox<String> toBox = new ComboBox<>();
+        ObservableList<com.stockpro.domain.FxRateQuote> rateRows = FXCollections.observableArrayList();
+        Label convertedLbl = new Label("Converted: --");
+        convertedLbl.getStyleClass().add("section-title");
+
+        Runnable recalc = () -> {
+            try {
+                double val = Double.parseDouble(amtField.getText().trim());
+                double out = services.getMultiCurrencyFxService().convert(val, fromBox.getValue(), toBox.getValue());
+                convertedLbl.setText(String.format("%.2f %s = %.2f %s", val, fromBox.getValue(), out, toBox.getValue()));
+            } catch (Exception ex) {
+                convertedLbl.setText("Enter valid numeric amount.");
+            }
+        };
+
+        Button convertBtn = new Button("Convert");
+        convertBtn.getStyleClass().add("btn-primary");
+        convertBtn.setOnAction(e -> recalc.run());
+
+        Button refreshBtn = new Button("Sync Live Rates (Frankfurter)");
+        refreshBtn.getStyleClass().add("btn-secondary");
+
+        TableView<com.stockpro.domain.FxRateQuote> table = new TableView<>(rateRows);
+        table.setPrefHeight(220);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        TableColumn<com.stockpro.domain.FxRateQuote, String> cCol = new TableColumn<>("Currency");
+        cCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().currencyCode()));
+        TableColumn<com.stockpro.domain.FxRateQuote, String> rCol = new TableColumn<>("1 USD =");
+        rCol.setCellValueFactory(c -> new SimpleStringProperty(String.format("%.4f", c.getValue().rateFromUsd())));
+        TableColumn<com.stockpro.domain.FxRateQuote, String> sCol = new TableColumn<>("Source");
+        sCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().source()));
+        table.getColumns().addAll(List.of(cCol, rCol, sCol));
+
+        Runnable loadCached = () -> AppExecutor.runAsync(
+                () -> services.getMultiCurrencyFxService().listCachedRates(),
+                quotes -> {
+                    rateRows.setAll(quotes);
+                    List<String> codes = quotes.stream().map(com.stockpro.domain.FxRateQuote::currencyCode).toList();
+                    fromBox.setItems(FXCollections.observableArrayList(codes));
+                    toBox.setItems(FXCollections.observableArrayList(codes));
+                    if (fromBox.getValue() == null) {
+                        fromBox.setValue("USD");
+                    }
+                    if (toBox.getValue() == null) {
+                        toBox.setValue(codes.contains("PKR") ? "PKR" : codes.get(0));
+                    }
+                    recalc.run();
+                },
+                ex -> toastManager.showInfo("FX load error: " + ex.getMessage())
+        );
+
+        refreshBtn.setOnAction(e -> AppExecutor.runAsync(
+                () -> services.getMultiCurrencyFxService().refreshRatesFromNetwork(),
+                res -> {
+                    toastManager.showInfo(res.getMessage());
+                    loadCached.run();
+                },
+                ex -> toastManager.showInfo("FX sync failed: " + ex.getMessage())
+        ));
+
+        loadCached.run();
+        HBox controls = new HBox(8, amtField, fromBox, new Label("->"), toBox, convertBtn);
+        controls.setAlignment(Pos.CENTER_LEFT);
+        box.getChildren().addAll(controls, convertedLbl, refreshBtn, table);
+        showModalScene(dlg, box);
+    }
+
+    private void openLandedCostDialog() {
+        Stage dlg = createModalStage("Landed Cost Allocator (Freight, Customs & Handling)", 640, 480);
+        VBox box = new VBox(12);
+        box.getStyleClass().add("card");
+        box.setPadding(new Insets(18));
+
+        ComboBox<PurchaseOrder> poCombo = new ComboBox<>(poRows);
+        poCombo.setMaxWidth(Double.MAX_VALUE);
+        if (!poRows.isEmpty()) {
+            poCombo.getSelectionModel().selectFirst();
+        }
+        ComboBox<com.stockpro.domain.LandedCostAllocation.AllocationStrategy> stratCombo = new ComboBox<>();
+        stratCombo.getItems().addAll(com.stockpro.domain.LandedCostAllocation.AllocationStrategy.values());
+        stratCombo.setValue(com.stockpro.domain.LandedCostAllocation.AllocationStrategy.BY_VALUE);
+
+        TextField freightF = new TextField("120.00");
+        TextField customsF = new TextField("45.00");
+        TextField handlingF = new TextField("15.00");
+        javafx.scene.control.CheckBox updateCatalogBox = new javafx.scene.control.CheckBox("Update SKU catalog buy price with landed unit cost");
+
+        ObservableList<com.stockpro.domain.LandedCostAllocation.LandedCostLineBreakdown> linesModel = FXCollections.observableArrayList();
+        TableView<com.stockpro.domain.LandedCostAllocation.LandedCostLineBreakdown> lineTable = new TableView<>(linesModel);
+        lineTable.setPrefHeight(210);
+        lineTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        TableColumn<com.stockpro.domain.LandedCostAllocation.LandedCostLineBreakdown, String> sCol = new TableColumn<>("SKU");
+        sCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().sku()));
+        TableColumn<com.stockpro.domain.LandedCostAllocation.LandedCostLineBreakdown, String> bCol = new TableColumn<>("Base Unit");
+        bCol.setCellValueFactory(c -> new SimpleStringProperty(String.format("$%.2f", c.getValue().baseUnitCost())));
+        TableColumn<com.stockpro.domain.LandedCostAllocation.LandedCostLineBreakdown, String> exCol = new TableColumn<>("Overhead Share");
+        exCol.setCellValueFactory(c -> new SimpleStringProperty(String.format("+$%.2f", c.getValue().allocatedExtraTotal())));
+        TableColumn<com.stockpro.domain.LandedCostAllocation.LandedCostLineBreakdown, String> finCol = new TableColumn<>("Effective Landed");
+        finCol.setCellValueFactory(c -> new SimpleStringProperty(String.format("$%.2f", c.getValue().effectiveLandedUnitCost())));
+        lineTable.getColumns().addAll(List.of(sCol, bCol, exCol, finCol));
+
+        Button previewBtn = new Button("Preview Split");
+        previewBtn.getStyleClass().add("btn-secondary");
+        Button saveBtn = new Button("Save Landed Allocation");
+        saveBtn.getStyleClass().add("btn-primary");
+
+        previewBtn.setOnAction(e -> runLandedCostAction(poCombo.getValue(), freightF, customsF, handlingF,
+                stratCombo.getValue(), false, updateCatalogBox.isSelected(), linesModel));
+        saveBtn.setOnAction(e -> runLandedCostAction(poCombo.getValue(), freightF, customsF, handlingF,
+                stratCombo.getValue(), true, updateCatalogBox.isSelected(), linesModel));
+
+        HBox fees = new HBox(8, new Label("Freight:"), freightF, new Label("Customs:"), customsF, new Label("Handling:"), handlingF);
+        fees.setAlignment(Pos.CENTER_LEFT);
+        HBox btns = new HBox(10, previewBtn, saveBtn);
+        box.getChildren().addAll(new Label("Purchase Order & Allocation Strategy:"), poCombo, stratCombo, fees, updateCatalogBox, btns, lineTable);
+        showModalScene(dlg, box);
+    }
+
+    private void runLandedCostAction(
+            PurchaseOrder po,
+            TextField freightF,
+            TextField customsF,
+            TextField handlingF,
+            com.stockpro.domain.LandedCostAllocation.AllocationStrategy strategy,
+            boolean persist,
+            boolean updateCatalog,
+            ObservableList<com.stockpro.domain.LandedCostAllocation.LandedCostLineBreakdown> targetModel) {
+        if (po == null) {
+            toastManager.showInfo("Create or select a Purchase Order first.");
+            return;
+        }
+        try {
+            double fr = Double.parseDouble(freightF.getText().trim());
+            double du = Double.parseDouble(customsF.getText().trim());
+            double ha = Double.parseDouble(handlingF.getText().trim());
+            String actor = AppSession.getInstance().getActorName();
+            AppExecutor.runAsync(
+                    () -> persist
+                            ? services.getLandedCostEngine().allocateAndPersist(po.getId(), fr, du, ha, strategy, updateCatalog, actor)
+                            : services.getLandedCostEngine().calculatePreview(po.getId(), fr, du, ha, strategy),
+                    res -> {
+                        toastManager.showInfo(res.getMessage());
+                        if (res.isSuccess() && res.getData() != null) {
+                            targetModel.setAll(res.getData().lines());
+                            if (persist && updateCatalog) {
+                                refreshAsync();
+                            }
+                        }
+                    },
+                    ex -> toastManager.showInfo("Landed cost failed: " + ex.getMessage())
+            );
+        } catch (NumberFormatException ex) {
+            toastManager.showInfo("Enter numeric freight, customs, and handling amounts.");
+        }
+    }
+
+    private void openVolumeTiersDialog() {
+        Stage dlg = createModalStage("Vendor Bulk Pricing Tiers & MOQ Advisor", 580, 470);
+        VBox box = new VBox(12);
+        box.getStyleClass().add("card");
+        box.setPadding(new Insets(18));
+
+        ComboBox<Supplier> supPick = new ComboBox<>(supplierRows);
+        ComboBox<Product> prodPick = new ComboBox<>(FXCollections.observableArrayList(services.getInventoryService().getAllProducts()));
+        if (!supplierRows.isEmpty()) {
+            supPick.getSelectionModel().selectFirst();
+        }
+        if (!prodPick.getItems().isEmpty()) {
+            prodPick.getSelectionModel().selectFirst();
+        }
+
+        TextField minQtyF = new TextField("50");
+        TextField moqF = new TextField("10");
+        TextField unitPriceF = new TextField("4.20");
+        TextField testReqF = new TextField("35");
+        Label adviceLbl = new Label("Add a bulk price tier or evaluate a candidate order quantity.");
+        adviceLbl.setWrapText(true);
+        adviceLbl.getStyleClass().add("section-title");
+
+        ObservableList<com.stockpro.domain.VendorPriceTier> tierRows = FXCollections.observableArrayList();
+        TableView<com.stockpro.domain.VendorPriceTier> table = new TableView<>(tierRows);
+        table.setPrefHeight(175);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        TableColumn<com.stockpro.domain.VendorPriceTier, String> mCol = new TableColumn<>("Min Qty");
+        mCol.setCellValueFactory(c -> new SimpleStringProperty(String.valueOf(c.getValue().minQty())));
+        TableColumn<com.stockpro.domain.VendorPriceTier, String> qCol = new TableColumn<>("MOQ");
+        qCol.setCellValueFactory(c -> new SimpleStringProperty(String.valueOf(c.getValue().moq())));
+        TableColumn<com.stockpro.domain.VendorPriceTier, String> pCol = new TableColumn<>("Tier Unit Cost");
+        pCol.setCellValueFactory(c -> new SimpleStringProperty(String.format("$%.2f", c.getValue().unitPrice())));
+        table.getColumns().addAll(List.of(mCol, qCol, pCol));
+
+        Runnable reloadTiers = () -> {
+            Supplier s = supPick.getValue();
+            Product p = prodPick.getValue();
+            if (s != null && p != null) {
+                AppExecutor.runAsync(
+                        () -> services.getVolumePricingTierService().listTiersFor(s.getId(), p.getId()),
+                        tierRows::setAll,
+                        ex -> {}
+                );
+            }
+        };
+        supPick.setOnAction(e -> reloadTiers.run());
+        prodPick.setOnAction(e -> reloadTiers.run());
+        reloadTiers.run();
+
+        Button addTierBtn = new Button("Save Tier");
+        addTierBtn.getStyleClass().add("btn-primary");
+        addTierBtn.setOnAction(e -> {
+            Supplier s = supPick.getValue();
+            Product p = prodPick.getValue();
+            if (s == null || p == null) {
+                return;
+            }
+            try {
+                int minQ = Integer.parseInt(minQtyF.getText().trim());
+                int moq = Integer.parseInt(moqF.getText().trim());
+                double up = Double.parseDouble(unitPriceF.getText().trim());
+                AppExecutor.runAsync(
+                        () -> services.getVolumePricingTierService().upsertTier(s.getId(), p.getId(), minQ, moq, up),
+                        res -> {
+                            toastManager.showInfo(res.getMessage());
+                            reloadTiers.run();
+                        },
+                        ex -> toastManager.showInfo("Failed to save tier: " + ex.getMessage())
+                );
+            } catch (NumberFormatException ex) {
+                toastManager.showInfo("Enter numeric Min Qty, MOQ, and Price.");
+            }
+        });
+
+        Button checkQtyBtn = new Button("Run MOQ / Step-Up Advisor");
+        checkQtyBtn.getStyleClass().add("btn-secondary");
+        checkQtyBtn.setOnAction(e -> {
+            Supplier s = supPick.getValue();
+            Product p = prodPick.getValue();
+            if (s == null || p == null) {
+                return;
+            }
+            try {
+                int reqQ = Integer.parseInt(testReqF.getText().trim());
+                AppExecutor.runAsync(
+                        () -> services.getVolumePricingTierService().evaluateOrderQuantity(s.getId(), p.getId(), reqQ, p.getBuyPrice()),
+                        adv -> adviceLbl.setText(adv.advisorMessage()),
+                        ex -> adviceLbl.setText("Error: " + ex.getMessage())
+                );
+            } catch (NumberFormatException ex) {
+                adviceLbl.setText("Enter valid integer quantity.");
+            }
+        });
+
+        HBox addRow = new HBox(8, new Label("Min:"), minQtyF, new Label("MOQ:"), moqF, new Label("Price:"), unitPriceF, addTierBtn);
+        HBox advRow = new HBox(8, new Label("Order Qty:"), testReqF, checkQtyBtn);
+        box.getChildren().addAll(supPick, prodPick, addRow, table, advRow, adviceLbl);
+        showModalScene(dlg, box);
+    }
+
+    private void openCashFlowDialog() {
+        Stage dlg = createModalStage("30 / 60 / 90-Day Cash-Flow Forecast", 600, 360);
+        VBox box = new VBox(12);
+        box.getStyleClass().add("card");
+        box.setPadding(new Insets(18));
+
+        ObservableList<com.stockpro.domain.CashFlowHorizon> rows = FXCollections.observableArrayList();
+        TableView<com.stockpro.domain.CashFlowHorizon> table = new TableView<>(rows);
+        table.setPrefHeight(220);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+
+        TableColumn<com.stockpro.domain.CashFlowHorizon, String> hCol = new TableColumn<>("Horizon");
+        hCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().horizonDays() + " Days"));
+        TableColumn<com.stockpro.domain.CashFlowHorizon, String> inCol = new TableColumn<>("Est. Inflow");
+        inCol.setCellValueFactory(c -> new SimpleStringProperty(AppSession.getInstance().formatMoney(c.getValue().projectedSalesInflow())));
+        TableColumn<com.stockpro.domain.CashFlowHorizon, String> outCol = new TableColumn<>("PO + Restock Out");
+        outCol.setCellValueFactory(c -> new SimpleStringProperty(AppSession.getInstance().formatMoney(
+                c.getValue().committedPoOutflow() + c.getValue().projectedRestockOutflow())));
+        TableColumn<com.stockpro.domain.CashFlowHorizon, String> netCol = new TableColumn<>("Net Cash");
+        netCol.setCellValueFactory(c -> new SimpleStringProperty(AppSession.getInstance().formatMoney(c.getValue().netCashFlow())));
+        TableColumn<com.stockpro.domain.CashFlowHorizon, String> verCol = new TableColumn<>("Outlook");
+        verCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().summary()));
+        table.getColumns().addAll(List.of(hCol, inCol, outCol, netCol, verCol));
+
+        AppExecutor.runAsync(
+                () -> services.getCashFlowForecastService().forecastHorizons(),
+                rows::setAll,
+                ex -> toastManager.showInfo("Forecast failed: " + ex.getMessage())
+        );
+
+        box.getChildren().addAll(new Label("Projected Store Liquidity Horizon (Open POs, Restock Needs & Sales Velocity)"), table);
+        showModalScene(dlg, box);
+    }
+
+    private Stage createModalStage(String title, int w, int h) {
+        Stage dlg = new Stage();
+        dlg.initModality(Modality.APPLICATION_MODAL);
+        if (rootNode != null && rootNode.getScene() != null) {
+            dlg.initOwner(rootNode.getScene().getWindow());
+        }
+        dlg.setTitle(title);
+        dlg.setWidth(w);
+        dlg.setHeight(h);
+        return dlg;
+    }
+
+    private void showModalScene(Stage dlg, VBox content) {
+        Scene sc = new Scene(content);
+        var css = getClass().getResource(AppSession.getInstance().isDarkMode() ? "/css/dark-theme.css" : "/css/light-theme.css");
+        if (css != null) {
+            sc.getStylesheets().add(css.toExternalForm());
+        }
+        dlg.setScene(sc);
+        dlg.showAndWait();
     }
 }

@@ -56,6 +56,10 @@ public class ServiceContext {
     private final CatalogVariantBomService catalogVariantBomService;
     private final MultiBranchTransferRmaService multiBranchTransferRmaService;
     private final WarehouseMapPickingService warehouseMapPickingService;
+    private final MultiCurrencyFxService multiCurrencyFxService;
+    private final LandedCostEngine landedCostEngine;
+    private final VolumePricingTierService volumePricingTierService;
+    private final CashFlowForecastService cashFlowForecastService;
 
     /**
      * Constructs a service registry bound to a specific {@link DatabaseManager}.
@@ -149,6 +153,11 @@ public class ServiceContext {
         this.stockOperationService.setBranchService(this.multiBranchTransferRmaService);
         this.warehouseMapPickingService = new WarehouseMapPickingService(
                 databaseManager, productRepository, auditService, InventoryEventBus.getInstance());
+        this.multiCurrencyFxService = new MultiCurrencyFxService(databaseManager);
+        this.landedCostEngine = new LandedCostEngine(
+                databaseManager, purchaseOrderRepository, productRepository, auditService, InventoryEventBus.getInstance());
+        this.volumePricingTierService = new VolumePricingTierService(databaseManager);
+        this.cashFlowForecastService = new CashFlowForecastService(databaseManager, productRepository, purchaseOrderRepository);
         syncSessionSettings();
     }
 
@@ -460,5 +469,41 @@ public class ServiceContext {
      */
     public WarehouseMapPickingService getWarehouseMapPickingService() {
         return warehouseMapPickingService;
+    }
+
+    /**
+     * Returns the multi-currency FX conversion &amp; cache service.
+     *
+     * @return {@link MultiCurrencyFxService}
+     */
+    public MultiCurrencyFxService getMultiCurrencyFxService() {
+        return multiCurrencyFxService;
+    }
+
+    /**
+     * Returns the PO freight/duty/handling landed-cost allocation engine.
+     *
+     * @return {@link LandedCostEngine}
+     */
+    public LandedCostEngine getLandedCostEngine() {
+        return landedCostEngine;
+    }
+
+    /**
+     * Returns the supplier bulk volume price tiers &amp; MOQ advisor service.
+     *
+     * @return {@link VolumePricingTierService}
+     */
+    public VolumePricingTierService getVolumePricingTierService() {
+        return volumePricingTierService;
+    }
+
+    /**
+     * Returns the 30/60/90-day store cash-flow forecast engine.
+     *
+     * @return {@link CashFlowForecastService}
+     */
+    public CashFlowForecastService getCashFlowForecastService() {
+        return cashFlowForecastService;
     }
 }
