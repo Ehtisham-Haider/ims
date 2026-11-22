@@ -79,13 +79,14 @@ public class LoginView {
         brandContent.setPadding(new Insets(40));
 
         Label brandTitle = new Label("StockPro");
-        brandTitle.setStyle("-fx-text-fill: #FFFFFF; -fx-font-size: 38px; -fx-font-weight: bold;");
+        brandTitle.getStyleClass().add("login-brand-title");
 
         Label brandSub = new Label("Inventory Management System");
-        brandSub.setStyle("-fx-text-fill: #E0E7FF; -fx-font-size: 16px; -fx-font-weight: 600;");
+        brandSub.getStyleClass().add("login-brand-sub");
 
         Label tagline = new Label("Smarter Stock. Stronger Business.");
-        tagline.setStyle("-fx-text-fill: #C7D2FE; -fx-font-size: 14px; -fx-padding: 6 0 12 0;");
+        tagline.getStyleClass().add("login-tagline");
+        VBox.setMargin(tagline, new Insets(0, 0, 10, 0));
 
         HBox pills = new HBox(10,
                 makeGlassBadge(Feather.DATABASE, "Offline SQLite"),
@@ -194,7 +195,7 @@ public class LoginView {
         demoBtn.setPrefHeight(40);
 
         Hyperlink forgotLink = new Hyperlink("Forgot Password?");
-        forgotLink.setStyle("-fx-text-fill: #6366F1;");
+        forgotLink.getStyleClass().add("login-link");
 
         HBox linkRow = new HBox(forgotLink);
         linkRow.setAlignment(Pos.CENTER);
@@ -259,11 +260,9 @@ public class LoginView {
 
     private HBox makeGlassBadge(Feather feather, String labelText) {
         Label lbl = new Label(labelText);
-        lbl.setStyle("-fx-text-fill: #E0E7FF; -fx-font-size: 11.5px; -fx-font-weight: 600;");
-        HBox pill = new HBox(6, AppIcons.of(feather, 13, "#E0E7FF"), lbl);
+        HBox pill = new HBox(6, AppIcons.of(feather, 13), lbl);
         pill.setAlignment(Pos.CENTER);
-        pill.setPadding(new Insets(6, 11, 6, 11));
-        pill.setStyle("-fx-background-color: rgba(255,255,255,0.14); -fx-background-radius: 999;");
+        pill.getStyleClass().add("login-feature-pill");
         return pill;
     }
 }

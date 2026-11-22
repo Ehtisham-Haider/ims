@@ -518,7 +518,7 @@ public class AiAssistantView {
         botAvatar.setMinSize(32, 32);
         botAvatar.setPrefSize(32, 32);
         botAvatar.setMaxSize(32, 32);
-        botAvatar.setStyle("-fx-background-color: #EEF2FF; -fx-background-radius: 999;");
+        botAvatar.getStyleClass().add("bot-avatar");
         return botAvatar;
     }
 
@@ -534,7 +534,7 @@ public class AiAssistantView {
         if ("PIE".equalsIgnoreCase(spec.chartType())) {
             StockDonutChart donut = new StockDonutChart();
             double total = spec.points().stream().mapToDouble(p -> Math.max(0.0, p.value())).sum();
-            String[] palette = { "#4F46E5", "#10B981", "#F59E0B", "#0EA5E9", "#8B5CF6" };
+            String[] palette = { "ink", "accent", "hatch", "neutral", "muted" };
             StockDonutChart.Slice[] slices = new StockDonutChart.Slice[Math.min(5, spec.points().size())];
             for (int i = 0; i < slices.length; i++) {
                 ChartSpec.ChartPoint pt = spec.points().get(i);
@@ -552,7 +552,7 @@ public class AiAssistantView {
             trend.setCurrencyFormat(false);
             List<String> x = spec.points().stream().map(ChartSpec.ChartPoint::label).toList();
             List<Double> y = spec.points().stream().map(ChartSpec.ChartPoint::value).toList();
-            trend.setSeries(x, List.of(new ModernTrendChart.SeriesData(spec.title(), "#4F46E5", y)));
+            trend.setSeries(x, List.of(new ModernTrendChart.SeriesData(spec.title(), "ink", y)));
             themeRefreshers.add(trend::redraw);
             return trend;
         }

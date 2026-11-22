@@ -166,7 +166,7 @@ public class ApprovalInboxView {
         StackPane botIcon = new StackPane(AppIcons.of(Feather.CPU, 24, "#4F46E5"));
         botIcon.setMinSize(52, 52);
         botIcon.setPrefSize(52, 52);
-        botIcon.setStyle("-fx-background-color: #EEF2FF; -fx-background-radius: 999;");
+        botIcon.getStyleClass().add("bot-avatar");
 
         VBox content = new VBox(6);
         HBox.setHgrow(content, Priority.ALWAYS);

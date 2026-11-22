@@ -6,6 +6,7 @@ import com.stockpro.domain.ValidationResult;
 import com.stockpro.service.ProductImageService;
 import com.stockpro.service.ProductValidator;
 import com.stockpro.ui.components.AppIcons;
+import com.stockpro.ui.components.ThemeManager;
 import com.stockpro.util.AppExecutor;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -341,10 +342,7 @@ public class ProductFormDialog {
         root.getChildren().addAll(title, bodyScroll, footer);
 
         Scene scene = new Scene(root, 770, 565);
-        var cssUrl = getClass().getResource(darkMode ? "/css/dark-theme.css" : "/css/light-theme.css");
-        if (cssUrl != null) {
-            scene.getStylesheets().add(cssUrl.toExternalForm());
-        }
+        ThemeManager.apply(scene);
         dialog.setScene(scene);
         dialog.showAndWait();
         return Optional.ofNullable(result);

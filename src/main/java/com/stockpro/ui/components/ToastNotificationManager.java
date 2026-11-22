@@ -3,7 +3,12 @@ package com.stockpro.ui.components;
 import com.stockpro.domain.Product;
 import com.stockpro.domain.StockStatus;
 import javafx.animation.FadeTransition;
+import javafx.animation.Interpolator;
+import javafx.animation.ParallelTransition;
 import javafx.animation.PauseTransition;
+import javafx.animation.ScaleTransition;
+import javafx.animation.TranslateTransition;
+import javafx.scene.Node;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -23,7 +28,7 @@ import java.util.function.Consumer;
 /**
  * Manages bottom-right floating Undo toast banners and urgent low/out-of-stock alert popups.
  *
- * @author Syed Ehtisham Haider Bukhari, Faheen Ahmad Khan
+ * @author Syed Ehtisham Haider Bukhari, Faheem Ahmad Khan
  */
 public class ToastNotificationManager {
     private final StackPane overlayHost;
@@ -68,14 +73,14 @@ public class ToastNotificationManager {
 
         Label msgLabel = new Label(message);
         msgLabel.setWrapText(true);
-        msgLabel.setStyle("-fx-text-fill: #FFFFFF; -fx-font-weight: 600;");
+        msgLabel.getStyleClass().add("toast-message");
+        msgLabel.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(msgLabel, Priority.ALWAYS);
         banner.getChildren().add(msgLabel);
 
         if (actionLabel != null && !actionLabel.isBlank() && onAction != null) {
             Button actionBtn = new Button(actionLabel);
-            actionBtn.getStyleClass().add("btn-primary");
-            actionBtn.setStyle("-fx-padding: 5 12 5 12; -fx-background-radius: 7;");
+            actionBtn.getStyleClass().add("toast-action");
             actionBtn.setOnAction(e -> {
                 toastStack.getChildren().remove(banner);
                 onAction.run();
@@ -85,7 +90,7 @@ public class ToastNotificationManager {
 
         Button closeBtn = new Button();
         closeBtn.setGraphic(AppIcons.of(Feather.X, 14, "#94A3B8"));
-        closeBtn.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-padding: 2 4 2 4;");
+        closeBtn.getStyleClass().add("toast-close");
         closeBtn.setOnAction(e -> toastStack.getChildren().remove(banner));
         banner.getChildren().add(closeBtn);
 
@@ -94,7 +99,11 @@ public class ToastNotificationManager {
         FadeTransition fadeIn = new FadeTransition(Duration.millis(160), banner);
         fadeIn.setFromValue(0);
         fadeIn.setToValue(1);
-        fadeIn.play();
+        banner.setTranslateY(10);
+        TranslateTransition rise = new TranslateTransition(Duration.millis(220), banner);
+        rise.setToY(0);
+        rise.setInterpolator(Interpolator.EASE_OUT);
+        new ParallelTransition(fadeIn, rise).play();
 
         PauseTransition delay = new PauseTransition(Duration.seconds(5));
         delay.setOnFinished(e -> toastStack.getChildren().remove(banner));
@@ -112,7 +121,7 @@ public class ToastNotificationManager {
             return;
         }
         StackPane backdrop = new StackPane();
-        backdrop.setStyle("-fx-background-color: rgba(15, 23, 42, 0.52);");
+        backdrop.getStyleClass().add("modal-backdrop");
         backdrop.setAlignment(Pos.CENTER);
 
         VBox card = new VBox(16);
@@ -126,13 +135,10 @@ public class ToastNotificationManager {
         boolean isOut = product.getQuantity() <= 0 || product.getStatus() == StockStatus.OUT_OF_STOCK;
         StackPane badge = new StackPane(AppIcons.of(
                 Feather.ALERT_TRIANGLE, 18, isOut ? "#DC2626" : "#D97706"));
-        badge.setMinSize(36, 36);
-        badge.setStyle("-fx-background-color: " + (isOut ? "#FEE2E2" : "#FEF3C7") + "; -fx-background-radius: 10;");
+        badge.getStyleClass().addAll("row-icon", isOut ? "row-icon-danger" : "row-icon-warning");
 
         Label title = new Label(isOut ? "Out of Stock Alert" : "Low Stock Alert");
-        title.getStyleClass().add("section-title");
-        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-border-color: "
-                + (isOut ? "#EF4444" : "#F59E0B") + "; -fx-border-width: 0 0 3 0; -fx-padding: 0 0 3 0;");
+        title.getStyleClass().add("modal-title");
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -178,6 +184,27 @@ public class ToastNotificationManager {
         });
 
         overlayHost.getChildren().add(backdrop);
+
+        animateIn(backdrop, card);
+    }
+
+    /**
+     * Plays the shared modal entrance: the backdrop fades in while the card scales up slightly.
+     *
+     * @param backdrop dimmed overlay
+     * @param card modal card
+     */
+    static void animateIn(Node backdrop, Node card) {
+        backdrop.setOpacity(0);
+        FadeTransition fade = new FadeTransition(Duration.millis(180), backdrop);
+        fade.setToValue(1);
+        card.setScaleX(0.97);
+        card.setScaleY(0.97);
+        ScaleTransition scale = new ScaleTransition(Duration.millis(220), card);
+        scale.setToX(1);
+        scale.setToY(1);
+        scale.setInterpolator(Interpolator.SPLINE(0.2, 0.8, 0.2, 1.0));
+        new ParallelTransition(fade, scale).play();
     }
 
     /**
@@ -198,7 +225,7 @@ public class ToastNotificationManager {
         }
 
         StackPane backdrop = new StackPane();
-        backdrop.setStyle("-fx-background-color: rgba(15, 23, 42, 0.52);");
+        backdrop.getStyleClass().add("modal-backdrop");
         backdrop.setAlignment(Pos.CENTER);
 
         VBox card = new VBox(14);
@@ -210,12 +237,10 @@ public class ToastNotificationManager {
         HBox header = new HBox(10);
         header.setAlignment(Pos.CENTER_LEFT);
         StackPane badge = new StackPane(AppIcons.of(Feather.BELL, 17, "#D97706"));
-        badge.setMinSize(34, 34);
-        badge.setStyle("-fx-background-color: #FEF3C7; -fx-background-radius: 10;");
+        badge.getStyleClass().addAll("row-icon", "row-icon-warning");
 
         Label title = new Label("Urgent Stock Alerts (" + alerts.size() + ")");
-        title.getStyleClass().add("section-title");
-        title.setStyle("-fx-font-size: 17px; -fx-font-weight: bold;");
+        title.getStyleClass().add("modal-title");
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -277,5 +302,6 @@ public class ToastNotificationManager {
             }
         });
         overlayHost.getChildren().add(backdrop);
+        animateIn(backdrop, card);
     }
 }
